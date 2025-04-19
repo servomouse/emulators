@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPU Emulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            transition: background-color 0.3s ease;
+        }
+        #header {
+            display: flex;
+            width: calc(80% - 20px);
+            margin: 40px auto;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-bottom: 1px solid #ccc;
+        }
+        #cpu-name {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        #mode-switch {
+            margin: 0;
+            cursor: pointer;
+            width: auto;
+            font-size: 18px;
+            font-weight: bold;
+            /* height: 30px;
+            line-height: 30px; */
+        }
+        #main-div {
+            display: flex;
+            width: 80%;
+            margin: 40px auto;
+        }
+        #memory-content {
+            width: 70%;
+            /* height: 500px; */
+            overflow-y: scroll;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        #right-sidebar {
+            width: 30%;
+            margin-left: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        #registers-content {
+            height: 300px;
+            overflow-y: scroll;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        #buttons-div {
+            margin-top: 20px;
+        }
+        button {
+            width: 100%;
+            height: 30px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: #fff;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #3e8e41;
+        }
+        .dark-mode {
+            background-color: #333;
+            color: #fff;
+        }
+        .dark-mode #header {
+            background-color: #444;
+            border-bottom: 1px solid #555;
+        }
+        .dark-mode #memory-content {
+            background-color: #444;
+            border: 1px solid #555;
+        }
+        .dark-mode #right-sidebar {
+            background-color: #444;
+            border: 1px solid #555;
+        }
+        .dark-mode #registers-content {
+            background-color: #444;
+            border: 1px solid #555;
+        }
+        .dark-mode button {
+            background-color: #555;
+            color: #fff;
+        }
+        .dark-mode button:hover {
+            background-color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <span id="cpu-name">My CPU Emulator</span>
+        <!-- <span id="mode-switch">Light Mode <input type="checkbox" id="mode-checkbox"></span> -->
+        <button id="mode-switch">Dark mode</button>
+    </div>
+    <div id="main-div">
+        <textarea id="memory-content" readonly></textarea>
+        <div id="right-sidebar">
+            <textarea id="registers-content" readonly></textarea>
+            <div id="buttons-div">
+                <button id="run-stop-btn">Run</button>
+                <button id="step-btn">Step</button>
+                <button id="reset-btn">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let memoryContent = document.getElementById('memory-content');
+        let registersContent = document.getElementById('registers-content');
+        let runStopBtn = document.getElementById('run-stop-btn');
+        let stepBtn = document.getElementById('step-btn');
+        let resetBtn = document.getElementById('reset-btn');
+        let modeSwitch = document.getElementById('mode-switch');
+        let body = document.body;
+
+        // Example data
+        let memory = [
+            '0000: 00 00 00 00',
+            '0004: 01 02 03 04',
+            '0008: 05 06 07 08',
+            '000C: 09 0A 0B 0C',
+        ];
+        let registers = [
+            'R0: 0000',
+            'R1: 0001',
+            'R2: 0002',
+            'R3: 0003',
+        ];
+
+        // Initialize memory and registers content
+        memoryContent.value = memory.join('\n');
+        registersContent.value = registers.join('\n');
+
+        // Button event listeners
+        runStopBtn.addEventListener('click', () => {
+            // TO DO: implement run/stop logic
+            console.log('Run/Stop button clicked');
+        });
+        stepBtn.addEventListener('click', () => {
+            // TO DO: implement step logic
+            console.log('Step button clicked');
+        });
+        resetBtn.addEventListener('click', () => {
+            // TO DO: implement reset logic
+            console.log('Reset button clicked');
+        });
+        modeSwitch.addEventListener('click', () => {
+            body.classList.toggle('dark-mode');
+            if (body.classList.contains('dark-mode')) {
+                modeSwitch.textContent = 'Light mode';
+            } else {
+                modeSwitch.textContent = 'Dark mode';
+            }
+        });
+    </script>
+</body>
+</html>
