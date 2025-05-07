@@ -1,31 +1,46 @@
 import threading
 import time
+from queue import Queue
 
-def emulator_thread(user_event):
-    for _ in range(5):
-        user_event.wait()   # user_event.wait(timeout = 10)
-        print("Hello from the thread!", flush=True)
-        time.sleep(1)
 
+def print_to_file(string):
+    with open("log.txt", 'a') as f:
+        f.write(string + "\n")
+
+
+def emulator_thread(command_queue):
+    inner_state = 'running'
+    while True:
+        if not command_queue.empty():
+            cmd = command_queue.get()
+            print_to_file(f"User cmd from thread: {cmd}")
+            if cmd == 'run':
+                inner_state = 'running'
+            elif cmd == 'print value':
+                print_to_file("Here is the value!")
+            elif cmd == 'stop':
+                inner_state = 'stopped'
+                print_to_file("The thread is stopped")
+            elif cmd == 'quit':
+                return
+            command_queue.task_done()
+        elif inner_state == 'running':
+            print_to_file("Hello from the thread!")
+            time.sleep(1)
 
 if __name__ == "__main__":
     print("Starting the thread")
-    user_event = threading.Event()
-    # user_event.set()
-    # user_event.clear()
-    t1 = threading.Thread(target = emulator_thread, args=(user_event,))
+
+    command_queue = Queue()
+
+    t1 = threading.Thread(target=emulator_thread, args=(command_queue,))
+    t1.setDaemon(True)
     t1.start()
+
     while True:
-        user_command = input("Enter a command:")
-        if user_command == 'run':
-            if not user_event.is_set():
-                user_event.set()
-        elif user_command == 'stop':
-            if user_event.is_set():
-                user_event.clear()
-        elif user_command == 'quit':
-            if not user_event.is_set():
-                user_event.set()
+        user_command = input("Enter a command: ")
+        print(f"User command: \"{user_command}\"")
+        command_queue.put(user_command)
+        if user_command == 'quit':
             break
-    t1.join()
-    print("Thread has finished")
+        print(f"Waiting for user command...")
