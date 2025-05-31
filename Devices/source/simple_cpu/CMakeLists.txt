@@ -18,6 +18,7 @@ set_target_properties(simple_cpu_dll
 target_include_directories(simple_cpu_dll
     PUBLIC
         ${PROJECT_SOURCE_DIR}/source/simple_cpu_dll
+        ${PROJECT_SOURCE_DIR}/lib/python
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

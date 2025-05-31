@@ -4,6 +4,8 @@
 #include <time.h>
 #include <math.h>
 #include <stdarg.h>
+#include <string.h>
+#include "Python.h" // Needed to generate python exceptions
 // #include "utils.h"
 
 #ifdef __unix__
@@ -12,8 +14,15 @@
     #define DLL_PREFIX __declspec(dllexport)
 #endif
 
+#define PROGRAM_OFFSET  0x8000
+#define DATA_OFFSET     0x0000
+
 #define BUFFER_SIZE 256
 #define LOG_FILE "cpu.log"
+#define DEVICE_DATA_FILE    "data/cga.bin"
+
+// #define RAISE(msg, ...) PyErr_Format(PyExc_RuntimeError, msg " (line %d in file %s)\n", ##__VA_ARGS__, __LINE__, __FILE__)
+#define RAISE(msg, ...) printf(msg " (line %d in file %s)\n", ##__VA_ARGS__, __LINE__, __FILE__); exit(EXIT_FAILURE)
 
 typedef void   (log_func_t)      (const char*, char*);
 typedef uint8_t(mem_read_func_t) (uint32_t);            // param: address, ret_val: read value
@@ -27,11 +36,17 @@ typedef struct {
     mem_write_func_t *io_write;
 } cpu_iface_t;
 
+typedef struct {
+    uint32_t IP;
+    uint32_t DP;
+} device_regs_t;
+
+device_regs_t regs;
+
 cpu_iface_t cpu_iface;
 
 DLL_PREFIX
 void set_log_func(log_func_t *foo) {
-    printf("Setting log function pointer\n");
     cpu_iface.log = foo;
 }
 
@@ -65,34 +80,94 @@ void mylog(const char *log_file, const char *format, ...) {
     va_end(args);
 }
 
+uint32_t find_close_bracket(void) {
+    uint32_t offset = 1;
+    uint32_t counter = 1;
+    while(counter > 0) {
+        uint8_t cmd = cpu_iface.mem_read(PROGRAM_OFFSET+regs.IP+offset);
+        if(cmd == ']') counter --;
+        else if(cmd == '[') counter ++;
+        else if((cmd == '>') || (cmd == '<') || (cmd == '+') || (cmd == '-') || (cmd == '.') || (cmd == ','));
+        else {
+            RAISE("Error: unknown opcode at 0x%X: %c(0x%02X)\n", regs.IP+offset, cmd, cmd);
+        }
+        offset ++;
+    }
+    return offset;
+}
+
+int32_t find_open_bracket(void) {
+    int32_t offset = -1;
+    uint32_t counter = 1;
+    while((counter > 0) && (regs.IP > 0)) {
+        uint8_t cmd = cpu_iface.mem_read(PROGRAM_OFFSET+regs.IP+offset);
+        if(cmd == '[') counter --;
+        else if(cmd == ']') counter ++;
+        else if((cmd == '>') || (cmd == '<') || (cmd == '+') || (cmd == '-') || (cmd == '.') || (cmd == ','));
+        else {
+            // printf("Error: unknown opcode at 0x%X: %c(0x%02X)\n", regs.IP+offset, cmd, cmd);
+            RAISE("Error: unknown opcode at 0x%X: %c(0x%02X)\n", regs.IP+offset, cmd, cmd);
+        }
+        offset --;
+    }
+    return offset;
+}
+
+void write_memory(uint32_t addr, uint8_t data) {
+    printf("Memory write: addr = %d, data = %d\n", addr, data);
+    fflush(stdout);
+    cpu_iface.mem_write(DATA_OFFSET, data);
+    printf("Memory write completed\n");
+    fflush(stdout);
+}
+
+void process_command(void) {
+    uint8_t cmd = cpu_iface.mem_read(PROGRAM_OFFSET+regs.IP);
+    uint8_t data = cpu_iface.mem_read(DATA_OFFSET+regs.DP);
+    // write_memory(DATA_OFFSET+10, data+1);
+    // return;
+    uint32_t ip_inc = 1;
+    switch(cmd) {
+        case '>':   // Increment DP
+            regs.DP ++;
+            break;
+        case '<':   // Decrement DP
+            regs.DP --;
+            break;
+        case '+':   // Increment memory[DP]
+            cpu_iface.mem_write(DATA_OFFSET+regs.DP, data+1);
+            break;
+        case '-':   // Decrement memory[DP]
+            cpu_iface.mem_write(DATA_OFFSET+regs.DP, data-1);
+            break;
+        case '.':   // Print memory[DP]
+            cpu_iface.io_write(0, data);
+            break;
+        case ',':   // Read byte into memory[DP]
+            cpu_iface.mem_write(DATA_OFFSET+regs.DP, cpu_iface.io_read(0));
+            break;
+        case '[':   // If memory[DP] == 0 => jump to the matching ']', otherwise increment IP
+            if(data == 0) {
+                ip_inc = find_close_bracket();
+            }
+            break;
+        case ']':   // If memory[DP] != 0 => jump to the matching '[', otherwise increment IP
+            if(data == 0) {
+                ip_inc = find_open_bracket();
+            }
+            break;
+        default:
+            RAISE("Error: unknown opcode at 0x%X: %c(0x%02X)\n", regs.IP, cmd, cmd);
+    }
+    regs.IP += ip_inc;
+}
+
 DLL_PREFIX
 int module_tick(uint32_t ticks) {
-    printf("Test %d\n", ticks);
-    static uint32_t counter = 0;
-    static uint32_t mem_val = 0;
-    static uint32_t io_val = 0;
-    switch(counter) {
-        case 0:
-            mem_val = cpu_iface.mem_read(0x10);
-            mylog(LOG_FILE, "Reading memory addr 0x10: %d", mem_val);
-            break;
-        case 1:
-            cpu_iface.mem_write(0x20, mem_val);
-            mylog(LOG_FILE, "Writing %d to memory address 0x20", mem_val);
-            break;
-        case 3:
-            io_val = cpu_iface.io_read(0x30);
-            mylog(LOG_FILE, "Reading io addr 0x30: %d", io_val);
-            break;
-        case 4:
-            cpu_iface.io_write(0x40, io_val);
-            mylog(LOG_FILE, "Writing %d to io address 0x40", io_val);
-            break;
-    }
-    counter ++;
-    if(counter == 5) {
-        counter = 0;
-    }
+    process_command();
+    fflush(stdout);
+    // uint8_t data = cpu_iface.mem_read(DATA_OFFSET+regs.DP);
+    // cpu_iface.mem_write(DATA_OFFSET+10, data+1);
     return 0;
 }
 
@@ -105,7 +180,25 @@ void init(void) {
     cpu_iface.io_write = NULL;
 }
 
+DLL_PREFIX
+void module_reset(void) {
+    memset(&regs, 0, sizeof(device_regs_t));
+}
+
 int main(void) {
     printf("Simple CPU main");
     return EXIT_SUCCESS;
 }
+
+// DLL_PREFIX
+// void module_save(void) {
+//     store_data(&regs, sizeof(device_regs_t), DEVICE_DATA_FILE);
+// }
+
+// DLL_PREFIX
+// void module_restore(void) {
+//     device_regs_t data;
+//     if(EXIT_SUCCESS == restore_data(&data, sizeof(device_regs_t), DEVICE_DATA_FILE)) {
+//         memcpy(&regs, &data, sizeof(device_regs_t));
+//     }
+// }
