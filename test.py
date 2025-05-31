@@ -86,7 +86,11 @@ mem_read_func_t = ctypes.CFUNCTYPE(get_type("uint8_t"), get_type("uint32_t"))
 mem_write_func_t = ctypes.CFUNCTYPE(None, get_type("uint32_t"), get_type("uint8_t"))
 
 
-class Cpu:
+class CDevice:
+    def __init__(self, filename):
+        self.filename = filename
+        self.device = ctypes.CDLL(filename)
+
     def set_func_pointer(self, setter_name, func_type, func):
         callback = func_type(func)
         setattr(self, f"{setter_name}_type", callback)
@@ -95,10 +99,11 @@ class Cpu:
         setattr(setter, "restype", None)
         setter(callback)
 
+
+class Cpu(CDevice):
+
     def __init__(self, filename):
-        self.id = 0
-        self.filename = filename
-        self.device = ctypes.CDLL(filename)
+        super().__init__(filename)
         # Log output function
         # self.device.set_log_func.argtypes = [print_callback_t]
         # self.device.set_log_func.restype = None
