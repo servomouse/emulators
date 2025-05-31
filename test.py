@@ -81,35 +81,45 @@ def print_logs(filename, logstring):
 
 
 print_callback_t = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_char_p)
+# print_callback = print_callback_t(print_logs)
 mem_read_func_t = ctypes.CFUNCTYPE(get_type("uint8_t"), get_type("uint32_t"))
 mem_write_func_t = ctypes.CFUNCTYPE(None, get_type("uint32_t"), get_type("uint8_t"))
 
 
 class Cpu:
+    def set_func_pointer(self, setter_name, func_type, func):
+        callback = func_type(func)
+        setattr(self, f"{setter_name}_type", callback)
+        setter = getattr(self.device, setter_name)
+        setattr(setter, "argtypes", [func_type])
+        setattr(setter, "restype", None)
+        setter(callback)
+
     def __init__(self, filename):
         self.id = 0
         self.filename = filename
         self.device = ctypes.CDLL(filename)
         # Log output function
-        self.device.set_log_func.argtypes = [print_callback_t]
-        self.device.set_log_func.restype = None
-        self.device.set_log_func(print_callback_t(print_logs))
-        # Memory read function
-        self.device.set_mem_read_func.argtypes = [mem_read_func_t]
-        self.device.set_mem_read_func.restype = None
-        self.device.set_mem_read_func(mem_read_func_t(mem_read))
-        # Memory write function
-        self.device.set_mem_write_func.argtypes = [mem_write_func_t]
-        self.device.set_mem_write_func.restype = None
-        self.device.set_mem_write_func(mem_write_func_t(mem_write))
-        # IO read function
-        self.device.set_io_read_func.argtypes = [mem_read_func_t]
-        self.device.set_io_read_func.restype = None
-        self.device.set_io_read_func(mem_read_func_t(io_read))
-        # IO write function
-        self.device.set_io_write_func.argtypes = [mem_write_func_t]
-        self.device.set_io_write_func.restype = None
-        self.device.set_io_write_func(mem_write_func_t(io_write))
+        # self.device.set_log_func.argtypes = [print_callback_t]
+        # self.device.set_log_func.restype = None
+        # self.device.set_log_func(print_callback)
+        self.set_func_pointer("set_log_func", print_callback_t, print_logs)
+        # # Memory read function
+        # self.device.set_mem_read_func.argtypes = [mem_read_func_t]
+        # self.device.set_mem_read_func.restype = None
+        # self.device.set_mem_read_func(mem_read_func_t(mem_read))
+        # # Memory write function
+        # self.device.set_mem_write_func.argtypes = [mem_write_func_t]
+        # self.device.set_mem_write_func.restype = None
+        # self.device.set_mem_write_func(mem_write_func_t(mem_write))
+        # # IO read function
+        # self.device.set_io_read_func.argtypes = [mem_read_func_t]
+        # self.device.set_io_read_func.restype = None
+        # self.device.set_io_read_func(mem_read_func_t(io_read))
+        # # IO write function
+        # self.device.set_io_write_func.argtypes = [mem_write_func_t]
+        # self.device.set_io_write_func.restype = None
+        # self.device.set_io_write_func(mem_write_func_t(io_write))
 
         # self.set_log_level = get_dll_function(self.device, "void set_log_level(uint8_t)")
 
@@ -118,9 +128,9 @@ class Cpu:
 
         # self.module_save = get_dll_function(self.device, "void module_save(void)")
         # self.module_restore = get_dll_function(self.device, "void module_restore(void)")
-        self.module_tick = get_dll_function(self.device, "int tick(void)")
+        self.module_tick = get_dll_function(self.device, "int module_tick(uint32_t)")
 
 
 cpu = Cpu("Devices/bin/libsimple_cpu.dll")
 for i in range(10):
-    cpu.module_tick()
+    cpu.module_tick(i)
