@@ -31,6 +31,7 @@ cpu_iface_t cpu_iface;
 
 DLL_PREFIX
 void set_log_func(log_func_t *foo) {
+    printf("Setting log function pointer\n");
     cpu_iface.log = foo;
 }
 
@@ -65,7 +66,8 @@ void mylog(const char *log_file, const char *format, ...) {
 }
 
 DLL_PREFIX
-void tick(void) {
+int module_tick(uint32_t ticks) {
+    printf("Test %d\n", ticks);
     static uint32_t counter = 0;
     static uint32_t mem_val = 0;
     static uint32_t io_val = 0;
@@ -91,6 +93,7 @@ void tick(void) {
     if(counter == 5) {
         counter = 0;
     }
+    return 0;
 }
 
 DLL_PREFIX

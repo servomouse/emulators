@@ -59,5 +59,6 @@ target_compile_options(simple_cpu
         -lm
         -g
         -lws2_32
+        -shared
         -fstack-protector-all
 )
