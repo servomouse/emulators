@@ -109,6 +109,10 @@ class Cpu(CDevice):
         # self.device.set_log_func.restype = None
         # self.device.set_log_func(print_callback)
         self.set_func_pointer("set_log_func", print_callback_t, print_logs)
+        self.set_func_pointer("set_mem_read_func", mem_read_func_t, mem_read)
+        self.set_func_pointer("set_mem_write_func", mem_write_func_t, mem_write)
+        self.set_func_pointer("set_io_read_func", mem_read_func_t, io_read)
+        self.set_func_pointer("set_io_write_func", mem_write_func_t, io_write)
         # # Memory read function
         # self.device.set_mem_read_func.argtypes = [mem_read_func_t]
         # self.device.set_mem_read_func.restype = None
