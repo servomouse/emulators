@@ -52,7 +52,7 @@ DLL_PREFIX
 uint8_t memory_read(uint32_t address) {
     if(address < regs.MEM_SIZE) {
         uint8_t val = memory[address];
-        mylog("MEMORY", "Memory read: %d => %d (%c)\n", address, val, val);
+        // mylog("MEMORY", "Memory read: %d => %d (%c)\n", address, val, val);
         return val;
     } else {
         RAISE("Error: Attempting to read from outside of memory! Addr: %d\n", address);
@@ -61,7 +61,7 @@ uint8_t memory_read(uint32_t address) {
 
 DLL_PREFIX
 void memory_write(uint32_t address, uint8_t val) {
-    mylog("MEMORY", "Memory write: %d <= %d (%c)\n", address, val, val);
+    // mylog("MEMORY", "Memory write: %d <= %d (%c)\n", address, val, val);
     if(address < regs.MEM_SIZE) {
         memory[address] = val;
     } else {
