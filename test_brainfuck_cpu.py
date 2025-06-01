@@ -22,6 +22,7 @@ elif os_type == 'Linux':
 io_buf = []
 
 def io_write(addr, val):
+    print(f"Device print: {chr(val)}")
     io_buf.append(val)
 
 
@@ -54,8 +55,8 @@ def main():
     counter = 0
     while 0 == cpu.module_tick(counter):
         counter += 1
-        if counter == 950:
-            p_memory.set_log_level(4)
+        # if counter == 950:
+        #     p_memory.set_log_level(4)
 
     print(f"{counter = }")
     print(io_buf)
