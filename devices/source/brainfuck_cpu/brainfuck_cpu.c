@@ -5,7 +5,7 @@
 #include <math.h>
 #include <stdarg.h>
 #include <string.h>
-#include "Python.h" // Needed to generate python exceptions
+// #include "Python.h" // Needed to generate python exceptions
 // #include "utils.h"
 
 #ifdef __unix__
@@ -70,6 +70,20 @@ void set_io_write_func(mem_write_func_t *foo) {
     cpu_iface.io_write = foo;
 }
 
+uint32_t stack[128];
+uint32_t stack_top;
+
+void push(uint32_t val) {
+    stack_top ++;
+    stack[stack_top] = val;
+}
+
+uint32_t pop(void) {
+    uint32_t ret_val = stack[stack_top];
+    stack_top --;
+    return ret_val;
+}
+
 // The highter log_level the highter priority
 void mylog(const char *log_file, const char *format, ...) {
     va_list args;
@@ -97,36 +111,29 @@ uint32_t find_close_bracket(void) {
 }
 
 int32_t find_open_bracket(void) {
-    int32_t offset = -1;
+    int32_t offset = -0;
     uint32_t counter = 1;
-    while((counter > 0) && (regs.IP > 0)) {
+    while(counter > 0) {
+        offset --;
         uint8_t cmd = cpu_iface.mem_read(PROGRAM_OFFSET+regs.IP+offset);
         if(cmd == '[') counter --;
         else if(cmd == ']') counter ++;
         else if((cmd == '>') || (cmd == '<') || (cmd == '+') || (cmd == '-') || (cmd == '.') || (cmd == ','));
         else {
-            // printf("Error: unknown opcode at 0x%X: %c(0x%02X)\n", regs.IP+offset, cmd, cmd);
             RAISE("Error: unknown opcode at 0x%X: %c(0x%02X)\n", regs.IP+offset, cmd, cmd);
         }
-        offset --;
+        if(regs.IP+offset == 0) {
+            RAISE("Error: Reached IP = 0!");
+        }
     }
     return offset;
-}
-
-void write_memory(uint32_t addr, uint8_t data) {
-    mylog("CPU", "Memory write: addr = %d, data = %d\n", addr, data);
-    // fflush(stdout);
-    cpu_iface.mem_write(DATA_OFFSET, data);
-    // printf("Memory write completed\n");
-    // fflush(stdout);
 }
 
 int process_command(void) {
     uint8_t cmd = cpu_iface.mem_read(PROGRAM_OFFSET+regs.IP);
     uint8_t data = cpu_iface.mem_read(DATA_OFFSET+regs.DP);
-    // write_memory(DATA_OFFSET+10, data+1);
-    // return;
-    uint32_t ip_inc = 1;
+    mylog("CPU", "cmd = %c, data = 0x%X, IP = %d, DP = %d\n", cmd, data, regs.IP, regs.DP);
+    int32_t ip_inc = 1;
     switch(cmd) {
         case '>':   // Increment DP
             regs.DP ++;
@@ -152,12 +159,11 @@ int process_command(void) {
             }
             break;
         case ']':   // If memory[DP] != 0 => jump to the matching '[', otherwise increment IP
-            if(data == 0) {
+            if(data != 0) {
                 ip_inc = find_open_bracket();
             }
             break;
         default:
-            // RAISE("Error: unknown opcode at 0x%X: %c(0x%02X)\n", regs.IP, cmd, cmd);
             return EXIT_FAILURE;
     }
     regs.IP += ip_inc;
@@ -166,10 +172,7 @@ int process_command(void) {
 
 DLL_PREFIX
 int module_tick(uint32_t ticks) {
-    // process_command();
-    // fflush(stdout);
-    // uint8_t data = cpu_iface.mem_read(DATA_OFFSET+regs.DP);
-    // cpu_iface.mem_write(DATA_OFFSET+10, data+1);
+    mylog("CPU", "counter = %d\n", ticks);
     return process_command();
 }
 
