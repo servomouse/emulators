@@ -6,7 +6,9 @@ import glob
 import zipfile
 from datetime import datetime
 import random
-import shutil
+from dll_loader import DllLoader
+from dll_devices import Memory
+from logger import Logger
 
 import platform
 os_type = platform.system()
@@ -16,130 +18,39 @@ elif os_type == 'Linux':
     from elftools.elf.elffile import ELFFile
 
 
-def get_type(item):
-    c_types = {
-        "void": None,
-        "int": ctypes.c_int,
-        "uint8_t": ctypes.c_uint8,
-        "uint16_t": ctypes.c_uint16,
-        "uint32_t": ctypes.c_uint32,
-        "char*": ctypes.c_char_p,
-    }
-    if item in c_types:
-        return c_types[item]
-    print(f"ERROR: Unknown type: {item}")
-    os.exit(1)
+def test_multiple_instances(mem1, mem2):
+    for i in range(100):
+        addr = random.randint(0, 128)
+        val1 = random.randint(0, 128)
+        val2 = val1 + 1
+        mem1.memory_write(addr, val1)
+        mem2.memory_write(addr, val2)
+        rval1 = mem1.memory_read(addr)
+        rval2 = mem2.memory_read(addr)
+        if (rval1 != val1) or (rval2 != val2):
+            raise Exception(f"Error: Read values are not correct!")
 
 
-def get_dll_function(dll_object, signature: str):
-    ''' Signature looks like this: "void foo (int, uint8_t)"
-        where "foo" is the actual name of the function '''
-    remove_symbols = [',', '(', ')']
-    for s in remove_symbols:
-        signature = signature.replace(s, ' ')
-    items = signature.split()
-    res_type = get_type(items[0])
-    params = []
-    for i in items[2:]:
-        params.append(get_type(i))
-    foo = getattr(dll_object, items[1])
-    if params[0] is None:
-        foo.argtypes = None
-    else:
-        foo.argtypes = params
-    foo.restype = res_type
-    return foo
+def test_file_mapping(mem, filename):
+    with open(filename) as f:
+        data = f.read().encode()
+    mem.memory_map_file(filename)
+    for i in range(len(data)):
+        rval = mem.memory_read(i)
+        if rval != data[i]:
+            raise Exception(f"Error: {rval = } != {data[i] = }")
 
 
-def print_logs(filename, logstring):
-    print(logstring)
+def main():
+    dll_loader = DllLoader()
+    logger = Logger()
+
+    memory1 = Memory("Devices/bin/libmemory.dll", 512, dll_loader, logger)
+    memory2 = Memory("Devices/bin/libmemory.dll", 512, dll_loader, logger)
+    test_multiple_instances(memory1, memory2)
+    test_file_mapping(memory1, "bf_hello_world.txt")
+    print("Memory test passed!")
 
 
-print_callback_t = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_char_p)
-
-
-class DllLoader:
-    def __init__(self):
-        self.filename_counter = {}
-
-    def upload(self, filename):
-        if filename not in self.filename_counter:
-            self.filename_counter[filename] = 0
-            return ctypes.CDLL(filename)
-        else:
-            self.filename_counter[filename] += 1
-            base, extension = os.path.splitext(filename)
-            copy_filename = f"{base}_{self.filename_counter[filename]}{extension}"
-            if not os.path.exists(copy_filename):
-                shutil.copy(filename, copy_filename)
-            return ctypes.CDLL(copy_filename)
-
-
-dll_loader = DllLoader()
-
-
-class CDevice:
-    def __init__(self, filename):
-        self.filename = filename
-        # self.device = ctypes.CDLL(filename)
-        self.device = dll_loader.upload(filename)
-
-    def set_func_pointer(self, setter_name, func_type, func):
-        callback = func_type(func)
-        setattr(self, f"{setter_name}_type", callback)
-        setter = getattr(self.device, setter_name)
-        setattr(setter, "argtypes", [func_type])
-        setattr(setter, "restype", None)
-        setter(callback)
-
-
-class Memory(CDevice):
-
-    def __init__(self, filename, memory_size):
-        self.mem_size = memory_size
-        super().__init__(filename)
-        # Log output function
-        self.set_func_pointer("set_log_func", print_callback_t, print_logs)
-
-
-
-        # self.set_log_level = get_dll_function(self.device, "void set_log_level(uint8_t)")
-        # self.module_reset = get_dll_function(self.device, "void module_reset(void)")
-        # self.module_reset()
-        # self.module_save = get_dll_function(self.device, "void module_save(void)")
-        # self.module_restore = get_dll_function(self.device, "void module_restore(void)")
-        self.module_init = get_dll_function(self.device, "void module_init(uint32_t)")
-        self.memory_read = get_dll_function(self.device, "uint8_t memory_read(uint32_t)")
-        self.memory_write = get_dll_function(self.device, "void memory_write(uint32_t, uint8_t)")
-        self.memory_map_array = get_dll_function(self.device, "void memory_map_array(uint32_t, uint32_t, char*)")
-        self.module_init(self.mem_size)
-    
-    def memory_map_file(self, filename):
-        with open("bf_hello_world.txt") as f:
-            data = f.read()
-        self.memory_map_array(0, len(data), data.encode())
-
-
-memory1 = Memory("Devices/bin/libmemory.dll", 512)
-memory2 = Memory("Devices/bin/libmemory.dll", 512)
-
-addr = random.randint(0, 128)
-val1 = random.randint(0, 128)
-val2 = random.randint(0, 128)
-memory1.memory_write(addr, val1)
-memory2.memory_write(addr, val2)
-rval1 = memory1.memory_read(addr)
-rval2 = memory2.memory_read(addr)
-print(rval1, rval2)
-
-# for i in range(100):
-#     addr = random.randint(0, 128)
-#     val = random.randint(0, 128)
-#     memory1.memory_write(addr, val)
-#     rval = memory.memory_read(addr)
-#     print(f"Addr {addr}: {val = }, {rval = }")
-
-# memory.memory_map_file("bf_hello_world.txt")
-# for i in range(106):
-#     rval = memory.memory_read(i)
-#     print(chr(rval))
+if __name__ == "__main__":
+    main()
