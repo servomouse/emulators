@@ -98,3 +98,38 @@ class Memory(CDevice):
         with open(filename) as f:
             data = f.read()
         self.memory_map_array(offset, len(data), data.encode())
+
+
+class AddressDecoder(CDevice):
+    def __init__(self, filename, dll_loader, logger):
+        super().__init__(filename, dll_loader, logger)
+
+        self.mem_read_funcs = []
+        self.mem_write_funcs = []
+
+        self.mem_read_func_t = ctypes.CFUNCTYPE(get_type("uint8_t"), get_type("uint32_t"))
+        self.mem_write_func_t = ctypes.CFUNCTYPE(None, get_type("uint32_t"), get_type("uint8_t"))
+
+        # self.set_log_level = get_dll_function(self.device, "void set_log_level(uint8_t)")
+        # self.module_reset = get_dll_function(self.device, "void module_reset(void)")
+        # self.module_reset()
+        # self.module_save = get_dll_function(self.device, "void module_save(void)")
+        # self.module_restore = get_dll_function(self.device, "void module_restore(void)")
+        self.module_init = get_dll_function(self.device, "void module_init(void)")
+        self.memory_read = get_dll_function(self.device, "uint8_t memory_read(uint32_t)")
+        self.memory_write = get_dll_function(self.device, "void memory_write(uint32_t, uint8_t)")
+
+        self.device.memory_map_device.argtypes = [
+            get_type("uint32_t"),
+            get_type("uint32_t"),
+            self.mem_read_func_t,
+            self.mem_write_func_t]
+        self.device.memory_map_device.restype = get_type("uint32_t")
+        # self.device.memory_map_device(log_manager.print_callback)
+    
+    def memory_map_device(self, device, addr_range):
+        self.mem_read_funcs.append(self.mem_read_func_t(device.memory_read))
+        self.mem_write_funcs.append(self.mem_write_func_t(device.memory_write))
+        self.device.memory_map_device(addr_range[0], addr_range[1], self.mem_read_funcs[-1], self.mem_write_funcs[-1])
+        # self.device.memory_map_device(addr_range[0], addr_range[1], device.memory_read, device.memory_write)
+        # self.set_func_pointer("set_mem_read_func",  self.mem_read_func_t,  memory_iface["mem_read"])
