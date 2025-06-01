@@ -5,31 +5,19 @@
 #include <math.h>
 #include <stdarg.h>
 #include <string.h>
-// #include "Python.h" // Needed to generate python exceptions
-// #include "utils.h"
-
-#ifdef __unix__
-    #define DLL_PREFIX 
-#elif defined(_WIN32) || defined(WIN32)
-    #define DLL_PREFIX __declspec(dllexport)
-#endif
+#include "common/dll_header.h"
+#include "common/logging.c"
 
 #define PROGRAM_OFFSET  0x8000
 #define DATA_OFFSET     0x0000
 
-#define BUFFER_SIZE 256
 #define LOG_FILE "cpu.log"
 #define DEVICE_DATA_FILE    "data/cga.bin"
 
-// #define RAISE(msg, ...) PyErr_Format(PyExc_RuntimeError, msg " (line %d in file %s)\n", ##__VA_ARGS__, __LINE__, __FILE__)
-#define RAISE(msg, ...) printf(msg " (line %d in file %s)\n", ##__VA_ARGS__, __LINE__, __FILE__); exit(EXIT_FAILURE)
-
-typedef void   (log_func_t)      (const char*, char*);
 typedef uint8_t(mem_read_func_t) (uint32_t);            // param: address, ret_val: read value
 typedef void   (mem_write_func_t)(uint32_t, uint8_t);   // params: address, value to write
 
 typedef struct {
-    log_func_t       *log;
     mem_read_func_t  *mem_read;
     mem_write_func_t *mem_write;
     mem_read_func_t  *io_read;
@@ -44,11 +32,6 @@ typedef struct {
 device_regs_t regs;
 
 cpu_iface_t cpu_iface;
-
-DLL_PREFIX
-void set_log_func(log_func_t *foo) {
-    cpu_iface.log = foo;
-}
 
 DLL_PREFIX
 void set_mem_read_func(mem_read_func_t *foo) {
@@ -68,30 +51,6 @@ void set_io_read_func(mem_read_func_t *foo) {
 DLL_PREFIX
 void set_io_write_func(mem_write_func_t *foo) {
     cpu_iface.io_write = foo;
-}
-
-uint32_t stack[128];
-uint32_t stack_top;
-
-void push(uint32_t val) {
-    stack_top ++;
-    stack[stack_top] = val;
-}
-
-uint32_t pop(void) {
-    uint32_t ret_val = stack[stack_top];
-    stack_top --;
-    return ret_val;
-}
-
-// The highter log_level the highter priority
-void mylog(const char *log_file, const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-    char buffer[BUFFER_SIZE] = {0};
-    vsnprintf(buffer, sizeof(buffer), format, args);
-    cpu_iface.log(log_file, buffer);
-    va_end(args);
 }
 
 uint32_t find_close_bracket(void) {
@@ -132,7 +91,7 @@ int32_t find_open_bracket(void) {
 int process_command(void) {
     uint8_t cmd = cpu_iface.mem_read(PROGRAM_OFFSET+regs.IP);
     uint8_t data = cpu_iface.mem_read(DATA_OFFSET+regs.DP);
-    mylog("CPU", "cmd = %c, data = 0x%X, IP = %d, DP = %d\n", cmd, data, regs.IP, regs.DP);
+    mylog(1, "CPU", "cmd = %c, data = 0x%X, IP = %d, DP = %d\n", cmd, data, regs.IP, regs.DP);
     int32_t ip_inc = 1;
     switch(cmd) {
         case '>':   // Increment DP
@@ -172,13 +131,12 @@ int process_command(void) {
 
 DLL_PREFIX
 int module_tick(uint32_t ticks) {
-    mylog("CPU", "counter = %d\n", ticks);
+    mylog(1, "CPU", "counter = %d\n", ticks);
     return process_command();
 }
 
 DLL_PREFIX
 void init(void) {
-    cpu_iface.log = NULL;
     cpu_iface.mem_read = NULL;
     cpu_iface.mem_write = NULL;
     cpu_iface.io_read = NULL;

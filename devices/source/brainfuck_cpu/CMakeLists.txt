@@ -13,8 +13,8 @@ set_target_properties(brainfuck_cpu_dll
 
 target_include_directories(brainfuck_cpu_dll
     PUBLIC
-        ${PROJECT_SOURCE_DIR}/source/brainfuck_cpu_dll
-        ${PROJECT_SOURCE_DIR}/lib/python
+        ${PROJECT_SOURCE_DIR}/source
+        ${PROJECT_SOURCE_DIR}/source/brainfuck_cpu
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

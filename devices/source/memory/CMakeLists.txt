@@ -8,6 +8,7 @@ set_target_properties(memory_dll
 
 target_include_directories(memory_dll
     PUBLIC
+        ${PROJECT_SOURCE_DIR}/source
         ${PROJECT_SOURCE_DIR}/source/memory
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
