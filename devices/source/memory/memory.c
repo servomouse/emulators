@@ -38,10 +38,22 @@ void set_log_func(log_func_t *foo) {
     log_func = foo;
 }
 
+// The highter log_level the highter priority
+void mylog(const char *log_file, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    char buffer[BUFFER_SIZE] = {0};
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    log_func(log_file, buffer);
+    va_end(args);
+}
+
 DLL_PREFIX
 uint8_t memory_read(uint32_t address) {
     if(address < regs.MEM_SIZE) {
-        return memory[address];
+        uint8_t val = memory[address];
+        mylog("MEMORY", "Memory read: %d => %d (%c)\n", address, val, val);
+        return val;
     } else {
         RAISE("Error: Attempting to read from outside of memory! Addr: %d\n", address);
     }
@@ -49,6 +61,7 @@ uint8_t memory_read(uint32_t address) {
 
 DLL_PREFIX
 void memory_write(uint32_t address, uint8_t val) {
+    mylog("MEMORY", "Memory write: %d <= %d (%c)\n", address, val, val);
     if(address < regs.MEM_SIZE) {
         memory[address] = val;
     } else {
@@ -66,21 +79,11 @@ void memory_map_array(uint32_t offset, uint32_t size, const uint8_t *data) {
     }
 }
 
-// The highter log_level the highter priority
-void mylog(const char *log_file, const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-    char buffer[BUFFER_SIZE] = {0};
-    vsnprintf(buffer, sizeof(buffer), format, args);
-    log_func(log_file, buffer);
-    va_end(args);
-}
-
 DLL_PREFIX
 void module_init(uint32_t mem_size) {
     regs.MEM_SIZE = mem_size;
     if(memory != NULL) free(memory);
-    printf("Memory: Allocating %d bytes\n", regs.MEM_SIZE);
+    mylog("MEMORY", "Memory: Allocating %d bytes\n", regs.MEM_SIZE);
     fflush(stdout);
     memory = (uint8_t*)calloc(regs.MEM_SIZE, 1);
 }

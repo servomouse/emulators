@@ -114,14 +114,14 @@ int32_t find_open_bracket(void) {
 }
 
 void write_memory(uint32_t addr, uint8_t data) {
-    printf("Memory write: addr = %d, data = %d\n", addr, data);
-    fflush(stdout);
+    mylog("CPU", "Memory write: addr = %d, data = %d\n", addr, data);
+    // fflush(stdout);
     cpu_iface.mem_write(DATA_OFFSET, data);
-    printf("Memory write completed\n");
-    fflush(stdout);
+    // printf("Memory write completed\n");
+    // fflush(stdout);
 }
 
-void process_command(void) {
+int process_command(void) {
     uint8_t cmd = cpu_iface.mem_read(PROGRAM_OFFSET+regs.IP);
     uint8_t data = cpu_iface.mem_read(DATA_OFFSET+regs.DP);
     // write_memory(DATA_OFFSET+10, data+1);
@@ -157,18 +157,20 @@ void process_command(void) {
             }
             break;
         default:
-            RAISE("Error: unknown opcode at 0x%X: %c(0x%02X)\n", regs.IP, cmd, cmd);
+            // RAISE("Error: unknown opcode at 0x%X: %c(0x%02X)\n", regs.IP, cmd, cmd);
+            return EXIT_FAILURE;
     }
     regs.IP += ip_inc;
+    return EXIT_SUCCESS;
 }
 
 DLL_PREFIX
 int module_tick(uint32_t ticks) {
-    process_command();
-    fflush(stdout);
+    // process_command();
+    // fflush(stdout);
     // uint8_t data = cpu_iface.mem_read(DATA_OFFSET+regs.DP);
     // cpu_iface.mem_write(DATA_OFFSET+10, data+1);
-    return 0;
+    return process_command();
 }
 
 DLL_PREFIX

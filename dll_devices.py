@@ -54,13 +54,11 @@ class CDevice:
 
 
 class Cpu(CDevice):
-    def __init__(self, filename, memory_iface, logger):
+    def __init__(self, filename, dll_loader, logger):
         super().__init__(filename, dll_loader, logger)
 
-        self.set_func_pointer("set_mem_read_func",  mem_read_func_t,  memory_iface["mem_read"])
-        self.set_func_pointer("set_mem_write_func", mem_write_func_t, memory_iface["mem_write"])
-        self.set_func_pointer("set_io_read_func",   mem_read_func_t,  memory_iface["io_read"])
-        self.set_func_pointer("set_io_write_func",  mem_write_func_t, memory_iface["io_write"])
+        self.mem_read_func_t = ctypes.CFUNCTYPE(get_type("uint8_t"), get_type("uint32_t"))
+        self.mem_write_func_t = ctypes.CFUNCTYPE(None, get_type("uint32_t"), get_type("uint8_t"))
 
         # self.set_log_level = get_dll_function(self.device, "void set_log_level(uint8_t)")
 
@@ -70,6 +68,12 @@ class Cpu(CDevice):
         # self.module_save = get_dll_function(self.device, "void module_save(void)")
         # self.module_restore = get_dll_function(self.device, "void module_restore(void)")
         self.module_tick = get_dll_function(self.device, "int module_tick(uint32_t)")
+    
+    def connect_memory(self, memory_iface):
+        self.set_func_pointer("set_mem_read_func",  self.mem_read_func_t,  memory_iface["mem_read"])
+        self.set_func_pointer("set_mem_write_func", self.mem_write_func_t, memory_iface["mem_write"])
+        self.set_func_pointer("set_io_read_func",   self.mem_read_func_t,  memory_iface["io_read"])
+        self.set_func_pointer("set_io_write_func",  self.mem_write_func_t, memory_iface["io_write"])
 
 
 class Memory(CDevice):
@@ -88,7 +92,7 @@ class Memory(CDevice):
         self.memory_map_array = get_dll_function(self.device, "void memory_map_array(uint32_t, uint32_t, char*)")
         self.module_init(self.mem_size)
     
-    def memory_map_file(self, filename):
+    def memory_map_file(self, filename, offset):
         with open(filename) as f:
             data = f.read()
-        self.memory_map_array(0, len(data), data.encode())
+        self.memory_map_array(offset, len(data), data.encode())

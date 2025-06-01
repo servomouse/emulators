@@ -34,7 +34,7 @@ def test_multiple_instances(mem1, mem2):
 def test_file_mapping(mem, filename):
     with open(filename) as f:
         data = f.read().encode()
-    mem.memory_map_file(filename)
+    mem.memory_map_file(filename, 0)
     for i in range(len(data)):
         rval = mem.memory_read(i)
         if rval != data[i]:
