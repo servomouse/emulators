@@ -8,6 +8,7 @@ set_target_properties(address_decoder_dll
 
 target_include_directories(address_decoder_dll
     PUBLIC
+        ${PROJECT_SOURCE_DIR}/source
         ${PROJECT_SOURCE_DIR}/source/address_decoder
         ${CMAKE_CURRENT_SOURCE_DIR}
 )

@@ -7,62 +7,68 @@
 #include <string.h>
 #include "common/dll_header.h"
 #include "common/logging.c"
+#include "common/memory_header.h"
 
-#define BUFFER_SIZE         1024
 #define LOG_FILE            "address_decoder.log"
 #define DEVICE_DATA_FILE    "data/address_decoder.bin"
-
-typedef uint8_t(mem_read_func_t) (uint32_t);            // param: address, ret_val: read value
-typedef void   (mem_write_func_t)(uint32_t, uint8_t);   // params: address, value to write
+#define DEVICE_MAP_SIZE 128
 
 typedef struct {
-    uint32_t MEM_SIZE;
-} device_regs_t;
+    mem_read_func_t *read;
+    mem_write_func_t *write;
+    uint32_t range[2];
+} device_map_t;
 
-device_regs_t regs;
-uint8_t *memory;
+device_map_t device_map[DEVICE_MAP_SIZE];
+
+uint32_t find_device_idx(uint32_t addr) {
+    for(uint32_t i=0; i<DEVICE_MAP_SIZE; i++) {
+        if(device_map[i].range[0] <= addr && device_map[i].range[1] >= addr) {
+            return i;
+        }
+    }
+    RAISE("Error: Couldn't find device for a given address (0x%X)!\n", addr);
+}
 
 DLL_PREFIX
 uint8_t memory_read(uint32_t address) {
-    if(address < regs.MEM_SIZE) {
-        uint8_t val = memory[address];
-        // mylog("MEMORY", "Memory read: %d => %d (%c)\n", address, val, val);
-        return val;
-    } else {
-        RAISE("Error: Attempting to read from outside of memory! Addr: %d\n", address);
-    }
+    uint32_t idx = find_device_idx(address);
+    uint32_t offset = device_map[idx].range[0];
+    return device_map[idx].read(address-offset);
 }
 
 DLL_PREFIX
 void memory_write(uint32_t address, uint8_t val) {
-    // mylog("MEMORY", "Memory write: %d <= %d (%c)\n", address, val, val);
-    if(address < regs.MEM_SIZE) {
-        memory[address] = val;
-    } else {
-        RAISE("Error: Attempting to write outside of memory! Addr: %d\n", address);
-    }
+    uint32_t idx = find_device_idx(address);
+    uint32_t offset = device_map[idx].range[0];
+    device_map[idx].write(address-offset, val);
 }
 
 DLL_PREFIX
-void memory_map_array(uint32_t offset, uint32_t size, const uint8_t *data) {
-    if((offset+size) > regs.MEM_SIZE) {
-        RAISE("Error: Attempting to write data outside of the memory!\n");
+uint32_t memory_map_device(uint32_t addr_start, uint32_t addr_end, mem_read_func_t *read_func, mem_write_func_t *write_func) {
+    for(uint32_t i=0; i<DEVICE_MAP_SIZE; i++) {
+        if(device_map[i].range[0] == 0 && device_map[i].range[1] == 0) {
+            device_map[i].read = read_func;
+            device_map[i].write = write_func;
+            device_map[i].range[0] = addr_start;
+            device_map[i].range[1] = addr_end;
+            return i;
+        }
     }
-    for(uint32_t i=0; i<size; i++) {
-        memory[offset+i] = data[i];
-    }
+    RAISE("Error: Couldn't map device: table is full\n");
 }
 
 DLL_PREFIX
-void module_init(uint32_t mem_size) {
-    regs.MEM_SIZE = mem_size;
-    if(memory != NULL) free(memory);
-    mylog("MEMORY", "Memory: Allocating %d bytes\n", regs.MEM_SIZE);
-    fflush(stdout);
-    memory = (uint8_t*)calloc(regs.MEM_SIZE, 1);
+void module_init(void) {
+    for(uint32_t i=0; i<DEVICE_MAP_SIZE; i++) {
+        device_map[i].read = NULL;
+        device_map[i].write = NULL;
+        device_map[i].range[0] = 0;
+        device_map[i].range[1] = 0;
+    }
 }
 
 DLL_PREFIX
 void module_reset(void) {
-    memset(&regs, 0, sizeof(device_regs_t));
+    ;
 }
