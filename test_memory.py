@@ -6,6 +6,7 @@ import glob
 import zipfile
 from datetime import datetime
 import random
+import shutil
 
 import platform
 os_type = platform.system()
@@ -57,10 +58,31 @@ def print_logs(filename, logstring):
 print_callback_t = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_char_p)
 
 
+class DllLoader:
+    def __init__(self):
+        self.filename_counter = {}
+
+    def upload(self, filename):
+        if filename not in self.filename_counter:
+            self.filename_counter[filename] = 0
+            return ctypes.CDLL(filename)
+        else:
+            self.filename_counter[filename] += 1
+            base, extension = os.path.splitext(filename)
+            copy_filename = f"{base}_{self.filename_counter[filename]}{extension}"
+            if not os.path.exists(copy_filename):
+                shutil.copy(filename, copy_filename)
+            return ctypes.CDLL(copy_filename)
+
+
+dll_loader = DllLoader()
+
+
 class CDevice:
     def __init__(self, filename):
         self.filename = filename
-        self.device = ctypes.CDLL(filename)
+        # self.device = ctypes.CDLL(filename)
+        self.device = dll_loader.upload(filename)
 
     def set_func_pointer(self, setter_name, func_type, func):
         callback = func_type(func)
@@ -98,15 +120,26 @@ class Memory(CDevice):
         self.memory_map_array(0, len(data), data.encode())
 
 
-memory = Memory("Devices/bin/libmemory.dll", 512)
+memory1 = Memory("Devices/bin/libmemory.dll", 512)
+memory2 = Memory("Devices/bin/libmemory.dll", 512)
+
+addr = random.randint(0, 128)
+val1 = random.randint(0, 128)
+val2 = random.randint(0, 128)
+memory1.memory_write(addr, val1)
+memory2.memory_write(addr, val2)
+rval1 = memory1.memory_read(addr)
+rval2 = memory2.memory_read(addr)
+print(rval1, rval2)
+
 # for i in range(100):
 #     addr = random.randint(0, 128)
 #     val = random.randint(0, 128)
-#     memory.memory_write(addr, val)
+#     memory1.memory_write(addr, val)
 #     rval = memory.memory_read(addr)
 #     print(f"Addr {addr}: {val = }, {rval = }")
 
-memory.memory_map_file("bf_hello_world.txt")
-for i in range(106):
-    rval = memory.memory_read(i)
-    print(chr(rval))
+# memory.memory_map_file("bf_hello_world.txt")
+# for i in range(106):
+#     rval = memory.memory_read(i)
+#     print(chr(rval))
