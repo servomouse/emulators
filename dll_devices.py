@@ -43,6 +43,8 @@ class CDevice:
         self.device = dll_loader.upload(filename)
         # Log output function
         self.set_func_pointer("set_log_func", logger.callback_type, logger.print)
+        self.set_log_level = get_dll_function(self.device, "void set_log_level(uint8_t)")
+        self.get_log_level = get_dll_function(self.device, "uint8_t get_log_level(void)")
 
     def set_func_pointer(self, setter_name, func_type, func):
         callback = func_type(func)
