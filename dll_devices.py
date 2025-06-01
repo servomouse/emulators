@@ -95,9 +95,9 @@ class Memory(CDevice):
         self.module_init(self.mem_size)
     
     def memory_map_file(self, filename, offset):
-        with open(filename) as f:
+        with open(filename, 'rb') as f:
             data = f.read()
-        self.memory_map_array(offset, len(data), data.encode())
+        self.memory_map_array(offset, len(data), data)
 
 
 class AddressDecoder(CDevice):
