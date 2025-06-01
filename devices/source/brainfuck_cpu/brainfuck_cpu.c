@@ -7,15 +7,13 @@
 #include <string.h>
 #include "common/dll_header.h"
 #include "common/logging.c"
+#include "common/memory_header.h"
 
 #define PROGRAM_OFFSET  0x8000
 #define DATA_OFFSET     0x0000
 
 #define LOG_FILE "cpu.log"
 #define DEVICE_DATA_FILE    "data/cga.bin"
-
-typedef uint8_t(mem_read_func_t) (uint32_t);            // param: address, ret_val: read value
-typedef void   (mem_write_func_t)(uint32_t, uint8_t);   // params: address, value to write
 
 typedef struct {
     mem_read_func_t  *mem_read;
