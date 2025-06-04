@@ -6,8 +6,14 @@ set_target_properties(brainfuck_cpu_dll
         RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin"
 )
 
+target_link_libraries(brainfuck_cpu_dll
+    PRIVATE
+        utils
+)
+
 target_include_directories(brainfuck_cpu_dll
     PUBLIC
+        ${PROJECT_SOURCE_DIR}
         ${PROJECT_SOURCE_DIR}/source
         ${PROJECT_SOURCE_DIR}/source/brainfuck_cpu
         ${CMAKE_CURRENT_SOURCE_DIR}

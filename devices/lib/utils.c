@@ -4,11 +4,11 @@
 #include <math.h>
 #include <stdio.h>
 
-#ifdef _WIN32
+// #ifdef _WIN32
 #include <windows.h>
-#else
-#include <unistd.h>
-#endif
+// #else
+// #include <unistd.h>
+// #endif
 
 void sleep_ms(int ms) {
     fflush(stdout); // Need to flush the stdout buffer to not delay the prints

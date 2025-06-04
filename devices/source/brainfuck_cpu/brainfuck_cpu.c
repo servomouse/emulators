@@ -2,18 +2,13 @@
 #include <math.h>
 #include <stdarg.h>
 #include <string.h>
+#include "lib/utils.h"
 #include "brainfuck_cpu.h"
 #include "common/logging.c"
+#include "common/cpu_memory_iface.c"
 
-#define LOG_FILE "cpu.log"
-#define DEVICE_DATA_FILE    "data/cga.bin"
-
-typedef struct {
-    mem_read_func_t  *mem_read;
-    mem_write_func_t *mem_write;
-    mem_read_func_t  *io_read;
-    mem_write_func_t *io_write;
-} cpu_iface_t;
+#define LOG_FILE            "cpu.log"
+#define DEVICE_DATA_FILE    "data/cpu.bin"
 
 typedef struct {
     uint32_t IP;
@@ -21,28 +16,6 @@ typedef struct {
 } device_regs_t;
 
 device_regs_t regs;
-
-cpu_iface_t cpu_iface;
-
-DLL_PREFIX
-void set_mem_read_func(mem_read_func_t *foo) {
-    cpu_iface.mem_read = foo;
-}
-
-DLL_PREFIX
-void set_mem_write_func(mem_write_func_t *foo) {
-    cpu_iface.mem_write = foo;
-}
-
-DLL_PREFIX
-void set_io_read_func(mem_read_func_t *foo) {
-    cpu_iface.io_read = foo;
-}
-
-DLL_PREFIX
-void set_io_write_func(mem_write_func_t *foo) {
-    cpu_iface.io_write = foo;
-}
 
 uint32_t find_close_bracket(void) {
     uint32_t offset = 1;
@@ -139,20 +112,15 @@ void module_reset(void) {
     memset(&regs, 0, sizeof(device_regs_t));
 }
 
-// int main(void) {
-//     printf("Simple CPU main");
-//     return EXIT_SUCCESS;
-// }
+DLL_PREFIX
+void module_save(char * PATH) {
+    store_data(&regs, sizeof(device_regs_t), PATH);
+}
 
-// DLL_PREFIX
-// void module_save(void) {
-//     store_data(&regs, sizeof(device_regs_t), DEVICE_DATA_FILE);
-// }
-
-// DLL_PREFIX
-// void module_restore(void) {
-//     device_regs_t data;
-//     if(EXIT_SUCCESS == restore_data(&data, sizeof(device_regs_t), DEVICE_DATA_FILE)) {
-//         memcpy(&regs, &data, sizeof(device_regs_t));
-//     }
-// }
+DLL_PREFIX
+void module_restore(char * PATH) {
+    device_regs_t data;
+    if(EXIT_SUCCESS == restore_data(&data, sizeof(device_regs_t), PATH)) {
+        memcpy(&regs, &data, sizeof(device_regs_t));
+    }
+}
