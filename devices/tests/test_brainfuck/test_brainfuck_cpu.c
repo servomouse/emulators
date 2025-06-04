@@ -40,7 +40,7 @@ void mem_write(uint32_t addr, uint8_t val) {
 
 uint8_t io_inputs[] = {5, 7, 123, 0};
 uint8_t io_in_ptr = 0;
-uint8_t io_outputs[] = {0};
+uint8_t io_outputs[4] = {0};
 uint8_t io_out_ptr = 0;
 
 uint8_t io_read(uint32_t addr) {
@@ -51,7 +51,7 @@ uint8_t io_read(uint32_t addr) {
 }
 
 void io_write(uint32_t addr, uint8_t val) {
-    printf("Writing io addr = %d, val = %d\n", io_out_ptr, val);
+    printf("Writing io addr = %d, val = %d (%d)\n", io_out_ptr, val, &io_out_ptr);
     io_outputs[io_out_ptr] = val;
     io_out_ptr +=1;
 }
@@ -75,6 +75,5 @@ int main(void) {
     for(uint32_t i=0; i<sizeof(io_inputs); i++) {
         printf("i = %d, input = %d, output = %d\n", i, io_inputs[i], io_outputs[i]);
     }
-
     return EXIT_SUCCESS;
 }
