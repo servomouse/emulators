@@ -1,16 +1,9 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
 #include <time.h>
 #include <math.h>
 #include <stdarg.h>
 #include <string.h>
-#include "common/dll_header.h"
+#include "brainfuck_cpu.h"
 #include "common/logging.c"
-#include "common/memory_header.h"
-
-#define PROGRAM_OFFSET  0x8000
-#define DATA_OFFSET     0x0000
 
 #define LOG_FILE "cpu.log"
 #define DEVICE_DATA_FILE    "data/cga.bin"
@@ -89,7 +82,7 @@ int32_t find_open_bracket(void) {
 int process_command(void) {
     uint8_t cmd = cpu_iface.mem_read(PROGRAM_OFFSET+regs.IP);
     uint8_t data = cpu_iface.mem_read(DATA_OFFSET+regs.DP);
-    mylog(4, "CPU", "cmd = %c, data = 0x%X, IP = %d, DP = %d\n", cmd, data, regs.IP, regs.DP);
+    printf("cmd = %c, data = 0x%X, IP = %d, DP = %d\n", cmd, data, regs.IP, regs.DP);
     int32_t ip_inc = 1;
     switch(cmd) {
         case '>':   // Increment DP
@@ -129,7 +122,7 @@ int process_command(void) {
 
 DLL_PREFIX
 int module_tick(uint32_t ticks) {
-    mylog(4, "CPU", "counter = %d\n", ticks);
+    printf("counter = %d\n", ticks);
     return process_command();
 }
 
@@ -146,10 +139,10 @@ void module_reset(void) {
     memset(&regs, 0, sizeof(device_regs_t));
 }
 
-int main(void) {
-    printf("Simple CPU main");
-    return EXIT_SUCCESS;
-}
+// int main(void) {
+//     printf("Simple CPU main");
+//     return EXIT_SUCCESS;
+// }
 
 // DLL_PREFIX
 // void module_save(void) {
