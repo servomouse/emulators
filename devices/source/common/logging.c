@@ -27,6 +27,7 @@ uint8_t get_log_level(void) {
 // The higher log level the lower priority
 void mylog(uint8_t log_level, const char *log_file, const char *format, ...) {
     if(log_level > device_log_level) return;
+    if(log_func == NULL) return;
     va_list args;
     va_start(args, format);
     char buffer[BUFFER_SIZE] = {0};
