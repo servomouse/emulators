@@ -1,13 +1,13 @@
 set(TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-# add_subdirectory(lib)
+add_subdirectory(test_brainfuck)
 # add_subdirectory(network)
 # add_subdirectory(neuron)
 
 add_custom_target(runtests
     COMMAND ${CMAKE_CTEST_COMMAND}
-    # DEPENDS
-    #     utils_test_work_with_folders
+    DEPENDS
+        test_brainfuck_cpu
     #     neuron_test_output
     #     neuron_test_mutation
     #     neuron_test_rollback
