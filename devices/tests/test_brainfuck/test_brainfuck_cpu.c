@@ -65,10 +65,19 @@ int main(void) {
     set_log_level(4);
 
     uint32_t counter = 0;
-    while(counter++ < 1000) {
-        if( module_tick(counter)) break;
+    while(counter++ < 13) {
+        if(module_tick(counter)) break;
     }
-    if(counter >= 1000) {
+    uint8_t reg_ip_orig = read_register(REGISTER_IP);
+    uint8_t reg_dp_orig = read_register(REGISTER_DP);
+    printf("Registers before save: IP = %d, DP = %d\n", reg_ip_orig, reg_dp_orig);
+    module_save(BCKP_DIR_PATH "brainfuck_cpu_bckp.bin");
+    counter -= 1;
+
+    while(counter++ < 66) {
+        if(module_tick(counter)) break;
+    }
+    if(counter >= 66) {
         printf("Error: counter overflow");
         return EXIT_FAILURE;
     }
@@ -79,6 +88,12 @@ int main(void) {
             return EXIT_FAILURE;
         }
     }
-    printf("Success! Completed in %d steps!\n");
+    uint8_t reg_ip_new = read_register(REGISTER_IP);
+    uint8_t reg_dp_new = read_register(REGISTER_DP);
+    printf("Registers after run: IP = %d, DP = %d\n", reg_ip_new, reg_dp_new);
+    module_restore(BCKP_DIR_PATH "/brainfuck_cpu_bckp.bin");
+    uint8_t reg_ip_last = read_register(REGISTER_IP);
+    uint8_t reg_dp_last = read_register(REGISTER_DP);
+    printf("Registers after restore: IP = %d, DP = %d\n", reg_ip_last, reg_dp_last);
     return EXIT_SUCCESS;
 }

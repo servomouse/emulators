@@ -119,8 +119,32 @@ void module_save(char * PATH) {
 
 DLL_PREFIX
 void module_restore(char * PATH) {
-    device_regs_t data;
-    if(EXIT_SUCCESS == restore_data(&data, sizeof(device_regs_t), PATH)) {
-        memcpy(&regs, &data, sizeof(device_regs_t));
+    uint8_t *data = restore_data(PATH);
+    memcpy(&regs, &data, sizeof(device_regs_t));
+}
+
+DLL_PREFIX
+uint8_t read_register(uint32_t idx) {
+    switch(idx) {
+        case REGISTER_IP:
+            return regs.IP;
+        case REGISTER_DP:
+            return regs.DP;
+        default:
+            RAISE("Error: Unknown register: %d!", idx);
+    }
+}
+
+DLL_PREFIX
+void write_register(uint32_t idx, uint8_t value) {
+    switch(idx) {
+        case REGISTER_IP:
+            regs.IP = value;
+            break;
+        case REGISTER_DP:
+            regs.DP = value;
+            break;
+        default:
+            RAISE("Error: Unknown register: %d!", idx);
     }
 }

@@ -4,11 +4,17 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#ifdef __unix__
-    #define DLL_PREFIX 
-#elif defined(_WIN32) || defined(WIN32)
-    #define DLL_PREFIX __declspec(dllexport)
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
 #endif
+
+// #ifdef __unix__
+//     #define DLL_PREFIX 
+// #elif defined(_WIN32) || defined(WIN32)
+//     #define DLL_PREFIX __declspec(dllexport)
+// #endif
 
 #define sizeof_arr(_x) sizeof(_x)/sizeof(_x[0])
 
