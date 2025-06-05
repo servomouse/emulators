@@ -20,7 +20,7 @@ int mkdir_recursive(const char *dir) {
             *p = 0;
             if (mkdir(tmp) == -1) {
                 if (errno != EEXIST) {
-                    return -1;
+                    RAISE("ERROR: Failed to create folder %s\n", tmp);
                 }
             }
             *p = '/';
@@ -28,7 +28,7 @@ int mkdir_recursive(const char *dir) {
     }
     if (mkdir(tmp) == -1) {
         if (errno != EEXIST) {
-            return -1;
+            RAISE("ERROR: Failed to create folder %s\n", tmp);
         }
     }
     return 0;
@@ -42,15 +42,14 @@ FILE* fopen_no_matter_what(const char *filename, const char *access_mode) {
         *last_slash = '\0';
         if (mkdir_recursive(dir_name) == -1) {
             free(dir_name);
-            return NULL;
+            RAISE("ERROR: Failed to create folder %s\n", dir_name);
         }
     }
     free(dir_name);
     // Now let's try to open the file
     FILE *file = fopen(filename, access_mode);
     if (file == NULL) {
-        printf("ERROR: Failed to open file %s\n", filename);
-        exit(EXIT_FAILURE);
+        RAISE("ERROR: Failed to open file %s\n", filename);
     }
 }
 
