@@ -3,7 +3,7 @@
 #define BUFFER_SIZE 1024
 
 // #define RAISE(msg, ...) PyErr_Format(PyExc_RuntimeError, msg " (line %d in file %s)\n", ##__VA_ARGS__, __LINE__, __FILE__)
-#define RAISE(msg, ...) printf(msg " (line %d in file %s)\n", ##__VA_ARGS__, __LINE__, __FILE__); fflush(stdout); exit(EXIT_FAILURE)
+// #define RAISE(msg, ...) printf(msg " (line %d in file %s)\n", ##__VA_ARGS__, __LINE__, __FILE__); fflush(stdout); exit(EXIT_FAILURE)
 
 typedef void (log_func_t) (const char*, char*);
 log_func_t *log_func;
