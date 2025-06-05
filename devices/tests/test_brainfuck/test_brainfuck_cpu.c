@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "brainfuck_cpu/brainfuck_cpu.h"
+#include "lib/utils.h"
 
 #define MEMORY_SIZE 128
 
@@ -62,16 +63,13 @@ int main(void) {
     set_mem_write_func(mem_write);
     set_io_read_func(io_read);
     set_io_write_func(io_write);
-    set_log_level(4);
+    // set_log_level(4);
 
     uint32_t counter = 0;
     while(counter++ < 13) {
         if(module_tick(counter)) break;
     }
-    uint8_t reg_ip_orig = read_register(REGISTER_IP);
-    uint8_t reg_dp_orig = read_register(REGISTER_DP);
-    printf("Registers before save: IP = %d, DP = %d\n", reg_ip_orig, reg_dp_orig);
-    module_save(BCKP_DIR_PATH "brainfuck_cpu_bckp.bin");
+    // printf("Registers before save: IP = %d, DP = %d\n", reg_ip_orig, reg_dp_orig);
     counter -= 1;
 
     while(counter++ < 66) {
@@ -88,12 +86,25 @@ int main(void) {
             return EXIT_FAILURE;
         }
     }
+    // Save original values:
+    uint8_t reg_ip_orig = read_register(REGISTER_IP);
+    uint8_t reg_dp_orig = read_register(REGISTER_DP);
+    module_save(BCKP_DIR_PATH "/brainfuck_cpu_bckp.bin");
+    // Modify registers:
+    uint8_t regs_test_values[2] = {17, 128};
+    write_register(REGISTER_IP, regs_test_values[0]);
+    write_register(REGISTER_DP, regs_test_values[1]);
     uint8_t reg_ip_new = read_register(REGISTER_IP);
     uint8_t reg_dp_new = read_register(REGISTER_DP);
-    printf("Registers after run: IP = %d, DP = %d\n", reg_ip_new, reg_dp_new);
+    if((reg_ip_new != regs_test_values[0]) || (reg_dp_new != regs_test_values[1])) {
+        RAISE("ERROR: write register function doesn't work!");
+    }
+    // Restore original values
     module_restore(BCKP_DIR_PATH "/brainfuck_cpu_bckp.bin");
     uint8_t reg_ip_last = read_register(REGISTER_IP);
     uint8_t reg_dp_last = read_register(REGISTER_DP);
-    printf("Registers after restore: IP = %d, DP = %d\n", reg_ip_last, reg_dp_last);
+    if((reg_ip_last != reg_ip_orig) || (reg_dp_last != reg_dp_orig)) {
+        RAISE("ERROR: restore function doesn't work!");
+    }
     return EXIT_SUCCESS;
 }
