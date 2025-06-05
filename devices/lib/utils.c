@@ -109,21 +109,18 @@ int store_data(void *data, size_t size, char *filename) {
 void *restore_data( char *filename) {
     FILE *file = fopen(filename, "rb");
     if (file == NULL) {
-        printf("ERROR: Failed to open file %s\n", filename);
-        exit(EXIT_FAILURE);
+        RAISE("ERROR: Failed to open file %s\n", filename);
     }
     stored_data_t data_struct = {0};
     fread((uint8_t *)&data_struct, sizeof(stored_data_t), 1, file);
     uint8_t *data = calloc(data_struct.size, 1);
     size_t len_data = fread((uint8_t *)data, 1, data_struct.size, file);
-    if(data_struct.hash != get_hash((uint8_t*)data, data_struct.size)) {
-        printf("ERROR: File %s corrupted (hash check failed)\n", filename);
-        exit(EXIT_FAILURE);
-    }
     fclose(file);
+    if(data_struct.hash != get_hash((uint8_t*)data, data_struct.size)) {
+        RAISE("ERROR: File %s corrupted (hash check failed)\n", filename);
+    }
     if(len_data != data_struct.size) {
-        printf("ERROR: Failed reading file %s (%lld of %d bytes were read)\n", filename, len_data, data_struct.size);
-        exit(EXIT_FAILURE);
+        RAISE("ERROR: Failed reading file %s (%lld of %d bytes were read)\n", filename, len_data, data_struct.size);
     }
     return data;
 }
