@@ -17,6 +17,8 @@ typedef struct {
 
 device_regs_t regs;
 
+#include "common/save-restore.c"    // Should be placed below regs
+
 uint32_t find_close_bracket(void) {
     uint32_t offset = 1;
     uint32_t counter = 1;
@@ -55,7 +57,7 @@ int32_t find_open_bracket(void) {
 int process_command(void) {
     uint8_t cmd = cpu_iface.mem_read(PROGRAM_OFFSET+regs.IP);
     uint8_t data = cpu_iface.mem_read(DATA_OFFSET+regs.DP);
-    printf("cmd = %c, data = 0x%X, IP = %d, DP = %d\n", cmd, data, regs.IP, regs.DP);
+    mylog(4, "CPU", "cmd = %c, data = 0x%X, IP = %d, DP = %d\n", cmd, data, regs.IP, regs.DP);
     int32_t ip_inc = 1;
     switch(cmd) {
         case '>':   // Increment DP
@@ -95,7 +97,7 @@ int process_command(void) {
 
 DLL_PREFIX
 int module_tick(uint32_t ticks) {
-    printf("counter = %d\n", ticks);
+    mylog(4, "CPU", "counter = %d\n", ticks);
     return process_command();
 }
 
@@ -110,17 +112,6 @@ void init(void) {
 DLL_PREFIX
 void module_reset(void) {
     memset(&regs, 0, sizeof(device_regs_t));
-}
-
-DLL_PREFIX
-void module_save(char * PATH) {
-    store_data(&regs, sizeof(device_regs_t), PATH);
-}
-
-DLL_PREFIX
-void module_restore(char * PATH) {
-    uint8_t *data = restore_data(PATH);
-    memcpy(&regs, &data, sizeof(device_regs_t));
 }
 
 DLL_PREFIX
