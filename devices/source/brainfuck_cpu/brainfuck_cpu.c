@@ -57,7 +57,7 @@ int32_t find_open_bracket(void) {
 int process_command(void) {
     uint8_t cmd = cpu_iface.mem_read(PROGRAM_OFFSET+regs.IP);
     uint8_t data = cpu_iface.mem_read(DATA_OFFSET+regs.DP);
-    mylog(4, "CPU", "cmd = %c, data = 0x%X, IP = %d, DP = %d\n", cmd, data, regs.IP, regs.DP);
+    mylog(4, LOG_FILE, "cmd = %c, data = 0x%X, IP = %d, DP = %d\n", cmd, data, regs.IP, regs.DP);
     int32_t ip_inc = 1;
     switch(cmd) {
         case '>':   // Increment DP
@@ -97,7 +97,7 @@ int process_command(void) {
 
 DLL_PREFIX
 int module_tick(uint32_t ticks) {
-    mylog(4, "CPU", "counter = %d\n", ticks);
+    mylog(4, LOG_FILE, "counter = %d\n", ticks);
     return process_command();
 }
 
