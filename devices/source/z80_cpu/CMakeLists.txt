@@ -6,13 +6,14 @@ set_target_properties(z80_cpu_dll
         RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin"
 )
 
-# target_link_libraries(z80_cpu_dll
-#     PRIVATE
-#         utils
-# )
+target_link_libraries(z80_cpu_dll
+    PRIVATE
+        utils
+)
 
 target_include_directories(z80_cpu_dll
     PUBLIC
+        ${PROJECT_SOURCE_DIR}
         ${PROJECT_SOURCE_DIR}/source
         ${PROJECT_SOURCE_DIR}/source/z80_cpu
         ${CMAKE_CURRENT_SOURCE_DIR}
