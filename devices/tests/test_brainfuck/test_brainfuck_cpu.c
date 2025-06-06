@@ -63,16 +63,10 @@ int main(void) {
     set_mem_write_func(mem_write);
     set_io_read_func(io_read);
     set_io_write_func(io_write);
-    // set_log_level(4);
+    set_log_level(4);
 
     uint32_t counter = 0;
-    while(counter++ < 13) {
-        if(module_tick(counter)) break;
-    }
-    // printf("Registers before save: IP = %d, DP = %d\n", reg_ip_orig, reg_dp_orig);
-    counter -= 1;
-
-    while(counter++ < 66) {
+    while(counter++ < 100) {
         if(module_tick(counter)) break;
     }
     if(counter >= 66) {
