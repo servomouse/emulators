@@ -9,6 +9,8 @@
 #define PROGRAM_OFFSET  0x8000
 #define DATA_OFFSET     0x0000
 
+#define REG_FILE_SIZE 8
+
 #define REGISTER_IP 0
 #define REGISTER_DP 1
 
