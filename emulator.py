@@ -39,57 +39,12 @@ class UserInputGetter:
             self.part_input += key.char
 
 
-# class Logger:
-#     def __init__(self, log_file, ui_getter):
-#         self.log_file = log_file
-#         self.ui_getter = ui_getter
-
-#     def print_to_file(self, string):
-#         with open(self.log_file, 'a') as f:
-#             f.write(string + "\n")
-
-#     def print_line(self, line):
-#         part_cmd = self.ui_getter.get_part_input()
-#         print(f"\033[2K\r{line}")
-#         print(f"Enter command: {part_cmd}", end = "")
-#         sys.stdout.flush()
-
-
-def emulator_thread(command_queue, ui_getter):
-    inner_state = 'stopped'
-    counter = 0
-    last_update = time.time()
-    while True:
-        part_cmd = ui_getter.get_part_input()
-        command = ui_getter.get_command()
-
-        if inner_state == 'running':
-            if time.time()-last_update > 1:
-                print_line(f"Counter = {counter}", part_input)
-                counter += 1
-                last_update = time.time()
-        elif inner_state == 'stopped':
-            print_line("The thread is stopped", part_cmd)
-            ui_getter.event.wait()
-
-        if command is not None:
-            print_line(f"User command from thread: {command}", part_cmd)
-            if command == 'run':
-                inner_state = 'running'
-            elif command == 'print value':
-                print_line("Here is the value!", part_cmd)
-            elif command == 'stop':
-                inner_state = 'stopped'
-            elif command == 'quit':
-                return
-
-
 def main():
     ui_getter = UserInputGetter()
     logger = Logger(ui_getter)
     pc = BrainfuckPC(binary="binaries/bf_hello_world.txt", logger=logger)
+    pc.cpu.set_log_level(4)
 
-    # counter = 0
     last_update = time.time()
     inner_state = 'stopped'
     while True:
@@ -112,8 +67,6 @@ def main():
 
         if inner_state == 'running':
             if time.time()-last_update > 0.1:
-                # logger.print_line(f"Counter = {counter}")
-                # counter += 1
                 if 0 == pc.clock.tick():
                     inner_state = 'stopped'
                 last_update = time.time()
