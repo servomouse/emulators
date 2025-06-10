@@ -4,6 +4,9 @@ import sys
 from queue import Queue
 from pynput import keyboard # pip install pynput
 
+from brainfuck import BrainfuckPC
+from logger import Logger
+
 
 class UserInputGetter:
     def __init__(self):
@@ -36,20 +39,20 @@ class UserInputGetter:
             self.part_input += key.char
 
 
-class Logger:
-    def __init__(self, log_file, ui_getter):
-        self.log_file = log_file
-        self.ui_getter = ui_getter
+# class Logger:
+#     def __init__(self, log_file, ui_getter):
+#         self.log_file = log_file
+#         self.ui_getter = ui_getter
 
-    def print_to_file(self, string):
-        with open(self.log_file, 'a') as f:
-            f.write(string + "\n")
+#     def print_to_file(self, string):
+#         with open(self.log_file, 'a') as f:
+#             f.write(string + "\n")
 
-    def print_line(self, line):
-        part_cmd = self.ui_getter.get_part_input()
-        print(f"\033[2K\r{line}")
-        print(f"Enter command: {part_cmd}", end = "")
-        sys.stdout.flush()
+#     def print_line(self, line):
+#         part_cmd = self.ui_getter.get_part_input()
+#         print(f"\033[2K\r{line}")
+#         print(f"Enter command: {part_cmd}", end = "")
+#         sys.stdout.flush()
 
 
 def emulator_thread(command_queue, ui_getter):
@@ -80,29 +83,13 @@ def emulator_thread(command_queue, ui_getter):
             elif command == 'quit':
                 return
 
-        # if not command_queue.empty():
-        #     cmd = command_queue.get()
-        #     print_line(f"User cmd from thread: {cmd}", part_cmd)
-        #     if cmd == 'run':
-        #         inner_state = 'running'
-        #     elif cmd == 'print value':
-        #         print_line("Here is the value!", part_cmd)
-        #     elif cmd == 'stop':
-        #         inner_state = 'stopped'
-        #         print_line("The thread is stopped", part_cmd)
-        #     elif cmd == 'quit':
-        #         return
-        #     command_queue.task_done()
-        # elif inner_state == 'running':
-        #     print_line("Hello from the thread!", part_cmd)
-        #     time.sleep(1)
-
 
 def main():
     ui_getter = UserInputGetter()
-    logger = Logger("emulator.log", ui_getter)
+    logger = Logger(ui_getter)
+    pc = BrainfuckPC(binary="binaries/bf_hello_world.txt", logger=logger)
 
-    counter = 0
+    # counter = 0
     last_update = time.time()
     inner_state = 'stopped'
     while True:
@@ -116,13 +103,19 @@ def main():
                 logger.print_line("Here is the value!")
             elif command == 'stop':
                 inner_state = 'stopped'
+            elif command == 'step':
+                pc.clock.tick()
+                inner_state = 'stopped'
             elif command == 'quit':
+                pc.io.print_buffer_char()
                 return
 
         if inner_state == 'running':
-            if time.time()-last_update > 1:
-                logger.print_line(f"Counter = {counter}")
-                counter += 1
+            if time.time()-last_update > 0.1:
+                # logger.print_line(f"Counter = {counter}")
+                # counter += 1
+                if 0 == pc.clock.tick():
+                    inner_state = 'stopped'
                 last_update = time.time()
         elif inner_state == 'stopped':
             logger.print_line("The thread is stopped")
@@ -130,31 +123,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # print("Starting the thread")
-    # # print(f"{dir(keyboard.Key) = }")
-    # # sys.exit(0)
-
-    # command_queue = Queue()
-    # ui_getter = UserInputGetter()
-
-    # t1 = threading.Thread(target=emulator_thread, args=(command_queue, ui_getter))
-    # t1.setDaemon(True)
-    # t1.start()
-
-    # last_update = time.time()
-    # last_input = ""
-    # while True:
-    #     part_input = ui_getter.get_part_input()
-    #     command = ui_getter.get_command()
-
-    #     # if time.time()-last_update > 1:
-    #     #     print_line(f"Counter = {counter}", part_input)
-    #     #     counter += 1
-    #     #     last_update = time.time()
-
-    #     if command is not None:
-    #         print_line(f"User input: {command}", part_input)
-    #         command_queue.put(command)
-    #         if command == "quit":
-    #             break
     main()
