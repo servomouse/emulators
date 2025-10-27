@@ -1,9 +1,11 @@
 from brainfuck import BrainfuckPC
+from logger import Logger
 
 
 def main():
 
-    pc = BrainfuckPC()
+    logger = Logger(ui_getter=None)
+    pc = BrainfuckPC(logger=logger)
 
     counter = 0
     while pc.clock.tick():

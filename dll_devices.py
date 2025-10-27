@@ -1,4 +1,5 @@
 import ctypes
+import os
 
 
 def get_type(item):
