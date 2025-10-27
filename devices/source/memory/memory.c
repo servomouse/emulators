@@ -8,6 +8,7 @@
 #include "common/dll_header.h"
 #include "common/logging.c"
 #include "common/memory_header.h"
+#include "lib/utils.h"
 
 #define LOG_FILE            "memory.log"
 #define DEVICE_DATA_FILE    "data/memory.bin"

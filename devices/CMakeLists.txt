@@ -16,6 +16,7 @@ add_custom_target(
     build_all
     DEPENDS
         address_decoder_dll
+        memory_dll
         brainfuck_cpu_dll
         z80_cpu_dll
 )
