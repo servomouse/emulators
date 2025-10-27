@@ -11,3 +11,11 @@ include(CTest)
 add_subdirectory(lib)
 add_subdirectory(source)
 add_subdirectory(tests)
+
+add_custom_target(
+    build_all
+    DEPENDS
+        address_decoder_dll
+        brainfuck_cpu_dll
+        z80_cpu_dll
+)

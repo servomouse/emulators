@@ -8,6 +8,7 @@
 #include "common/dll_header.h"
 #include "common/logging.c"
 #include "common/memory_header.h"
+#include "lib/utils.h"
 
 #define LOG_FILE            "address_decoder.log"
 #define DEVICE_DATA_FILE    "data/address_decoder.bin"
