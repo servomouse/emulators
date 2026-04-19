@@ -25,12 +25,9 @@ public:
     AddressDecoder(int bus_width) {
         // e.g., 8-bit width -> 0xFF mask
         bus_mask = (bus_width >= 64) ? ~0ULL : (1ULL << bus_width) - 1;
-        std::cout   << "bus_width: "
-                    << (int)bus_width
-                    << ", bus_mask: "
-                    << std::hex
-                    << std::showbase
-                    << (int)bus_mask << std::endl;
+        #ifdef DEBUG
+        std::cout << "bus_width: " << (int)bus_width << ", bus_mask: " << std::hex << std::showbase << (int)bus_mask << std::endl;
+        #endif
     }
 
     void decoder_map(uint64_t range[2], Device& device, uint64_t offset) {
@@ -50,10 +47,9 @@ public:
     // Overriding Device methods
     uint8_t read(uint64_t addr) override {
         uint64_t masked_addr = addr & bus_mask;
-        std::cout   << "Reading from masked_addr: "
-                    << std::hex
-                    << std::showbase
-                    << (int)masked_addr << std::endl;
+        #ifdef DEBUG
+        std::cout << "Reading from masked_addr: " << std::hex << std::showbase << (int)masked_addr << std::endl;
+        #endif
         for (const auto& m : mappings) {
             if (masked_addr >= m.start && masked_addr <= m.end) {
                 return m.device->read(masked_addr + m.offset);
@@ -64,10 +60,9 @@ public:
 
     void write(uint64_t addr, uint8_t data) override {
         uint64_t masked_addr = addr & bus_mask;
-        std::cout   << "Writing to masked_addr: "
-                    << std::hex
-                    << std::showbase
-                    << (int)masked_addr << std::endl;
+        #ifdef DEBUG
+        std::cout << "Writing to masked_addr: " << std::hex << std::showbase << (int)masked_addr << std::endl;
+        #endif
         for (const auto& m : mappings) {
             if (masked_addr >= m.start && masked_addr <= m.end) {
                 m.device->write(masked_addr + m.offset, data);

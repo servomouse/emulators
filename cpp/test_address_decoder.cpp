@@ -1,27 +1,8 @@
+#define DEBUG
+
 #include "mock_device.hpp"
 #include "address_decoder.hpp"
 #include <iomanip>
-#include <format>
-#include <source_location>
-
-template <typename T>
-bool are_equal(const T& expected, const T& actual, 
-               const std::source_location location = std::source_location::current()) {
-    
-    if (expected == actual) {
-        return true;
-    }
-
-    // If we are dealing with bools, let's make sure they print as true/false
-    // We use a local scope or just format logic here
-    std::cerr << std::format("Error: expected value: {}, got: {}! File: {}:{}\n", 
-                             expected, 
-                             actual, 
-                             location.file_name(), 
-                             location.line());
-    
-    return false;
-}
 
 int main() {
     // 1. Instantiate Decoder with a 12-bit bus (Mask: 0xFFF)
@@ -39,22 +20,11 @@ int main() {
     decoder.decoder_map(rangeA, devA, 0);
     decoder.decoder_map(rangeB, devB, 0x10);
 
-    are_equal(1, 2);
-
     // --- TEST 1: Basic Read/Write ---
     std::cout << "Test 1: Routed Write... " << std::endl;
     decoder.write(0x105, 0xAA);
-    std::cout << "devA.was_called: " << std::boolalpha << devA.was_called << std::endl;
     assert(devA.was_called);
-    std::cout   << "devA.last_val: "
-                << std::hex
-                << std::showbase
-                << (int)devA.last_val << std::endl;
     assert(devA.last_val == 0xAA);
-    std::cout   << "devA.last_addr: "
-                << std::hex
-                << std::showbase
-                << (int)devA.last_addr << std::endl;
     assert(devA.last_addr == 0x105);
     std::cout << "Passed." << std::endl;
 
