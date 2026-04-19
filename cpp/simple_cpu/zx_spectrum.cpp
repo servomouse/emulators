@@ -141,7 +141,7 @@ public:
 
     void tick() override {
         uint8_t opcode = mem_bus->read(regs.get_reg(RegName::PC));
-        std::cout << "Ticking... Read Opcode: " << (int)opcode << " at " << regs.get_reg(RegName::PC) << "\n";
+        std::cout << "Ticking... Read Opcode: " << "0x" << std::uppercase << std::hex << (int)opcode << " at " << regs.get_reg(RegName::PC) << "\n";
         regs.inc_reg(RegName::PC);
     }
 
@@ -161,9 +161,13 @@ int main() {
     mem_decoder.map_device(0x0000, 0x3FFF, &rom);
     mem_decoder.map_device(0x4000, 0xFFFF, &ram);
 
-    Z80CPU my_cpu(&mem_decoder, &io_decoder);
+    if(rom.map_image("./zx_spectrum/spec48.rom", 0)) {
+        std::cout << "ROM image successfully mapped\n";
+    }
 
-    my_cpu.tick();
+    Z80CPU z80_cpu(&mem_decoder, &io_decoder);
+
+    z80_cpu.tick();
 
     return 0;
 }
