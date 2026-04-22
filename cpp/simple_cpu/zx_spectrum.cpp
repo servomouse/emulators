@@ -26,6 +26,7 @@
  * Z -   Zero Flag
  * S -   Sign Flag
  * X -   Not Used
+ * User manual, page 65
  */
 
 enum class RegName {
@@ -167,6 +168,16 @@ public:
                 num_bytes_read += 2;
                 break;
             }
+            case 0x2B: {// 0x2B (DEC HL), cycles: 6
+                regs.dec_reg(RegName::HL);
+                break;
+            }
+            case 0x36: {// 0x36 (LD HL, N - Load N into HL), cycles: 10
+                uint16_t pc = regs.get_reg(RegName::PC);
+                regs.set_reg(RegName::HL, mem_bus->read(pc+1));
+                num_bytes_read ++;
+                break;
+            }
             case 0x3E: {// 0x3E (LD A, N - Load N into A)
                 uint16_t pc = regs.get_reg(RegName::PC);
                 regs.set_reg(RegName::A, mem_bus->read(pc+1));
@@ -177,10 +188,25 @@ public:
                 regs.set_reg(RegName::B, regs.get_reg(RegName::A));
                 break;
             }
+            case 0x62: {// 0x62 (LD H, D - Load D into H), cycles: 4
+                regs.set_reg(RegName::H, regs.get_reg(RegName::D));
+                break;
+            }
+            case 0x6B: {// 0x6B (LD L, E - Load E into L), cycles: 4
+                regs.set_reg(RegName::L, regs.get_reg(RegName::E));
+                break;
+            }
             case 0xAF:  // XOR A
                 // TODO: Update flags!
                 regs.set_reg(RegName::A, 0);
                 break;
+            case 0xBC: {// 0xBC (CP H A - Substract H from A and update flags. A stays unchanged), cycles: 4
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t h = regs.get_reg(RegName::H);
+                uint16_t res = a - h;
+                // TODO: Update flags!
+                break;
+            }
             case 0xC3: {// 0xC3 N N (JP N N - Load N N into PC)
                 uint16_t pc = regs.get_reg(RegName::PC);
                 uint16_t new_pc = (mem_bus->read(pc+2) << 8) + mem_bus->read(pc+1);
@@ -193,6 +219,19 @@ public:
                 uint16_t port = (a << 8) | mem_bus->read(pc+1);
                 io_bus->write(port, a);
                 num_bytes_read ++;
+                break;
+            }
+            case 0xED: {// 0xED: MISC intruction, read one more byte to get the actual opcode
+                uint16_t pc = regs.get_reg(RegName::PC);
+                uint16_t new_opcode = mem_bus->read(pc+1);
+                if (new_opcode == 0x47) {   // 0xED 0x47 LD I, A (Load A into I), cycles: 9
+                    uint16_t a = regs.get_reg(RegName::A);
+                    regs.set_reg(RegName::I, a);
+                    num_bytes_read ++;
+                } else {
+                    printf("Unknown misc opcode: 0x%X\n", new_opcode);
+                    return false;
+                }
                 break;
             }
             case 0xF3:  // DI (Disable Interrupts)
@@ -209,7 +248,7 @@ public:
     void tick() override {
         bool cont = true;
         uint32_t counter = 0;
-        while(cont && counter < 10) {
+        while(cont && counter < 256) {
             uint16_t pc = regs.get_reg(RegName::PC);
             uint8_t opcode = mem_bus->read(pc);
             std::cout << "Ticking... Read Opcode: " << "0x" << std::uppercase << std::hex << (int)opcode << " at " << pc << "\n";
