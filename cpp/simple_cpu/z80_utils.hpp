@@ -35,18 +35,18 @@ bool calculate_overflow(uint32_t op1, uint32_t op2, uint32_t result, bool is_sub
 
 /**
  * Calculates the Half-Carry (H) flag.
- * @param op1     The first operand (8-bit).
- * @param op2     The second operand (8-bit).
+ * @param op1     The first operand (16-bit).
+ * @param op2     The second operand (16-bit).
  * @param is_sub  True if subtraction, False if addition.
  * @return        True if Half-Carry occurred.
  */
-bool calculate_half_carry(uint8_t op1, uint8_t op2, bool is_sub) {
+bool calculate_half_carry(uint16_t op1, uint16_t op2, uint16_t carry_in, bool is_sub) {
     if (is_sub) {
         // Half-Borrow: true if the lower nibble of op1 is less than op2
-        return (op1 & 0x0F) < (op2 & 0x0F);
+        return (static_cast<int32_t>(op1 & 0x0F) - static_cast<int32_t>(op2 & 0x0F) - static_cast<int32_t>(carry_in & 0x0F)) < 0;
     } else {
         // Half-Carry: true if the sum of lower nibbles exceeds 0x0F
-        return ((op1 & 0x0F) + (op2 & 0x0F)) > 0x0F;
+        return ((op1 & 0x0F) + (op2 & 0x0F) + (carry_in & 0x0F)) > 0x0F;
     }
 }
 
