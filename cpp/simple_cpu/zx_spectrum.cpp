@@ -4,6 +4,7 @@
 #include "addr_decoder.hpp"
 #include "memory.hpp"
 #include "cpu.hpp"
+#include "z80_utils.hpp"
 
 /** Memory map:
  * 0x0000-0x3FFF ROM
@@ -201,6 +202,14 @@ public:
                 num_bytes_read += 2;
                 break;
             }
+            case 0x20: {// 0x20 N (JR Z, N - If Z flag is set, add signed N to PC), cycles: 12/7
+                // Does not affect flags
+                uint16_t pc = regs.get_reg(RegName::PC);
+                int16_t pc_inc = static_cast<int16_t>(mem_bus->read(pc+1));
+                int16_t temp = static_cast<int16_t>(pc) + pc_inc;
+                regs.set_reg(RegName::PC, static_cast<uint16_t>(temp));
+                return true;
+            }
             case 0x2B: {// 0x2B (DEC HL), cycles: 6
                 // Does not affect flags
                 regs.dec_reg(RegName::HL);
@@ -236,23 +245,37 @@ public:
                 break;
             }
             case 0xAF:  // XOR A, A, cycles: 4
-                // TODO: Update flags!
+                regs.clear_flag(FlagName::C);
+                regs.clear_flag(FlagName::N);
+                regs.set_flag(FlagName::P_V);   // 1 when result is 0
+                regs.clear_flag(FlagName::H);
+                regs.set_flag(FlagName::Z);
+                regs.clear_flag(FlagName::S);
                 regs.set_reg(RegName::A, 0);
                 break;
             case 0xBC: {// 0xBC (CP H A - Substract H from A and update flags. A stays unchanged), cycles: 4
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t h = regs.get_reg(RegName::H);
                 uint16_t res = a - h;
-                // TODO: Update flags!
+                bool pvf = calculate_overflow(a, h, res, true, false);
+                bool hf = calculate_half_carry(a, h, true);
+                (h > a)? regs.set_flag(FlagName::C): regs.clear_flag(FlagName::C);
+                regs.set_flag(FlagName::N);
+                pvf? regs.set_flag(FlagName::P_V): regs.clear_flag(FlagName::P_V);   // 1 when result is 0
+                hf?  regs.set_flag(FlagName::H): regs.clear_flag(FlagName::H);
+                res == 0? regs.set_flag(FlagName::Z): regs.clear_flag(FlagName::Z);
+                (res&0x80)==0x80? regs.set_flag(FlagName::S): regs.clear_flag(FlagName::S);
                 break;
             }
-            case 0xC3: {// 0xC3 N N (JP N N - Load N N into PC)
+            case 0xC3: {// 0xC3 N N (JP N N - Load N N into PC), cycles: 10
+                // Does not affect flags
                 uint16_t pc = regs.get_reg(RegName::PC);
                 uint16_t new_pc = (mem_bus->read(pc+2) << 8) + mem_bus->read(pc+1);
                 regs.set_reg(RegName::PC, new_pc);
                 return true;
             }
-            case 0xD3: {// 0xD3 N (OUT A:port, A)
+            case 0xD3: {// 0xD3 N (OUT A:port, A), cycles: 11
+                // Does not affect flags
                 uint16_t pc = regs.get_reg(RegName::PC);
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t port = (a << 8) | mem_bus->read(pc+1);
@@ -264,6 +287,7 @@ public:
                 uint16_t pc = regs.get_reg(RegName::PC);
                 uint16_t new_opcode = mem_bus->read(pc+1);
                 if (new_opcode == 0x47) {   // 0xED 0x47 LD I, A (Load A into I), cycles: 9
+                    // Does not affect flags
                     uint16_t a = regs.get_reg(RegName::A);
                     regs.set_reg(RegName::I, a);
                     num_bytes_read ++;
@@ -273,7 +297,8 @@ public:
                 }
                 break;
             }
-            case 0xF3:  // DI (Disable Interrupts)
+            case 0xF3:  // DI (Disable Interrupts), cycles: 4
+                // Does not affect flags
                 interrupts_enabled = false;
                 break;
             default:
