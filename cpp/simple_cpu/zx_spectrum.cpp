@@ -204,11 +204,16 @@ public:
             }
             case 0x20: {// 0x20 N (JR Z, N - If Z flag is set, add signed N to PC), cycles: 12/7
                 // Does not affect flags
-                uint16_t pc = regs.get_reg(RegName::PC);
-                int16_t pc_inc = static_cast<int16_t>(mem_bus->read(pc+1));
-                int16_t temp = static_cast<int16_t>(pc) + pc_inc;
-                regs.set_reg(RegName::PC, static_cast<uint16_t>(temp));
-                return true;
+                if (regs.get_flag(FlagName::Z)) {
+                    uint16_t pc = regs.get_reg(RegName::PC);
+                    int16_t pc_inc = static_cast<int16_t>(mem_bus->read(pc+1));
+                    int16_t temp = static_cast<int16_t>(pc) + pc_inc;
+                    regs.set_reg(RegName::PC, static_cast<uint16_t>(temp));
+                    return true;
+                } else {
+                    num_bytes_read += 1;
+                }
+                break;
             }
             case 0x2B: {// 0x2B (DEC HL), cycles: 6
                 // Does not affect flags
@@ -244,6 +249,17 @@ public:
                 regs.set_reg(RegName::L, regs.get_reg(RegName::E));
                 break;
             }
+            case 0xA7: {// 0xA7 AND A, A, cycles: 4
+                uint16_t a = regs.get_reg(RegName::A);
+                bool par = parity(a);
+                regs.clear_flag(FlagName::C);
+                regs.clear_flag(FlagName::N);
+                par? regs.set_flag(FlagName::P_V): regs.clear_flag(FlagName::P_V);
+                regs.set_flag(FlagName::H);
+                a == 0? regs.set_flag(FlagName::Z): regs.clear_flag(FlagName::Z);
+                (a & 0x80) == 0x80? regs.set_flag(FlagName::S): regs.clear_flag(FlagName::S);
+                break;
+            }
             case 0xAF:  // XOR A, A, cycles: 4
                 regs.clear_flag(FlagName::C);
                 regs.clear_flag(FlagName::N);
@@ -258,13 +274,25 @@ public:
                 uint16_t h = regs.get_reg(RegName::H);
                 uint16_t res = a - h;
                 bool pvf = calculate_overflow(a, h, res, true, false);
-                bool hf = calculate_half_carry(a, h, true);
+                bool hf = calculate_half_carry(a, h, 0, true);
                 (h > a)? regs.set_flag(FlagName::C): regs.clear_flag(FlagName::C);
                 regs.set_flag(FlagName::N);
                 pvf? regs.set_flag(FlagName::P_V): regs.clear_flag(FlagName::P_V);   // 1 when result is 0
                 hf?  regs.set_flag(FlagName::H): regs.clear_flag(FlagName::H);
                 res == 0? regs.set_flag(FlagName::Z): regs.clear_flag(FlagName::Z);
                 (res&0x80)==0x80? regs.set_flag(FlagName::S): regs.clear_flag(FlagName::S);
+                break;
+            }
+            case 0xC2: {// 0xC2 N N (JP NZ N N - Load N N into PC if Zero flag is not set), cycles: 10
+                // Does not affect flags
+                if (!regs.get_flag(FlagName::Z)) {
+                    uint16_t pc = regs.get_reg(RegName::PC);
+                    uint16_t new_pc = (mem_bus->read(pc+2) << 8) + mem_bus->read(pc+1);
+                    regs.set_reg(RegName::PC, new_pc);
+                    return true;
+                } else {
+                    num_bytes_read += 2;
+                }
                 break;
             }
             case 0xC3: {// 0xC3 N N (JP N N - Load N N into PC), cycles: 10
@@ -290,6 +318,28 @@ public:
                     // Does not affect flags
                     uint16_t a = regs.get_reg(RegName::A);
                     regs.set_reg(RegName::I, a);
+                    num_bytes_read ++;
+                } else if (new_opcode == 0x52) {   // 0xED 0x52 SBC HL, DE (Subtract DE and Carry from HL), cycles 15
+                    // C as defined
+                    // N set
+                    // P/V detects overflow
+                    // H as defined
+                    // Z as defined
+                    // S as defined
+                    uint16_t hl = regs.get_reg(RegName::HL);
+                    uint16_t de = regs.get_reg(RegName::DE);
+                    uint16_t carry_in = regs.get_flag(FlagName::C)? 1: 0;
+                    uint16_t res = hl - de - carry_in;
+                    regs.set_reg(RegName::HL, res);
+                    ((de+carry_in)>hl)?regs.set_flag(FlagName::C): regs.clear_flag(FlagName::C);
+                    regs.set_flag(FlagName::N);
+                    regs.set_reg(RegName::HL, res);
+                    bool pv = calculate_overflow(hl, de+carry_in, res, true, true);
+                    pv? regs.set_flag(FlagName::P_V): regs.clear_flag(FlagName::P_V);
+                    bool hc = calculate_half_carry(hl, de, carry_in, true);
+                    hc? regs.set_flag(FlagName::H): regs.clear_flag(FlagName::H);
+                    res==0? regs.set_flag(FlagName::Z): regs.clear_flag(FlagName::Z);
+                    (res&0x80)==0x80? regs.set_flag(FlagName::S): regs.clear_flag(FlagName::S);
                     num_bytes_read ++;
                 } else {
                     printf("Unknown misc opcode: 0x%X\n", new_opcode);
