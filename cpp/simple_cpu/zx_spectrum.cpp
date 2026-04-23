@@ -16,18 +16,32 @@
  * 0xFF58-0xFFFF Reserved
  * 
  * Flags register:
- * 7 6 5 4 3  2  1 0
- * C Z X N X P\V N C
+ * 7 6 5  4 3  2   1 0
+ * S Z F5 H F3 P\V N C
  * 
- * C -   Carry Flag
- * N -   Add/Subtract
- * P/V - Parity/Overflow Flag
- * H -   Half Carry Flag
- * Z -   Zero Flag
- * S -   Sign Flag
- * X -   Not Used
+ * Bit 0 - C (Carry): Set (1) if the result of an addition exceeds 255 or a subtraction requires a borrow.
+ * Bit 1 - N (Add/Subtract): Set (1) if the last operation was a subtraction.
+ * Bit 2 - P/V (Parity/Overflow):
+ *         Parity: Set (1) if the parity of the result is even.
+ *         Overflow: Set (1) if a two's complement operation overflows (result too large/small for 8 bits).
+ * Bit 3 - F3 (Undocumented): Copies bit 3 of the result.
+ * Bit 4 - H (Half Carry): Set (1) if there is a carry from bit 3 to bit 4 (crucial for BCD).
+ * Bit 5 - F5 (Undocumented): Copies bit 5 of the result.
+ * Bit 6 - Z (Zero): Set (1) if the result of an operation is zero.
+ * Bit 7 - S (Sign): Copies the MSB (bit 7) of the result. Set (1) if negative, Reset (0) if positive.
  * User manual, page 65
  */
+
+enum class FlagName {
+    C = 0,
+    N,
+    P_V,
+    F3,
+    H,
+    F5,
+    Z,
+    S
+};
 
 enum class RegName {
     A = 0, F, B, C, D, E, H, L,
@@ -62,6 +76,24 @@ public:
         _A = _F = _B = _C = _D = _E = _H = _L = 0;
         I = R = 0;
         IX = IY = PC = SP = 0;
+    }
+
+    uint16_t get_flag(FlagName f_name) const {
+        uint16_t f_reg = get_reg(RegName::F);
+        uint16_t value = ((1<<static_cast<int>(f_name)) & f_reg) == 0? 0: 1;
+        return value;
+    }
+
+    void set_flag(FlagName f_name) {
+        uint16_t f_reg = get_reg(RegName::F);
+        uint16_t value = (1<<static_cast<int>(f_name)) | f_reg;
+        set_reg(RegName::F, value);
+    }
+
+    void clear_flag(FlagName f_name) {
+        uint16_t f_reg = get_reg(RegName::F);
+        uint16_t value = (1<<static_cast<int>(f_name)) ^ f_reg;
+        set_reg(RegName::F, value);
     }
 
     uint16_t get_reg(RegName name) const {
@@ -161,7 +193,8 @@ public:
         switch(opcode) {
             case 0x00:  // NOP
                 break;
-            case 0x11: {// 0x11 N N (Load N N into DE)
+            case 0x11: {// 0x11 N N (Load N N into DE), cycles: 10
+                // Does not affect flags
                 uint16_t pc = regs.get_reg(RegName::PC);
                 regs.set_reg(RegName::D, mem_bus->read(pc+2));
                 regs.set_reg(RegName::E, mem_bus->read(pc+1));
@@ -169,34 +202,40 @@ public:
                 break;
             }
             case 0x2B: {// 0x2B (DEC HL), cycles: 6
+                // Does not affect flags
                 regs.dec_reg(RegName::HL);
                 break;
             }
             case 0x36: {// 0x36 (LD HL, N - Load N into HL), cycles: 10
+                // Does not affect flags
                 uint16_t pc = regs.get_reg(RegName::PC);
                 regs.set_reg(RegName::HL, mem_bus->read(pc+1));
                 num_bytes_read ++;
                 break;
             }
-            case 0x3E: {// 0x3E (LD A, N - Load N into A)
+            case 0x3E: {// 0x3E (LD A, N - Load N into A), cycles: 7
+                // Does not affect flags
                 uint16_t pc = regs.get_reg(RegName::PC);
                 regs.set_reg(RegName::A, mem_bus->read(pc+1));
                 num_bytes_read ++;
                 break;
             }
-            case 0x47: {// 0x47 (LD B, A - Load A into B)
+            case 0x47: {// 0x47 (LD B, A - Load A into B), cycles: 4
+                // Does not affect flags
                 regs.set_reg(RegName::B, regs.get_reg(RegName::A));
                 break;
             }
             case 0x62: {// 0x62 (LD H, D - Load D into H), cycles: 4
+                // Does not affect flags
                 regs.set_reg(RegName::H, regs.get_reg(RegName::D));
                 break;
             }
             case 0x6B: {// 0x6B (LD L, E - Load E into L), cycles: 4
+                // Does not affect flags
                 regs.set_reg(RegName::L, regs.get_reg(RegName::E));
                 break;
             }
-            case 0xAF:  // XOR A
+            case 0xAF:  // XOR A, A, cycles: 4
                 // TODO: Update flags!
                 regs.set_reg(RegName::A, 0);
                 break;
