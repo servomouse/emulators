@@ -27,7 +27,7 @@ public:
             if (address >= region.start && address <= region.end) {
                 uint16_t val = region.device->read(address - region.start);
                 if (print_log) {
-                    printf("%s: Read value 0x%X from 0x%X\n", space_name? space_name: "Mem_space", val, address);
+                    printf("\t%s: Read value 0x%X from 0x%X\n", space_name? space_name: "Mem_space", val, address);
                 }
                 return val;
             }
@@ -39,7 +39,7 @@ public:
     }
     void write(uint16_t address, uint8_t data) override {
         if (print_log) {
-            printf("%s: Writing 0x%X to 0x%X\n", space_name? space_name: "Mem_space", data, address);
+            printf("\t%s: Writing 0x%X to 0x%X\n", space_name? space_name: "Mem_space", data, address);
         }
         for (auto& region : regions) {
             if (address >= region.start && address <= region.end) {
