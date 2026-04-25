@@ -616,10 +616,6 @@ public:
     }
 };
 
-// F5 C5 D5 E5 79 FE 02 28 06 FE 09 28 07 18 10 7B
-// D3 01 18 0B EB 7E FE 24 28 05 D3 01 23 18 F6 E1
-// D1 C1 F1 C9
-
 int main() {
     uint16_t ROM_SIZE = 0x4000;// 16KB ROM
     uint16_t RAM_SIZE = 0xC000;// 48KB ROM
