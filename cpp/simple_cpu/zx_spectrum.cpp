@@ -293,6 +293,15 @@ public:
                 num_bytes_read += 2;
                 break;
             }
+            case 0x18: {// 0x18 N (JR N - Add signed N to PC), cycles: 12/7
+                // Does not affect flags
+                int16_t pc_inc = static_cast<int16_t>(mem_bus->read(pc+1));
+                int16_t temp = static_cast<int16_t>(pc) + pc_inc;
+                printf("0x%04X: JR 0x%02X | 0x%02X 0x%02X\n", pc, pc_inc, opcode, flags_in);
+                regs.set_reg(RegName::PC, static_cast<uint16_t>(temp+2));
+                return true;
+                break;
+            }
             case 0x19: {// 0x19 (ADD HL, DE - Add DE to HL), cycles: 11
                 // C as defined
                 // N reset
@@ -335,7 +344,7 @@ public:
                 uint16_t zf = regs.get_flag(FlagName::Z);
                 printf("0x%04X: JR Z, 0x%02X (Z: %d) | 0x%02X 0x%02X\n", pc, pc_inc, zf, opcode, flags_in);
                 if (zf) {
-                    regs.set_reg(RegName::PC, static_cast<uint16_t>(temp));
+                    regs.set_reg(RegName::PC, static_cast<uint16_t>(temp+2));
                     return true;
                 } else {
                     num_bytes_read += 1;
@@ -415,6 +424,18 @@ public:
                 regs.set_reg(RegName::L, regs.get_reg(RegName::E));
                 break;
             }
+            case 0x79: {// LD A, C (Load C into A), cycles: 4
+                // Does not affect flags
+                printf("0x%04X: LD A, C | 0x%02X 0x%02X\n", pc, opcode, flags_in);
+                regs.set_reg(RegName::A, regs.get_reg(RegName::C));
+                break;
+            }
+            case 0x7B: {// LD A, E (Load E into A), cycles: 4
+                // Does not affect flags
+                printf("0x%04X: LD A, E | 0x%02X 0x%02X\n", pc, opcode, flags_in);
+                regs.set_reg(RegName::A, regs.get_reg(RegName::E));
+                break;
+            }
             case 0xA7: {// 0xA7 AND A, A, cycles: 4
                 printf("0x%04X: AND A, A | 0x%02X 0x%02X\n", pc, opcode, flags_in);
                 uint16_t a = regs.get_reg(RegName::A);
@@ -437,8 +458,8 @@ public:
                 regs.clear_flag(FlagName::S);
                 regs.set_reg(RegName::A, 0);
                 break;
-            case 0xBC: {// 0xBC (CP H, A - Substract H from A and update flags. A stays unchanged), cycles: 4
-                printf("0x%04X: CP H, A | 0x%02X 0x%02X\n", pc, opcode, flags_in);
+            case 0xBC: {// CP A, H (Substract H from A and update flags. A stays unchanged), cycles: 4
+                printf("0x%04X: CP A, H | 0x%02X 0x%02X\n", pc, opcode, flags_in);
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t h = regs.get_reg(RegName::H);
                 uint16_t res = a - h;
@@ -584,6 +605,22 @@ public:
                 regs.set_reg(RegName::SP, regs.get_reg(RegName::HL));
                 printf("0x%04X: LD SP, HL | 0x%02X 0x%02X, SP:  0x%04X\n", pc, opcode, flags_in, regs.get_reg(RegName::SP));
                 break;
+            case 0xFE: {// CP A, N (Substract N from A and update flags. A stays unchanged), cycles: 7
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = mem_bus->read(pc+1);
+                printf("0x%04X: CP A, 0x%02X | 0x%02X 0x%02X\n", pc, val, opcode, flags_in);
+                uint16_t res = a - val;
+                bool pvf = calculate_overflow(a, val, res, true, false);
+                bool hf = calculate_half_carry(a, val, 0, true);
+                (val > a)? regs.set_flag(FlagName::C): regs.clear_flag(FlagName::C);
+                regs.set_flag(FlagName::N);
+                pvf? regs.set_flag(FlagName::P_V): regs.clear_flag(FlagName::P_V);   // 1 when result is 0
+                hf?  regs.set_flag(FlagName::H): regs.clear_flag(FlagName::H);
+                res == 0? regs.set_flag(FlagName::Z): regs.clear_flag(FlagName::Z);
+                (res&0x80)==0x80? regs.set_flag(FlagName::S): regs.clear_flag(FlagName::S);
+                num_bytes_read ++;
+                break;
+            }
             default:
                 printf("Unknown opcode: 0x%02X at 0x%04X\n", opcode, pc);
                 return false;
