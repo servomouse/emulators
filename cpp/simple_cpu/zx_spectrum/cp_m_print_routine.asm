@@ -1,5 +1,5 @@
 ; --- Address 0xF000: CP/M BDOS Entry Point ---
-ORG F000h
+ORG 0xF000
 
 BDOS_ENTRY:
     PUSH AF             ; Save registers to avoid corrupting test state
