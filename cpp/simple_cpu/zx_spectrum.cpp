@@ -99,6 +99,13 @@ public:
         set_reg(RegName::F, value);
     }
 
+    void update_flag(FlagName f_name, bool val) {
+        if (val)
+            set_flag(f_name);
+        else
+            clear_flag(f_name);
+    }
+
     uint16_t get_reg(RegName name) const {
         uint16_t value = 0;
         switch (name) {
@@ -331,6 +338,14 @@ public:
                 }
                 break;
             }
+            case 0x21: {// 0x21 N N (Load N N into HL), cycles: 10
+                // Does not affect flags
+                uint16_t new_val = mem_read_16b(pc+1);
+                regs.set_reg(RegName::HL, new_val);
+                printf("0x%04X: LD HL, 0x%04X | 0x%02X 0x%02X\n", pc, new_val, opcode, flags_in);
+                num_bytes_read += 2;
+                break;
+            }
             case 0x23: {// 0x23 (INC HL), cycles: 6
                 // Does not affect flags
                 printf("0x%04X: INC HL | 0x%02X 0x%02X\n", pc, opcode, flags_in);
@@ -436,13 +451,20 @@ public:
                 regs.set_reg(RegName::A, regs.get_reg(RegName::E));
                 break;
             }
+            case 0x7E: {// LD A, (HL) (Load (HL) into A), cycles: 7
+                // Does not affect flags
+                uint16_t hl = regs.get_reg(RegName::HL);
+                uint16_t val = mem_bus->read(hl);
+                printf("0x%04X: LD A, (HL) (0x%04X) | 0x%02X 0x%02X\n", pc, val, opcode);
+                regs.set_reg(RegName::A, val);
+                break;
+            }
             case 0xA7: {// 0xA7 AND A, A, cycles: 4
                 printf("0x%04X: AND A, A | 0x%02X 0x%02X\n", pc, opcode, flags_in);
                 uint16_t a = regs.get_reg(RegName::A);
-                bool par = parity(a);
                 regs.clear_flag(FlagName::C);
                 regs.clear_flag(FlagName::N);
-                par? regs.set_flag(FlagName::P_V): regs.clear_flag(FlagName::P_V);
+                regs.update_flag(FlagName::P_V, z80_parity_flag(a));
                 regs.set_flag(FlagName::H);
                 a == 0? regs.set_flag(FlagName::Z): regs.clear_flag(FlagName::Z);
                 (a & 0x80) == 0x80? regs.set_flag(FlagName::S): regs.clear_flag(FlagName::S);
@@ -458,6 +480,21 @@ public:
                 regs.clear_flag(FlagName::S);
                 regs.set_reg(RegName::A, 0);
                 break;
+            case 0xB6: {// OR A, (HL), cycles: 7
+                uint16_t hl = regs.get_reg(RegName::HL);
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = mem_bus->read(hl);
+                printf("0x%04X: OR A, (HL) (0x%04X) | 0x%02X 0x%02X\n", pc, val, opcode, flags_in);
+                uint16_t res = (a | val) & 0xFF;
+                regs.clear_flag(FlagName::C);
+                regs.clear_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, z80_parity_flag(res));
+                regs.clear_flag(FlagName::H);
+                regs.update_flag(FlagName::Z, z80_zero_flag(res));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
             case 0xBC: {// CP A, H (Substract H from A and update flags. A stays unchanged), cycles: 4
                 printf("0x%04X: CP A, H | 0x%02X 0x%02X\n", pc, opcode, flags_in);
                 uint16_t a = regs.get_reg(RegName::A);
@@ -471,6 +508,16 @@ public:
                 hf?  regs.set_flag(FlagName::H): regs.clear_flag(FlagName::H);
                 res == 0? regs.set_flag(FlagName::Z): regs.clear_flag(FlagName::Z);
                 (res&0x80)==0x80? regs.set_flag(FlagName::S): regs.clear_flag(FlagName::S);
+                break;
+            }
+            case 0xC1: {// POP BC, cycles: 10
+                // Does not affect flags
+                uint16_t sp = regs.get_reg(RegName::SP);
+                printf("0x%04X: POP BC | 0x%02X, SP:  0x%04X\n", pc, opcode, sp);
+                regs.set_reg(RegName::C, mem_bus->read(sp));
+                regs.inc_reg(RegName::SP);
+                regs.set_reg(RegName::B, mem_bus->read(sp+1));
+                regs.inc_reg(RegName::SP);
                 break;
             }
             case 0xC2: {// 0xC2 N N (JP NZ, N N - Load N N into PC if Zero flag is not set), cycles: 10
@@ -504,6 +551,29 @@ public:
                 mem_bus->write(sp, regs.get_reg(RegName::C));
                 break;
             }
+            case 0xC9: {// RET, cycles: 10
+                // Does not affect flags
+                uint16_t sp = regs.get_reg(RegName::SP);
+                uint16_t new_pc = mem_read_16b(sp);
+                printf("0x%04X: RET | 0x%02X 0x%02X, SP:  0x%04X\n", pc, opcode, sp);
+                regs.inc_reg(RegName::SP);
+                regs.inc_reg(RegName::SP);
+                regs.set_reg(RegName::PC, new_pc);
+                return true;
+            }
+            case 0xCA: {// 0xCA N N (JP Z, N N - Load N N into PC if Zero flag is set), cycles: 10
+                // Does not affect flags
+                uint16_t new_pc = mem_read_16b(pc+1);
+                uint16_t zf = regs.get_flag(FlagName::Z);
+                printf("0x%04X: JP NZ, 0x%04X (Z: %d) | 0x%02X 0x%02X\n", pc, new_pc, zf, opcode, flags_in);
+                if (zf) {
+                    regs.set_reg(RegName::PC, new_pc);
+                    return true;
+                } else {
+                    num_bytes_read += 2;
+                }
+                break;
+            }
             case 0xCD: {// CALL NN  (The current PC value plus three is pushed onto the stack, then is loaded with nn), cycles: 17
                 // Does not affect flags
                 uint16_t new_pc = mem_read_16b(pc+1);
@@ -514,6 +584,16 @@ public:
                 mem_write_16b(sp, pc+3);
                 regs.set_reg(RegName::PC, new_pc);
                 return true;
+            }
+            case 0xD1: {// POP DE, cycles: 10
+                // Does not affect flags
+                uint16_t sp = regs.get_reg(RegName::SP);
+                printf("0x%04X: POP DE | 0x%02X, SP:  0x%04X\n", pc, opcode, sp);
+                regs.set_reg(RegName::E, mem_bus->read(sp));
+                regs.inc_reg(RegName::SP);
+                regs.set_reg(RegName::D, mem_bus->read(sp+1));
+                regs.inc_reg(RegName::SP);
+                break;
             }
             case 0xD3: {// 0xD3 N (OUT A:port, A), cycles: 11
                 // Does not affect flags
@@ -526,13 +606,23 @@ public:
             }
             case 0xD5: {// PUSH DE, cycles: 11
                 // Does not affect flags
-                printf("0x%04X: PUSH DE | 0x%02X 0x%02X, SP:  0x%04X\n", pc, opcode, flags_in, regs.get_reg(RegName::SP));
+                printf("0x%04X: PUSH DE | 0x%02X, SP:  0x%04X\n", pc, opcode, regs.get_reg(RegName::SP));
                 regs.dec_reg(RegName::SP);
                 uint16_t sp = regs.get_reg(RegName::SP);
                 mem_bus->write(sp, regs.get_reg(RegName::D));
                 regs.dec_reg(RegName::SP);
                 sp = regs.get_reg(RegName::SP);
                 mem_bus->write(sp, regs.get_reg(RegName::E));
+                break;
+            }
+            case 0xE1: {// POP HL, cycles: 10
+                // Does not affect flags
+                uint16_t sp = regs.get_reg(RegName::SP);
+                printf("0x%04X: POP HL | 0x%02X, SP:  0x%04X\n", pc, opcode, sp);
+                regs.set_reg(RegName::L, mem_bus->read(sp));
+                regs.inc_reg(RegName::SP);
+                regs.set_reg(RegName::H, mem_bus->read(sp+1));
+                regs.inc_reg(RegName::SP);
                 break;
             }
             case 0xE5: {// PUSH HL, cycles: 11
@@ -544,6 +634,15 @@ public:
                 regs.dec_reg(RegName::SP);
                 sp = regs.get_reg(RegName::SP);
                 mem_bus->write(sp, regs.get_reg(RegName::L));
+                break;
+            }
+            case 0xEB: {// EX DE, HL (Exchange the content of HL and DE), cycles: 4
+                // Does not affect flags
+                printf("0x%04X: EX DE, HL | 0x%02X \n", pc, opcode);
+                uint16_t hl = regs.get_reg(RegName::HL);
+                uint16_t de = regs.get_reg(RegName::DE);
+                regs.set_reg(RegName::HL, de);
+                regs.set_reg(RegName::DE, hl);
                 break;
             }
             case 0xED: {// 0xED: MISC intruction, read one more byte to get the actual opcode
@@ -582,6 +681,16 @@ public:
                     printf("Unknown misc opcode: 0x%X\n", new_opcode);
                     return false;
                 }
+                break;
+            }
+            case 0xF1: {// POP AF, cycles: 10
+                // Does not affect flags
+                uint16_t sp = regs.get_reg(RegName::SP);
+                printf("0x%04X: POP AF | 0x%02X, SP:  0x%04X\n", pc, opcode, sp);
+                regs.set_reg(RegName::F, mem_bus->read(sp));
+                regs.inc_reg(RegName::SP);
+                regs.set_reg(RegName::A, mem_bus->read(sp+1));
+                regs.inc_reg(RegName::SP);
                 break;
             }
             case 0xF3:  // DI (Disable Interrupts), cycles: 4
