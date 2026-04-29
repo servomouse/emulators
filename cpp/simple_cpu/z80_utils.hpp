@@ -50,12 +50,21 @@ bool calculate_half_carry(uint16_t op1, uint16_t op2, uint16_t carry_in, bool is
     }
 }
 
-uint16_t parity(uint16_t a) {
+bool z80_parity_flag(uint16_t a) {
     uint16_t result = a;
     for(int i=1; i<16; i++) {
         result ^= (a >> i);
     }
     result = !(result & 1);
-    return result;
+    return result != 0;
     // return (!( (a ^ (a >> 1) ^ (a >> 2) ^ (a >> 3) ^ (a >> 4) ^ (a >> 5) ^ (a >> 6) ^ (a >> 7)) & 1 ));
+}
+
+bool z80_zero_flag(uint16_t a) {
+    return a == 0;
+}
+
+bool z80_sign_flag(uint16_t a, bool is_16b) {
+    if (is_16b) return (a & 0x8000) > 0;
+    return (a & 0x80) > 0;
 }
