@@ -95,15 +95,16 @@ public:
 
     void clear_flag(FlagName f_name) {
         uint16_t f_reg = get_reg(RegName::F);
-        uint16_t value = (1<<static_cast<int>(f_name)) ^ f_reg;
+        uint16_t value = f_reg & ~(1<<static_cast<int>(f_name));
         set_reg(RegName::F, value);
     }
 
     void update_flag(FlagName f_name, bool val) {
-        if (val)
+        if (val) {
             set_flag(f_name);
-        else
+        } else {
             clear_flag(f_name);
+        }
     }
 
     uint16_t get_reg(RegName name) const {
@@ -302,7 +303,7 @@ public:
             }
             case 0x18: {// 0x18 N (JR N - Add signed N to PC), cycles: 12/7
                 // Does not affect flags
-                int16_t pc_inc = static_cast<int16_t>(mem_bus->read(pc+1));
+                int8_t pc_inc = static_cast<int8_t>(mem_bus->read(pc+1));
                 int16_t temp = static_cast<int16_t>(pc) + pc_inc;
                 printf("0x%04X: JR 0x%02X | 0x%02X 0x%02X\n", pc, pc_inc, opcode, flags_in);
                 regs.set_reg(RegName::PC, static_cast<uint16_t>(temp+2));
@@ -348,8 +349,9 @@ public:
             }
             case 0x23: {// 0x23 (INC HL), cycles: 6
                 // Does not affect flags
-                printf("0x%04X: INC HL | 0x%02X 0x%02X\n", pc, opcode, flags_in);
-                regs.inc_reg(RegName::HL);
+                uint16_t val = regs.get_reg(RegName::HL);
+                printf("0x%04X: INC HL (0x%02X->0x%02X) | 0x%02X 0x%02X\n", pc, val, val+1, opcode, flags_in);
+                regs.set_reg(RegName::HL, val+1);
                 break;
             }
             case 0x28: {// 0x28 N (JR Z, N - If Z flag is set, add signed N to PC), cycles: 12/7
@@ -439,6 +441,10 @@ public:
                 regs.set_reg(RegName::L, regs.get_reg(RegName::E));
                 break;
             }
+            case 0x76: {// HALT
+                printf("0x%04X: HALT opcode detected | 0x%02X\n", pc, opcode);
+                return false;
+            }
             case 0x79: {// LD A, C (Load C into A), cycles: 4
                 // Does not affect flags
                 printf("0x%04X: LD A, C | 0x%02X 0x%02X\n", pc, opcode, flags_in);
@@ -484,7 +490,6 @@ public:
                 uint16_t hl = regs.get_reg(RegName::HL);
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = mem_bus->read(hl);
-                printf("0x%04X: OR A, (HL) (0x%04X) | 0x%02X 0x%02X\n", pc, val, opcode, flags_in);
                 uint16_t res = (a | val) & 0xFF;
                 regs.clear_flag(FlagName::C);
                 regs.clear_flag(FlagName::N);
@@ -493,6 +498,7 @@ public:
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
                 regs.set_reg(RegName::A, res);
+                printf("0x%04X: OR A, (HL) (0x%02X | 0x%02X -> 0x%02X) | 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 break;
             }
             case 0xBC: {// CP A, H (Substract H from A and update flags. A stays unchanged), cycles: 4
@@ -565,7 +571,7 @@ public:
                 // Does not affect flags
                 uint16_t new_pc = mem_read_16b(pc+1);
                 uint16_t zf = regs.get_flag(FlagName::Z);
-                printf("0x%04X: JP NZ, 0x%04X (Z: %d) | 0x%02X 0x%02X\n", pc, new_pc, zf, opcode, flags_in);
+                printf("0x%04X: JP Z, 0x%04X (Z: %d) | 0x%02X 0x%02X\n", pc, new_pc, zf, opcode, flags_in);
                 if (zf) {
                     regs.set_reg(RegName::PC, new_pc);
                     return true;
@@ -742,6 +748,7 @@ public:
         bool cont = true;
         uint32_t counter = 0;
         regs.set_reg(RegName::PC, 0x0100);
+        mem_bus->write(0x0000, 0x76);
         mem_bus->write(0x0005, 0xC3);
         mem_bus->write(0x0006, 0x00);
         mem_bus->write(0x0007, 0xF0);
