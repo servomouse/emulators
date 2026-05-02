@@ -5,6 +5,7 @@
 #include "memory.hpp"
 #include "cpu.hpp"
 #include "z80_utils.hpp"
+#include "z80_io.hpp"
 
 /** Memory map:
  * 0x0000-0x3FFF ROM
@@ -285,6 +286,20 @@ public:
             case 0x00:  // NOP
                 printf("0x%04X: NOP | 0x%02X 0x%02X\n", pc, opcode, flags_in);
                 break;
+            case 0x01: {// 0x11 N N (LD BC, NN - Load NN into BC), cycles: 10
+                // Does not affect flags
+                uint16_t new_val = mem_read_16b(pc+1);
+                regs.set_reg(RegName::BC, new_val);
+                printf("0x%04X: LD BC, 0x%04X | 0x%02X 0x%02X\n", pc, new_val, opcode, flags_in);
+                num_bytes_read += 2;
+                break;
+            }
+            case 0x0B: {// 0x0B (DEC BC - Decrement BC), cycles: 6
+                // Does not affect flags
+                regs.dec_reg(RegName::BC);
+                printf("0x%04X: DEC BC | 0x%02X 0x%02X\n", pc, opcode, flags_in);
+                break;
+            }
             case 0x0E: {// LD C, N (Load N into C), cycles: 7
                 // Does not affect flags
                 uint16_t val = mem_bus->read(pc+1);
@@ -293,12 +308,18 @@ public:
                 num_bytes_read += 1;
                 break;
             }
-            case 0x11: {// 0x11 N N (Load N N into DE), cycles: 10
+            case 0x11: {// 0x11 N N (LD DE, NN - Load N N into DE), cycles: 10
                 // Does not affect flags
                 uint16_t new_val = mem_read_16b(pc+1);
                 regs.set_reg(RegName::DE, new_val);
                 printf("0x%04X: LD DE, 0x%04X | 0x%02X 0x%02X\n", pc, new_val, opcode, flags_in);
                 num_bytes_read += 2;
+                break;
+            }
+            case 0x13: {// 0x13 (INC DE - Increment DE), cycles: 6
+                // Does not affect flags
+                regs.inc_reg(RegName::DE);
+                printf("0x%04X: INC DE | 0x%02X 0x%02X\n", pc, opcode, flags_in);
                 break;
             }
             case 0x18: {// 0x18 N (JR N - Add signed N to PC), cycles: 12/7
@@ -395,6 +416,14 @@ public:
                 num_bytes_read ++;
                 break;
             }
+            case 0x32: {// 0x32 N N (LD (NN), A - Stores A into the memory at address (NN)), cycles: 13
+                // Does not affect flags
+                uint16_t addr = mem_read_16b(pc+1);
+                printf("0x%04X: LD 0x%04X, A | 0x%02X 0x%02X\n", pc, addr, opcode, flags_in);
+                mem_bus->write(addr, regs.get_reg(RegName::A));
+                num_bytes_read += 2;
+                break;
+            }
             case 0x36: {// 0x36 (LD HL, N - Load N into HL), cycles: 10
                 // Does not affect flags
                 uint16_t val = mem_bus->read(pc+1);
@@ -423,10 +452,22 @@ public:
                 regs.set_reg(RegName::B, regs.get_reg(RegName::A));
                 break;
             }
+            case 0x54: {// 0x54 (LD D, H - Load H into D), cycles: 4
+                // Does not affect flags
+                printf("0x%04X: LD D, H | 0x%02X 0x%02X\n", pc, opcode, flags_in);
+                regs.set_reg(RegName::D, regs.get_reg(RegName::H));
+                break;
+            }
             case 0x5C: {// 0x5C (LD E, H - Load H into E), cycles: 4
                 // Does not affect flags
                 printf("0x%04X: LD E, H | 0x%02X 0x%02X\n", pc, opcode, flags_in);
                 regs.set_reg(RegName::E, regs.get_reg(RegName::H));
+                break;
+            }
+            case 0x5D: {// 0x5C (LD E, L - Load L into E), cycles: 4
+                // Does not affect flags
+                printf("0x%04X: LD E, L | 0x%02X 0x%02X\n", pc, opcode, flags_in);
+                regs.set_reg(RegName::E, regs.get_reg(RegName::L));
                 break;
             }
             case 0x62: {// 0x62 (LD H, D - Load D into H), cycles: 4
@@ -435,10 +476,24 @@ public:
                 regs.set_reg(RegName::H, regs.get_reg(RegName::D));
                 break;
             }
+            case 0x66: {// 0x66 (LD H, (HL) - Load (HL) into H), cycles: 7
+                // Does not affect flags
+                uint16_t hl = regs.get_reg(RegName::HL);
+                uint16_t val = mem_bus->read(hl);
+                printf("0x%04X: LD H, (HL) (0x%04X) | 0x%02X 0x%02X\n", pc, val, opcode);
+                regs.set_reg(RegName::H, val);
+                break;
+            }
             case 0x6B: {// 0x6B (LD L, E - Load E into L), cycles: 4
                 // Does not affect flags
                 printf("0x%04X: LD L, E | 0x%02X 0x%02X\n", pc, opcode, flags_in);
                 regs.set_reg(RegName::L, regs.get_reg(RegName::E));
+                break;
+            }
+            case 0x6F: {// 0x6F (LD L, A - Load A into L), cycles: 4
+                // Does not affect flags
+                printf("0x%04X: LD L, A | 0x%02X 0x%02X\n", pc, opcode, flags_in);
+                regs.set_reg(RegName::B, regs.get_reg(RegName::L));
                 break;
             }
             case 0x76: {// HALT
@@ -772,8 +827,10 @@ public:
 int main() {
     uint16_t ROM_SIZE = 0x4000;// 16KB ROM
     uint16_t RAM_SIZE = 0xC000;// 48KB ROM
+    uint16_t MEM_SIZE = 0xFFFF;// 64KB Memory space
     Memory rom(ROM_SIZE);
     Memory ram(RAM_SIZE);
+    IO_Space io(MEM_SIZE);
     
     AddressDecoder mem_decoder;
     AddressDecoder io_decoder;
@@ -785,7 +842,9 @@ int main() {
     io_decoder.enable_log();
 
     mem_decoder.map_device(0x0000, ROM_SIZE-1, &rom);
-    mem_decoder.map_device(ROM_SIZE, 0xFFFF, &ram);
+    mem_decoder.map_device(ROM_SIZE, MEM_SIZE, &ram);
+
+    io_decoder.map_device(0x0000, MEM_SIZE, &io);
 
     // if(rom.map_image("./zx_spectrum/spec48.rom", 0)) {
     if(rom.map_image("./zx_spectrum/zexall.bin", 0x0100)) {
@@ -798,6 +857,7 @@ int main() {
     Z80CPU z80_cpu(&mem_decoder, &io_decoder);
 
     z80_cpu.tick();
+    io.end_log();
 
     return 0;
 }
