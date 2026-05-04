@@ -2,5 +2,8 @@
 *.bin
 *.exe
 *.com
+*.log
+*.txt
+*.py
 zexall.z80
 zexall_test_log.txt
