@@ -575,6 +575,25 @@ public:
                 regs.set_reg(RegName::A, val);
                 break;
             }
+            case 0x1D: {// 0x1D     (DEC E       - Subtracts one from E), cycles: 4
+                // C unaffected
+                // N set
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t e = regs.get_reg(RegName::E);
+                uint16_t res = e - 1;
+                regs.set_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, e==0);
+                regs.update_flag(FlagName::H, calculate_half_carry(e, 1, 0, true));
+                regs.update_flag(FlagName::Z, z80_zero_flag(res));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+
+                printf("0x%04X: DEC E : (0x%02X->0x%02X) || 0x%02X F=0x%02X\n", pc, e, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::E, res);
+                break;
+            }
             case 0x20: {// 0x20 N   (JR NZ, N    - If Z flag is unset, add signed N to PC), cycles: 12/7
                 // Does not affect flags
                 int16_t pc_inc = static_cast<int16_t>(mem_bus->read(pc+1));
@@ -629,6 +648,70 @@ public:
 
                 printf("0x%04X: INC D || 0x%02X F=0x%02X\n", pc, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::D, res);
+                break;
+            }
+            case 0x27: {// 0x27     (DAA         - Adjusts A for BCD addition and subtraction operations), cycles: 4
+                // C exceptional
+                // N unaffected
+                // P/V detects parity
+                // H exceptional
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t res = 0;
+                uint8_t correction = 0;
+                uint8_t flag_C = regs.get_flag(FlagName::C);
+                uint8_t old_C = flag_C;
+                uint8_t flag_N = regs.get_flag(FlagName::N);
+                uint8_t flag_H = regs.get_flag(FlagName::H);
+                uint8_t high_nibble = a >> 4;
+                uint8_t low_nibble = a & 0x0F;
+
+                if (flag_N == 0) {
+                    // --- Logic for Addition ---
+                    if (flag_C || high_nibble > 9 || (high_nibble == 9 && low_nibble > 9)) {
+                        correction |= 0x60;
+                        regs.set_flag(FlagName::C);
+                    } else {
+                        regs.clear_flag(FlagName::C);
+                    }
+                    
+                    if (flag_H || low_nibble > 9) {
+                        correction |= 0x06;
+                    }
+                } else {
+                    // --- Logic for Subtraction ---
+                    if (flag_C) {
+                        correction |= 0x60;
+                    }
+                    
+                    if (flag_H) {
+                        correction |= 0x06;
+                    }
+                }
+
+                // Calculate Half-Carry for the DAA operation itself
+                // H is set if there's a carry from bit 3 to 4 during adjustment
+                if (flag_N == 0) {
+                    regs.update_flag(FlagName::H, (a & 0x0F) + (correction & 0x0F) > 0x0F);
+                } else {
+                    regs.update_flag(FlagName::H, (a & 0x0F) < (correction & 0x0F));
+                }
+
+                // Apply the correction
+                if (flag_N == 0) {
+                    res = a + correction;
+                } else {
+                    res = a - correction;
+                }
+
+                // Update remaining flags
+                regs.update_flag(FlagName::S, a & 0x80);
+                regs.update_flag(FlagName::Z, a == 0);
+                regs.update_flag(FlagName::P_V, z80_parity_flag(a));
+
+                printf("0x%04X: DAA : (0x%02X -> 0x%02X) || 0x%02X F=0x%02X\n", pc, a, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
                 break;
             }
             case 0x25: {// 0x25     (DEC H       - Subtract 1 from H), cycles: 4
@@ -732,7 +815,7 @@ public:
             case 0x32: {// 0x32 N N (LD (NN), A  - Stores A into the memory at address (NN)), cycles: 13
                 // Does not affect flags
                 uint16_t addr = mem_read_16b(pc+1);
-                printf("0x%04X: LD 0x%04X, A | 0x%02X 0x%02X\n", pc, addr, opcode, flags_in);
+                printf("0x%04X: LD (0x%04X), A || 0x%02X\n", pc, addr, opcode);
                 mem_bus->write(addr, regs.get_reg(RegName::A));
                 num_bytes_read += 2;
                 break;
@@ -763,6 +846,31 @@ public:
                 uint16_t addr = regs.get_reg(RegName::HL);
                 printf("0x%04X: LD 0x%04X, 0x%02X | 0x%02X 0x%02X\n", pc, addr, val, opcode, flags_in);
                 mem_bus->write(addr, val);
+                num_bytes_read ++;
+                break;
+            }
+            case 0x37: {// 0x37     (SCF         - Sets the carry flag), cycles: 4
+                // C set
+                // N reset
+                // P/V unaffected
+                // H reset
+                // Z unaffected
+                // S unaffected
+                regs.set_flag(FlagName::C);
+                regs.clear_flag(FlagName::N);
+                regs.clear_flag(FlagName::H);
+                break;
+            }
+            case 0x38: {// 0x38     (JR C, N     - If carry flag is set, add signed N to PC), cycles: 12/7
+                // Does not affect flags
+                int16_t pc_inc = static_cast<int16_t>(mem_bus->read(pc+1));
+                int16_t temp = static_cast<int16_t>(pc) + pc_inc;
+                uint16_t cf = regs.get_flag(FlagName::C);
+                printf("0x%04X: JR NC, 0x%02X : (C: %d) | 0x%02X 0x%02X\n", pc, pc_inc, cf, opcode, flags_in);
+                if(cf) {
+                    regs.set_reg(RegName::PC, static_cast<uint16_t>(temp+2));
+                    return true;
+                }
                 num_bytes_read ++;
                 break;
             }
@@ -800,6 +908,19 @@ public:
                 printf("0x%04X: LD A, 0x%02X | 0x%02X 0x%02X\n", pc, val, opcode, flags_in);
                 regs.set_reg(RegName::A, val);
                 num_bytes_read ++;
+                break;
+            }
+            case 0x3F: {// 0x3F     (CCF         - Inverts the carry flag), cycles: 4
+                // C exceptional
+                // N reset
+                // P/V unaffected
+                // H exceptional
+                // Z unaffected
+                // S unaffected
+                uint16_t old_carry = regs.get_flag(FlagName::C);
+                regs.update_flag(FlagName::C, !old_carry);
+                regs.clear_flag(FlagName::N);
+                regs.update_flag(FlagName::H, old_carry);
                 break;
             }
             case 0x40: {// 0x40     (LD B, B     - Load B into B), cycles: 4
@@ -1155,14 +1276,37 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t d = regs.get_reg(RegName::D);
-                uint16_t res = a & d;
+                uint16_t res = a + d;
                 regs.update_flag(FlagName::C, res > 0xFF);
                 regs.clear_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, calculate_overflow(a, d, res, false, false));
                 regs.update_flag(FlagName::H, calculate_half_carry(a, d, 0, false));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
-                printf("0x%04X: ADD A, D || 0x%02X F=0x%02X\n", pc, opcode, regs.get_reg(RegName::F));
+                printf("0x%04X: ADD A, D : (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, d, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x8D: {// 0x8D     (ADD A, L    - Adds L and the carry flag to A), cycles: 4
+                // C as defined
+                // N reset
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t l = regs.get_reg(RegName::L);
+                uint16_t res = a + l;
+                if (regs.get_flag(FlagName::C)) {
+                    res += 1;
+                }
+                regs.update_flag(FlagName::C, res > 0xFF);
+                regs.clear_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, calculate_overflow(a, l, res, false, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(a, l, 0, false));
+                regs.update_flag(FlagName::Z, z80_zero_flag(res));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                printf("0x%04X: ADC A, L || 0x%02X F=0x%02X\n", pc, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
             }
@@ -1332,6 +1476,16 @@ public:
                 printf("0x%04X: CP A, H : (0x%04X - 0x%04X = 0x%04X) | 0x%02X 0x%02X\n", pc, a, h, res, opcode, regs.get_reg(RegName::F));
                 break;
             }
+            case 0xC0: {// 0xC0     (RET NZ - If the zero flag is unset, the top stack entry is popped into PC), cycles: 11/5
+                // Does not affect flags
+                if (!regs.get_flag(FlagName::Z)) {
+                    printf("0x%04X: RET NZ : (Z=0, condition met) || 0x%02X\n", pc, opcode);
+                    pop_reg(RegName::PC);
+                    return true;
+                }
+                printf("0x%04X: RET NZ : (Z=1, condition not met) || 0x%02X\n", pc, opcode);
+                break;
+            }
             case 0xC1: {// 0xC1     (POP BC), cycles: 10
                 // Does not affect flags
                 printf("0x%04X: POP BC || 0x%02X\n", pc, opcode);
@@ -1387,6 +1541,7 @@ public:
                     return true;
                 }
                 printf("0x%04X: RET Z : (Z=0, condition not met) || 0x%02X\n", pc, opcode);
+                break;
             }
             case 0xC9: {// 0xC9     (RET), cycles: 10
                 // Does not affect flags
@@ -1407,6 +1562,21 @@ public:
                 }
                 break;
             }
+            case 0xCC: {// 0xCC     (CALL Z NN   - If the zero flag is set, the current PC value plus three is pushed onto the stack, then is loaded with nn), cycles: 17/10
+                // Does not affect flags
+                uint16_t new_pc = mem_read_16b(pc+1);
+                if (regs.get_flag(FlagName::Z)) {
+                    regs.set_reg(RegName::PC, pc+3);    // Increment PC to point to the next instruction
+                    printf("0x%04X: CALL Z 0x%04X : (Z=1, condition met) || 0x%02X\n", pc, new_pc, opcode);
+                    push_reg(RegName::PC);
+                    regs.set_reg(RegName::PC, new_pc);
+                    return true;
+                } else {
+                    printf("0x%04X: CALL Z 0x%04X : (Z=0, condition not met) || 0x%02X\n", pc, new_pc, opcode);
+                    num_bytes_read += 2;
+                }
+                break;
+            }
             case 0xCD: {// 0xCD     (CALL NN     - The current PC value plus three is pushed onto the stack, then is loaded with nn), cycles: 17
                 // Does not affect flags
                 uint16_t new_pc = mem_read_16b(pc+1);
@@ -1416,10 +1586,33 @@ public:
                 regs.set_reg(RegName::PC, new_pc);
                 return true;
             }
+            case 0xD0: {// 0xD0     (RET NC - If the carry flag is unset, the top stack entry is popped into PC), cycles: 11/5
+                // Does not affect flags
+                if (!regs.get_flag(FlagName::C)) {
+                    printf("0x%04X: RET NC : (C=0, condition met) || 0x%02X\n", pc, opcode);
+                    pop_reg(RegName::PC);
+                    return true;
+                }
+                printf("0x%04X: RET NC : (C=1, condition not met) || 0x%02X\n", pc, opcode);
+                break;
+            }
             case 0xD1: {// 0xD1     (POP DE), cycles: 10
                 // Does not affect flags
                 printf("0x%04X: POP DE || 0x%02X\n", pc, opcode);
                 pop_reg(RegName::DE);
+                break;
+            }
+            case 0xD2: {// 0xD2 N N (JP NC, N N  - If the carry flag is unset, nn is copied to PC), cycles: 10
+                // Does not affect flags
+                uint16_t new_pc = mem_read_16b(pc+1);
+                uint16_t cf = regs.get_flag(FlagName::C);
+                printf("0x%04X: JP NC, 0x%04X :: (C: %d) || 0x%02X 0x%02X\n", pc, new_pc, cf, opcode, regs.get_reg(RegName::F));
+                if (!cf) {
+                    regs.set_reg(RegName::PC, new_pc);
+                    return true;
+                } else {
+                    num_bytes_read += 2;
+                }
                 break;
             }
             case 0xD3: {// 0xD3 N   (OUT A:port, A), cycles: 11
@@ -1431,13 +1624,51 @@ public:
                 num_bytes_read ++;
                 break;
             }
+            case 0xD4: {// 0xD4     (CALL NC NN   - If the carry flag is unset, the current PC value plus three is pushed onto the stack, then is loaded with nn), cycles: 17/10
+                // Does not affect flags
+                uint16_t new_pc = mem_read_16b(pc+1);
+                if (!regs.get_flag(FlagName::C)) {
+                    regs.set_reg(RegName::PC, pc+3);    // Increment PC to point to the next instruction
+                    printf("0x%04X: CALL NC 0x%04X : (C=0, condition met) || 0x%02X\n", pc, new_pc, opcode);
+                    push_reg(RegName::PC);
+                    regs.set_reg(RegName::PC, new_pc);
+                    return true;
+                } else {
+                    printf("0x%04X: CALL NC 0x%04X : (C=1, condition not met) || 0x%02X\n", pc, new_pc, opcode);
+                    num_bytes_read += 2;
+                }
+                break;
+            }
             case 0xD5: {// 0xD5     (PUSH DE), cycles: 11
                 // Does not affect flags
                 printf("0x%04X: PUSH DE || 0x%02X, SP:  0x%04X\n", pc, opcode, regs.get_reg(RegName::SP));
                 push_reg(RegName::DE);
                 break;
             }
-            case 0xDC: {// 0xDC     (CALL C NN  - If the carry flag is set, the current PC value plus three is pushed onto the stack, then is loaded with nn), cycles: 17/10
+            case 0xD8: {// 0xD8     (RET C - If the carry flag is set, the top stack entry is popped into PC), cycles: 11/5
+                // Does not affect flags
+                if (regs.get_flag(FlagName::C)) {
+                    printf("0x%04X: RET C : (C=1, condition met) || 0x%02X\n", pc, opcode);
+                    pop_reg(RegName::PC);
+                    return true;
+                }
+                printf("0x%04X: RET C : (C=0, condition not met) || 0x%02X\n", pc, opcode);
+                break;
+            }
+            case 0xDA: {// 0xDA N N (JP C, N N  - If the carry flag is set, NN is copied to PC), cycles: 10
+                // Does not affect flags
+                uint16_t new_pc = mem_read_16b(pc+1);
+                uint16_t cf = regs.get_flag(FlagName::C);
+                printf("0x%04X: JP C, 0x%04X :: (C: %d) || 0x%02X 0x%02X\n", pc, new_pc, cf, opcode, regs.get_reg(RegName::F));
+                if (cf) {
+                    regs.set_reg(RegName::PC, new_pc);
+                    return true;
+                } else {
+                    num_bytes_read += 2;
+                }
+                break;
+            }
+            case 0xDC: {// 0xDC     (CALL C NN   - If the carry flag is set, the current PC value plus three is pushed onto the stack, then is loaded with nn), cycles: 17/10
                 // Does not affect flags
                 uint16_t new_pc = mem_read_16b(pc+1);
                 if (regs.get_flag(FlagName::C)) {
@@ -1447,7 +1678,7 @@ public:
                     regs.set_reg(RegName::PC, new_pc);
                     return true;
                 } else {
-                    printf("0x%04X: CALL NZ 0x%04X : (C=0, condition not met) || 0x%02X\n", pc, new_pc, opcode);
+                    printf("0x%04X: CALL C 0x%04X : (C=0, condition not met) || 0x%02X\n", pc, new_pc, opcode);
                     num_bytes_read += 2;
                 }
                 break;
@@ -1468,10 +1699,48 @@ public:
                 }
                 break;
             }
+            case 0xE0: {// 0xE0     (RET PO - If the parity/overflow flag is unset, the top stack entry is popped into PC), cycles: 11/5
+                // Does not affect flags
+                if (!regs.get_flag(FlagName::P_V)) {
+                    printf("0x%04X: RET PO : (P_V=0, condition met) || 0x%02X\n", pc, opcode);
+                    pop_reg(RegName::PC);
+                    return true;
+                }
+                printf("0x%04X: RET PO : (P_V=1, condition not met) || 0x%02X\n", pc, opcode);
+                break;
+            }
             case 0xE1: {// 0xE1     (POP HL), cycles: 10
                 // Does not affect flags
                 printf("0x%04X: POP HL || 0x%02X\n", pc, opcode);
                 pop_reg(RegName::HL);
+                break;
+            }
+            case 0xE2: {// 0xE2 N N (JP PO, N N  - If the parity/overflow flag is unset, nn is copied to PC), cycles: 10
+                // Does not affect flags
+                uint16_t new_pc = mem_read_16b(pc+1);
+                uint16_t pvf = regs.get_flag(FlagName::P_V);
+                printf("0x%04X: JP PO, 0x%04X :: (P_V: %d) || 0x%02X 0x%02X\n", pc, new_pc, pvf, opcode, regs.get_reg(RegName::F));
+                if (!pvf) {
+                    regs.set_reg(RegName::PC, new_pc);
+                    return true;
+                } else {
+                    num_bytes_read += 2;
+                }
+                break;
+            }
+            case 0xE4: {// 0xE4     (CALL PO NN   - If the parity/overflow flag is unset, the current PC value plus three is pushed onto the stack, then is loaded with nn), cycles: 17/10
+                // Does not affect flags
+                uint16_t new_pc = mem_read_16b(pc+1);
+                if (!regs.get_flag(FlagName::P_V)) {
+                    regs.set_reg(RegName::PC, pc+3);    // Increment PC to point to the next instruction
+                    printf("0x%04X: CALL PO 0x%04X : (P_V=0, condition met) || 0x%02X\n", pc, new_pc, opcode);
+                    push_reg(RegName::PC);
+                    regs.set_reg(RegName::PC, new_pc);
+                    return true;
+                } else {
+                    printf("0x%04X: CALL PO 0x%04X : (P_V=1, condition not met) || 0x%02X\n", pc, new_pc, opcode);
+                    num_bytes_read += 2;
+                }
                 break;
             }
             case 0xE5: {// 0xE5     (PUSH HL), cycles: 11
@@ -1483,7 +1752,6 @@ public:
             case 0xE6: {// 0xE6     (AND A, N), cycles: 7
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = mem_bus->read(pc+1);
-                printf("0x%04X: AND A, 0x%02X || 0x%02X 0x%02X\n", pc, val, opcode, flags_in);
                 uint16_t res = a & val;
                 regs.clear_flag(FlagName::C);
                 regs.clear_flag(FlagName::N);
@@ -1491,8 +1759,32 @@ public:
                 regs.set_flag(FlagName::H);
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                printf("0x%04X: AND A, 0x%02X || 0x%02X F=0x%02X\n", pc, val, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 num_bytes_read ++;
+                break;
+            }
+            case 0xE8: {// 0xE8     (RET PE - If the parity/overflow flag is set, the top stack entry is popped into PC), cycles: 11/5
+                // Does not affect flags
+                if (regs.get_flag(FlagName::P_V)) {
+                    printf("0x%04X: RET PE : (P_V=1, condition met) || 0x%02X\n", pc, opcode);
+                    pop_reg(RegName::PC);
+                    return true;
+                }
+                printf("0x%04X: RET PE : (P_V=0, condition not met) || 0x%02X\n", pc, opcode);
+                break;
+            }
+            case 0xEA: {// 0xEA N N (JP PE, N N  - If the parity/overflow flag is set, NN is copied to PC), cycles: 10
+                // Does not affect flags
+                uint16_t new_pc = mem_read_16b(pc+1);
+                uint16_t pvf = regs.get_flag(FlagName::P_V);
+                printf("0x%04X: JP PE, 0x%04X :: (P_V: %d) || 0x%02X 0x%02X\n", pc, new_pc, pvf, opcode, regs.get_reg(RegName::F));
+                if (pvf) {
+                    regs.set_reg(RegName::PC, new_pc);
+                    return true;
+                } else {
+                    num_bytes_read += 2;
+                }
                 break;
             }
             case 0xEB: {// 0xEB     (EX DE, HL   - Exchange the content of HL and DE), cycles: 4
@@ -1502,6 +1794,21 @@ public:
                 uint16_t de = regs.get_reg(RegName::DE);
                 regs.set_reg(RegName::HL, de);
                 regs.set_reg(RegName::DE, hl);
+                break;
+            }
+            case 0xEC: {// 0xEC     (CALL PE NN   - If the parity/overflow flag is set, the current PC value plus three is pushed onto the stack, then is loaded with nn), cycles: 17/10
+                // Does not affect flags
+                uint16_t new_pc = mem_read_16b(pc+1);
+                if (regs.get_flag(FlagName::P_V)) {
+                    regs.set_reg(RegName::PC, pc+3);    // Increment PC to point to the next instruction
+                    printf("0x%04X: CALL PE 0x%04X : (P_V=1, condition met) || 0x%02X\n", pc, new_pc, opcode);
+                    push_reg(RegName::PC);
+                    regs.set_reg(RegName::PC, new_pc);
+                    return true;
+                } else {
+                    printf("0x%04X: CALL PE 0x%04X : (P_V=0, condition not met) || 0x%02X\n", pc, new_pc, opcode);
+                    num_bytes_read += 2;
+                }
                 break;
             }
             case 0xED: {// 0xED     (MISC intruction, read one more byte to get the actual opcode)
@@ -1583,10 +1890,33 @@ public:
                 }
                 break;
             }
+            case 0xF0: {// 0xF0     (RET P - If the sign flag is unset, the top stack entry is popped into PC), cycles: 11/5
+                // Does not affect flags
+                if (!regs.get_flag(FlagName::S)) {
+                    printf("0x%04X: RET P : (S=0, condition met) || 0x%02X\n", pc, opcode);
+                    pop_reg(RegName::PC);
+                    return true;
+                }
+                printf("0x%04X: RET P : (S=1, condition not met) || 0x%02X\n", pc, opcode);
+                break;
+            }
             case 0xF1: {// 0xF1     (POP AF), cycles: 10
                 // Does not affect flags
                 printf("0x%04X: POP AF || 0x%02X\n", pc, opcode);
                 pop_reg(RegName::AF);
+                break;
+            }
+            case 0xF2: {// 0xF2 N N (JP P, N N  - If the sign flag is unset, nn is copied to PC), cycles: 10
+                // Does not affect flags
+                uint16_t new_pc = mem_read_16b(pc+1);
+                uint16_t sf = regs.get_flag(FlagName::S);
+                printf("0x%04X: JP P, 0x%04X :: (S: %d) || 0x%02X 0x%02X\n", pc, new_pc, sf, opcode, regs.get_reg(RegName::F));
+                if (!sf) {
+                    regs.set_reg(RegName::PC, new_pc);
+                    return true;
+                } else {
+                    num_bytes_read += 2;
+                }
                 break;
             }
             case 0xF3: {// 0xF3     (DI          - Disable Interrupts), cycles: 4
@@ -1595,10 +1925,35 @@ public:
                 interrupts_enabled = false;
                 break;
             }
+            case 0xF4: {// 0xF4     (CALL P NN   - If the sign flag is unset, the current PC value plus three is pushed onto the stack, then is loaded with nn), cycles: 17/10
+                // Does not affect flags
+                uint16_t new_pc = mem_read_16b(pc+1);
+                if (!regs.get_flag(FlagName::S)) {
+                    regs.set_reg(RegName::PC, pc+3);    // Increment PC to point to the next instruction
+                    printf("0x%04X: CALL P 0x%04X : (S=0, condition met) || 0x%02X\n", pc, new_pc, opcode);
+                    push_reg(RegName::PC);
+                    regs.set_reg(RegName::PC, new_pc);
+                    return true;
+                } else {
+                    printf("0x%04X: CALL P 0x%04X : (S=1, condition not met) || 0x%02X\n", pc, new_pc, opcode);
+                    num_bytes_read += 2;
+                }
+                break;
+            }
             case 0xF5: {// 0xF5     (PUSH AF), cycles: 11
                 // Does not affect flags
                 printf("0x%04X: PUSH AF || 0x%02X\n", pc, opcode);
                 push_reg(RegName::AF);
+                break;
+            }
+            case 0xF8: {// 0xF8     (RET M - If the sign flag is set, the top stack entry is popped into PC), cycles: 11/5
+                // Does not affect flags
+                if (regs.get_flag(FlagName::S)) {
+                    printf("0x%04X: RET M : (S=1, condition met) || 0x%02X\n", pc, opcode);
+                    pop_reg(RegName::PC);
+                    return true;
+                }
+                printf("0x%04X: RET M : (S=0, condition not met) || 0x%02X\n", pc, opcode);
                 break;
             }
             case 0xF9: {// 0xF9     (LD SP, HL   - Load HL into SP), cycles: 6
@@ -1607,10 +1962,38 @@ public:
                 printf("0x%04X: LD SP, HL || 0x%02X\n", pc, opcode);
                 break;
             }
+            case 0xFA: {// 0xFA N N (JP M, N N  - If the sign flag is set, nn is copied to PC), cycles: 10
+                // Does not affect flags
+                uint16_t new_pc = mem_read_16b(pc+1);
+                uint16_t sf = regs.get_flag(FlagName::S);
+                printf("0x%04X: JP M, 0x%04X :: (S: %d) || 0x%02X 0x%02X\n", pc, new_pc, sf, opcode, regs.get_reg(RegName::F));
+                if (sf) {
+                    regs.set_reg(RegName::PC, new_pc);
+                    return true;
+                } else {
+                    num_bytes_read += 2;
+                }
+                break;
+            }
             case 0xFB: {// 0xFB     (EI          - Enable Interrupts - Sets both interrupt flip-flops, thus allowing maskable interrupts to occur), cycles: 4
                 // Does not affect flags
                 printf("0x%04X: EI || 0x%02X\n", pc, opcode);
                 interrupts_enabled = true;
+                break;
+            }
+            case 0xFC: {// 0xFC     (CALL M NN   - If the sign flag is set, the current PC value plus three is pushed onto the stack, then is loaded with nn), cycles: 17/10
+                // Does not affect flags
+                uint16_t new_pc = mem_read_16b(pc+1);
+                if (regs.get_flag(FlagName::S)) {
+                    regs.set_reg(RegName::PC, pc+3);    // Increment PC to point to the next instruction
+                    printf("0x%04X: CALL M 0x%04X : (S=1, condition met) || 0x%02X\n", pc, new_pc, opcode);
+                    push_reg(RegName::PC);
+                    regs.set_reg(RegName::PC, new_pc);
+                    return true;
+                } else {
+                    printf("0x%04X: CALL M 0x%04X : (S=0, condition not met) || 0x%02X\n", pc, new_pc, opcode);
+                    num_bytes_read += 2;
+                }
                 break;
             }
             case 0xFD: {// 0xFD     (IY Instructions, read one more byte to get the actual opcode)
@@ -1709,12 +2092,12 @@ public:
     void tick() override {
         bool cont = true;
         // uint32_t counter = 0;
-        regs.set_reg(RegName::PC, 0x0100);
+        // regs.set_reg(RegName::PC, 0x0100);
         // mem_bus->write(0x0000, 0x76);
-        mem_bus->write(0x0028, 0x76);
-        mem_bus->write(0x0005, 0xC3);
-        mem_bus->write(0x0006, 0x00);
-        mem_bus->write(0x0007, 0xF0);
+        // mem_bus->write(0x0028, 0x76);
+        // mem_bus->write(0x0005, 0xC3);
+        // mem_bus->write(0x0006, 0x00);
+        // mem_bus->write(0x0007, 0xF0);
 
         while(cont) {
             uint16_t pc = regs.get_reg(RegName::PC);
@@ -1743,7 +2126,7 @@ public:
 
 int main() {
     uint16_t ROM_SIZE = 0x4000;// 16KB ROM
-    uint16_t RAM_SIZE = 0xC000;// 48KB ROM
+    uint16_t RAM_SIZE = 0xC000;// 48KB RAM
     uint16_t MEM_SIZE = 0xFFFF;// 64KB Memory space
     Memory rom(ROM_SIZE);
     Memory ram(RAM_SIZE);
@@ -1764,12 +2147,15 @@ int main() {
     io_decoder.map_device(0x0000, MEM_SIZE, &io);
 
     // if(rom.map_image("./zx_spectrum/spec48.rom", 0)) {
-    if(rom.map_image("./zx_spectrum/zexall.bin", 0x0100)) {
-        std::cout << "ZEXALL ROM image successfully mapped\n";
+    if(rom.map_image("./zx_spectrum/my_test_suite.bin", 0x0000)) {
+        std::cout << "My test suite successfully mapped\n";
     }
-    if(ram.map_image("./zx_spectrum/0xF000_proc.bin", 0xF000-ROM_SIZE)) {
-        std::cout << "Print procedure ROM image successfully mapped\n";
-    }
+    // if(rom.map_image("./zx_spectrum/zexall.bin", 0x0100)) {
+    //     std::cout << "ZEXALL ROM image successfully mapped\n";
+    // }
+    // if(ram.map_image("./zx_spectrum/0xF000_proc.bin", 0xF000-ROM_SIZE)) {
+    //     std::cout << "Print procedure ROM image successfully mapped\n";
+    // }
 
     Z80CPU z80_cpu(&mem_decoder, &io_decoder);
 
