@@ -1,0 +1,281 @@
+
+ORG 0000h           ; Test direct jumps
+    JP STEP3
+    HALT
+
+STEP1:              ; Test calls
+    LD SP, 0xF000
+    CALL STEP2
+    HALT
+
+STEP2:              ; Test returns
+    LD HL, START
+    PUSH HL
+    RET
+    HALT
+
+STEP3:              ; Test relative jumps
+    JR STEP4
+    HALT
+
+STEP4:              ; Test relative jumps with nehative increment
+    JR STEP1
+    HALT
+
+RET_BACK_PLUS_ONE:
+    POP HL          ; Returns back skipping one 1-byte opcode
+    PUSH AF
+    INC HL
+    POP AF
+    PUSH HL
+    RET
+
+ERROR:
+    DI
+    HALT
+    JR ERROR
+
+START:
+    CALL TEST_JMPS
+    CALL TEST_RETS
+    CALL TEST_CALLS
+    CALL TEST_DJNZ
+    HALT
+
+TEST_JMPS:
+                    ; Clear flags
+    LD HL, 0x0000
+    PUSH HL
+    POP AF
+
+    JR Z, ERROR
+    JR C, ERROR
+    JP Z, ERROR
+    JP C, ERROR
+    JP PE, ERROR
+    JP M, ERROR
+
+    JP NZ, test_jmps0
+    HALT
+    test_jmps0:
+    JP NC, test_jmps1
+    HALT
+    test_jmps1:
+    JP PO, test_jmps2
+    HALT
+    test_jmps2:
+    JP P, test_jmps3
+    HALT
+    test_jmps3:
+    JR NZ, test_jmps4
+    HALT
+    test_jmps4:
+    JR NC, test_jmps5
+    HALT
+
+    test_jmps5:
+                    ; Set flags
+    LD HL, 0x00FF
+    PUSH HL
+    POP AF
+
+    JR NZ, ERROR
+    JR NC, ERROR
+    JP NZ, ERROR
+    JP NC, ERROR
+    JP PO, ERROR
+    JP P, ERROR
+
+    JP Z, test_jmps6
+    HALT
+    test_jmps6:
+    JP C, test_jmps7
+    HALT
+    test_jmps7:
+    JP PE, test_jmps8
+    HALT
+    test_jmps8:
+    JP M, test_jmps9
+    HALT
+    test_jmps9:
+    JR Z, test_jmps10
+    HALT
+    test_jmps10:
+    JR C, test_jmps11
+    HALT
+    test_jmps11:
+    RET
+
+TEST_RETS:
+                    ; Clear flags
+    LD HL, 0x0000
+    PUSH HL
+    POP AF
+    LD HL, ERROR
+    PUSH HL
+    ; The following returns should not happen because flags are cleared
+    RET Z              ; Return if Z==1
+    RET C              ; Return if C==1
+    RET PE             ; Return if PV==1
+    RET M              ; Return if S==1 (if negative)
+    POP HL
+
+    ; The following returns should happen because flags are cleared
+    LD HL, test_rets0
+    PUSH HL
+    RET NZ              ; Return if Z==0
+    HALT
+
+    test_rets0:
+    LD HL, test_rets1
+    PUSH HL
+    RET NC              ; Return if C==0
+    HALT
+
+    test_rets1:
+    LD HL, test_rets2
+    PUSH HL
+    RET PO              ; Return if PV==0
+    HALT
+
+    test_rets2:
+    LD HL, test_rets3
+    PUSH HL
+    RET P              ; Return if S==0 (if positive)
+    HALT
+
+    test_rets3:
+                    ; Set flags
+    LD HL, 0x00FF
+    PUSH HL
+    POP AF
+    LD HL, ERROR
+    PUSH HL
+    ; The following returns should not happen because flags are cleared
+    RET NZ              ; Return if Z==0
+    RET NC              ; Return if C==0
+    RET PO             ; Return if PV==0
+    RET P              ; Return if S==0 (if positive)
+    POP HL
+
+    ; The following returns should happen because flags are cleared
+    LD HL, test_rets4
+    PUSH HL
+    RET Z              ; Return if Z==1
+    HALT
+
+    test_rets4:
+    LD HL, test_rets5
+    PUSH HL
+    RET C              ; Return if C==1
+    HALT
+
+    test_rets5:
+    LD HL, test_rets6
+    PUSH HL
+    RET PE              ; Return if PV==1
+    HALT
+
+    test_rets6:
+    LD HL, test_rets7
+    PUSH HL
+    RET M              ; Return if S==1 (if negative)
+    HALT
+
+    test_rets7:
+    RET
+
+TEST_CALLS:
+                    ; Clear flags
+    LD HL, 0x0000
+    PUSH HL
+    POP AF
+
+    ; The following calls should not happen because flags are cleared
+    CALL Z, ERROR              ; Return if Z==1
+    CALL C, ERROR              ; Return if C==1
+    CALL PE, ERROR             ; Return if PV==1
+    CALL M, ERROR              ; Return if S==1 (if negative)
+
+    ; The following calls should happen because flags are cleared
+    CALL NZ, test_calls0        ; Call if Z==0
+    HALT
+
+    test_calls0:
+    POP HL
+    CALL NC, test_calls1        ; Call if C==0
+    HALT
+
+    test_calls1:
+    POP HL
+    CALL PO, test_calls2        ; Call if PV==0
+    HALT
+
+    test_calls2:
+    POP HL
+    CALL P, test_calls3         ; Call if S==0 (if positive)
+    HALT
+
+    test_calls3:
+    POP HL
+                    ; Set flags
+    LD HL, 0x00FF
+    PUSH HL
+    POP AF
+
+    ; The following calls should not happen because flags are set
+    CALL NZ, ERROR              ; Call if Z==0
+    CALL NC, ERROR              ; Call if C==0
+    CALL PO, ERROR             ; Call if PV==0
+    CALL P, ERROR              ; Call if S==0 (if positive)
+
+    ; The following calls should happen because flags are cleared
+    CALL Z, test_calls4              ; Return if Z==1
+    HALT
+
+    test_calls4:
+    POP HL
+    CALL C, test_calls5              ; Return if C==1
+    HALT
+
+    test_calls5:
+    POP HL
+    CALL PE, test_calls6              ; Return if PV==1
+    HALT
+
+    test_calls6:
+    POP HL
+    CALL M, test_calls7              ; Return if S==1 (if negative)
+    HALT
+
+    test_calls7:
+    POP HL
+    RET
+
+TEST_DJNZ:
+    LD B, 0x05          ; Loop 5 times
+    LD C, 0x00          ; Use C as a counter
+    djnz_loop:
+    INC C
+    DJNZ djnz_loop      ; Decrement B, jump if not zero
+    
+    ; After loop, B should be 0, C should be 5
+    LD A, B
+    OR A                ; Is B zero?
+    JR NZ, ERROR
+    
+    LD A, C
+    CP 0x05             ; Is C five?
+    JR NZ, ERROR
+
+    ; Test the "no jump" case
+    LD B, 0x01
+    DJNZ djnz_next      ; Should jump
+    HALT                ; Should not hit this
+    djnz_next:
+    DJNZ djnz_fail      ; B is now 0, should NOT jump
+    JR djnz_pass
+    djnz_fail:
+    JP ERROR
+    djnz_pass:
+    RET
