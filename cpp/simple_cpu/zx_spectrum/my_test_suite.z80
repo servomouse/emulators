@@ -39,6 +39,7 @@ START:
     CALL TEST_JMPS
     CALL TEST_RETS
     CALL TEST_CALLS
+    CALL TEST_BIT_OP
     CALL TEST_DJNZ
     HALT
 
@@ -250,6 +251,39 @@ TEST_CALLS:
 
     test_calls7:
     POP HL
+    RET
+
+TEST_BIT_OP:
+                    ; Clear flags
+    LD HL, 0x0000
+    PUSH HL
+    POP AF
+
+    BIT 0, A            ; Test bit 0 (should be 0)
+    JP NZ ERROR
+    PUSH AF
+    POP HL
+    BIT 1, L            ; N flag should be cleared unconditionally
+    JP NZ ERROR
+    JP C ERROR          ; C flag should stay cleared
+    BIT 3, L            ; H flag should be set unconditionally
+    JP Z ERROR
+
+                    ; Set flags
+    LD HL, 0xFFFF
+    PUSH HL
+    POP AF
+
+    BIT 0, A            ; Test bit 0 (should be 1)
+    JP Z ERROR
+    PUSH AF
+    POP HL
+    BIT 1, L            ; N flag should be cleared unconditionally
+    JP NZ ERROR
+    JP NC ERROR         ; C flag should stay set
+    BIT 3, L            ; H flag should be set unconditionally
+    JP NZ ERROR
+
     RET
 
 TEST_DJNZ:
