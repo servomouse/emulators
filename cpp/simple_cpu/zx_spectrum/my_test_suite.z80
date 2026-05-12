@@ -253,39 +253,6 @@ TEST_CALLS:
     POP HL
     RET
 
-TEST_BIT_OP:
-                    ; Clear flags
-    LD HL, 0x0000
-    PUSH HL
-    POP AF
-
-    BIT 0, A            ; Test bit 0 (should be 0)
-    JP NZ ERROR
-    PUSH AF
-    POP HL
-    BIT 1, L            ; N flag should be cleared unconditionally
-    JP NZ ERROR
-    JP C ERROR          ; C flag should stay cleared
-    BIT 3, L            ; H flag should be set unconditionally
-    JP Z ERROR
-
-                    ; Set flags
-    LD HL, 0xFFFF
-    PUSH HL
-    POP AF
-
-    BIT 0, A            ; Test bit 0 (should be 1)
-    JP Z ERROR
-    PUSH AF
-    POP HL
-    BIT 1, L            ; N flag should be cleared unconditionally
-    JP NZ ERROR
-    JP NC ERROR         ; C flag should stay set
-    BIT 3, L            ; H flag should be set unconditionally
-    JP NZ ERROR
-
-    RET
-
 TEST_DJNZ:
     LD B, 0x05          ; Loop 5 times
     LD C, 0x00          ; Use C as a counter
@@ -296,11 +263,11 @@ TEST_DJNZ:
     ; After loop, B should be 0, C should be 5
     LD A, B
     OR A                ; Is B zero?
-    JR NZ, ERROR
+    JP NZ, ERROR
     
     LD A, C
     CP 0x05             ; Is C five?
-    JR NZ, ERROR
+    JP NZ, ERROR
 
     ; Test the "no jump" case
     LD B, 0x01
@@ -312,4 +279,376 @@ TEST_DJNZ:
     djnz_fail:
     JP ERROR
     djnz_pass:
+    RET
+
+TEST_BIT_OP:
+    ; Tests only register A, assuming allthe bit operations are executed by the same function
+    CALL TEST_BIT_OP0
+    CALL TEST_BIT_OP1
+    CALL TEST_BIT_OP2
+    CALL TEST_BIT_OP3
+    CALL TEST_BIT_OP4
+    CALL TEST_BIT_OP5
+    CALL TEST_BIT_OP6
+    CALL TEST_BIT_OP7
+    RET
+
+TEST_BIT_OP0:
+                    ; Clear flags
+    LD HL, 0x0000
+    PUSH HL
+    POP AF
+
+    BIT 0, A            ; Test bit 0 (should be 0)
+    JP NZ, ERROR
+    JP C, ERROR          ; C flag should stay cleared
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
+                    ; Set flags
+    LD HL, 0xFFFF
+    PUSH HL
+    POP AF
+
+    BIT 0, A            ; Test bit 0 (should be 1)
+    JP Z, ERROR
+    JP NC, ERROR         ; C flag should stay set
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
+    RET
+
+TEST_BIT_OP1:
+                    ; Clear flags
+    LD HL, 0x0000
+    PUSH HL
+    POP AF
+
+    BIT 1, A            ; Test bit 1 (should be 0)
+    JP NZ, ERROR
+    JP C, ERROR          ; C flag should stay cleared
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
+                    ; Set flags
+    LD HL, 0xFFFF
+    PUSH HL
+    POP AF
+
+    BIT 1, A            ; Test bit 1 (should be 1)
+    JP Z, ERROR
+    JP NC, ERROR         ; C flag should stay set
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
+    RET
+
+TEST_BIT_OP2:
+                    ; Clear flags
+    LD HL, 0x0000
+    PUSH HL
+    POP AF
+
+    BIT 2, A            ; Test bit 2 (should be 0)
+    JP NZ, ERROR
+    JP C, ERROR          ; C flag should stay cleared
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
+                    ; Set flags
+    LD HL, 0xFFFF
+    PUSH HL
+    POP AF
+
+    BIT 2, A            ; Test bit 2 (should be 1)
+    JP Z, ERROR
+    JP NC, ERROR         ; C flag should stay set
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
+    RET
+
+TEST_BIT_OP3:
+                    ; Clear flags
+    LD HL, 0x0000
+    PUSH HL
+    POP AF
+
+    BIT 3, A            ; Test bit 3 (should be 0)
+    JP NZ, ERROR
+    JP C, ERROR          ; C flag should stay cleared
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
+                    ; Set flags
+    LD HL, 0xFFFF
+    PUSH HL
+    POP AF
+
+    BIT 3, A            ; Test bit 3 (should be 1)
+    JP Z, ERROR
+    JP NC, ERROR         ; C flag should stay set
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
+    RET
+
+TEST_BIT_OP4:
+                    ; Clear flags
+    LD HL, 0x0000
+    PUSH HL
+    POP AF
+
+    BIT 4, A            ; Test bit 4 (should be 0)
+    JP NZ, ERROR
+    JP C, ERROR          ; C flag should stay cleared
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
+                    ; Set flags
+    LD HL, 0xFFFF
+    PUSH HL
+    POP AF
+
+    BIT 4, A            ; Test bit 4 (should be 1)
+    JP Z, ERROR
+    JP NC, ERROR         ; C flag should stay set
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
+    RET
+
+TEST_BIT_OP5:
+                    ; Clear flags
+    LD HL, 0x0000
+    PUSH HL
+    POP AF
+
+    BIT 5, A            ; Test bit 5 (should be 0)
+    JP NZ, ERROR
+    JP C, ERROR          ; C flag should stay cleared
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
+                    ; Set flags
+    LD HL, 0xFFFF
+    PUSH HL
+    POP AF
+
+    BIT 5, A            ; Test bit 5 (should be 1)
+    JP Z, ERROR
+    JP NC, ERROR         ; C flag should stay set
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
+    RET
+
+TEST_BIT_OP6:
+                    ; Clear flags
+    LD HL, 0x0000
+    PUSH HL
+    POP AF
+
+    BIT 6, A            ; Test bit 6 (should be 0)
+    JP NZ, ERROR
+    JP C, ERROR          ; C flag should stay cleared
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
+                    ; Set flags
+    LD HL, 0xFFFF
+    PUSH HL
+    POP AF
+
+    BIT 6, A            ; Test bit 6 (should be 1)
+    JP Z, ERROR
+    JP NC, ERROR         ; C flag should stay set
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
+    RET
+
+TEST_BIT_OP7:
+                    ; Clear flags
+    LD HL, 0x0000
+    PUSH HL
+    POP AF
+
+    BIT 7, A            ; Test bit 7 (should be 0)
+    JP NZ, ERROR
+    JP C, ERROR          ; C flag should stay cleared
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
+                    ; Set flags
+    LD HL, 0xFFFF
+    PUSH HL
+    POP AF
+
+    BIT 7, A            ; Test bit 7 (should be 1)
+    JP Z, ERROR
+    JP NC, ERROR         ; C flag should stay set
+
+    PUSH AF
+    POP HL
+    ; Test the N flag, should be cleared unconditionally
+    LD A, L
+    AND 2
+    JP NZ, ERROR
+
+    ; Test the H flag, should be set unconditionally
+    LD A, L
+    AND 0x10
+    JP Z, ERROR
+
     RET
