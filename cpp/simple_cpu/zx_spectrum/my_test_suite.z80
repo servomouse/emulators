@@ -270,11 +270,11 @@ TEST_DJNZ:
     JP NZ, ERROR
 
     ; Test the "no jump" case
-    LD B, 0x01
+    LD B, 0x02
     DJNZ djnz_next      ; Should jump
     HALT                ; Should not hit this
     djnz_next:
-    DJNZ djnz_fail      ; B is now 0, should NOT jump
+    DJNZ djnz_fail      ; B is now 1, should NOT jump
     JR djnz_pass
     djnz_fail:
     JP ERROR

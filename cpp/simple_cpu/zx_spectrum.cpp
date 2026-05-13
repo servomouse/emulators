@@ -456,7 +456,7 @@ public:
                 regs.update_flag(FlagName::H, z80_sign_flag(res, false));
 
                 printf("0x%04X: INC C || 0x%02X 0x%02X\n", pc, opcode, regs.get_reg(RegName::F));
-                regs.set_reg(RegName::D, res);
+                regs.set_reg(RegName::C, res);
                 break;
             }
             case 0x0D: {// 0x0D     (DEC C       - Subtracts one from C), cycles: 4
@@ -1502,6 +1502,12 @@ public:
                 num_bytes_read += pc_inc;
                 break;
             }
+            case 0xB7: {// 0xB7     (OR A, A), cycles: 7
+                int pc_inc = or_operation(pc, opcode);
+                if (pc_inc == -1) return false;
+                num_bytes_read += pc_inc;
+                break;
+            }
             case 0xBC: {// 0xBC     (CP A, H     - Substract H from A and update flags. A stays unchanged), cycles: 4
                 // C as defined
                 // N set
@@ -2174,6 +2180,19 @@ public:
                 res = (a | val) & 0xFF;
                 regs.set_reg(RegName::A, res);
                 printf("0x%04X: OR A, (HL) (0x%02X | 0x%02X -> 0x%02X) | 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                break;
+            }
+            case 0xB7: {// OR A, A, cycles: 7
+                // C reset
+                // N reset
+                // P/V detects parity
+                // H reset
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                res = (a | a) & 0xFF;
+                regs.set_reg(RegName::A, res);
+                printf("0x%04X: OR A, A (0x%02X | 0x%02X -> 0x%02X) | 0x%02X 0x%02X\n", pc, a, a, res, opcode, regs.get_reg(RegName::F));
                 break;
             }
             default:
