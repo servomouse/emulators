@@ -508,6 +508,26 @@ public:
                 regs.set_reg(RegName::A, res);
                 break;
             }
+            case 0x10: {// 0x10 N   (DJNZ N      - Decrement B and relative jump if not zero), cycles: 13/8
+                // The B register is decremented, and if not zero,
+                // the signed value d is added to PC. The jump is
+                // measured from the start of the instruction opcode
+                // Does not affect flags
+                int8_t pc_inc = static_cast<int8_t>(mem_bus->read(pc+1));
+                uint16_t temp = static_cast<int32_t>(pc) + pc_inc;
+                uint16_t b = regs.get_reg(RegName::B);
+                uint16_t res = b - 1;
+                regs.set_reg(RegName::B, res);
+                if (res != 0) {
+                    printf("0x%04X: DJNZ %d : (Condition met, res: 0x%02X) || 0x%02X\n", pc, pc_inc, res, opcode);
+                    regs.set_reg(RegName::PC, static_cast<uint16_t>(temp+2));
+                    return true;
+                } else {
+                    printf("0x%04X: DJNZ %d : (Condition didn't met, res == 0) || 0x%02X\n", pc, pc_inc, opcode);
+                    num_bytes_read += 1;
+                }
+                break;
+            }
             case 0x11: {// 0x11 N N (LD DE, NN   - Load N N into DE), cycles: 10
                 // Does not affect flags
                 uint16_t new_val = mem_read_16b(pc+1);
