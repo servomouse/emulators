@@ -932,12 +932,12 @@ public:
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t res = a + 1;
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, res==0x100);
+                regs.update_flag(FlagName::P_V, calculate_overflow(a, 1, res, false, false));
                 regs.update_flag(FlagName::H, calculate_half_carry(a, 1, 0, false));
-                regs.update_flag(FlagName::H, z80_zero_flag(res));
-                regs.update_flag(FlagName::H, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::Z, z80_zero_flag(res));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
 
-                printf("0x%04X: INC A | 0x%02X 0x%02X\n", pc, opcode, flags_in);
+                printf("0x%04X: INC A :: (0x%02X -> 0x%02X) || 0x%02X 0x%02X\n", pc, a, res, opcode, flags_in);
                 regs.set_reg(RegName::A, res);
                 break;
             }
@@ -1426,10 +1426,10 @@ public:
                 regs.clear_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, z80_parity_flag(res));
                 regs.clear_flag(FlagName::H);
-                regs.update_flag(FlagName::P_V, z80_zero_flag(res));
-                regs.update_flag(FlagName::P_V, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::Z, z80_zero_flag(res));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
                 regs.set_reg(RegName::A, res);
-                printf("0x%04X: XOR A, B : (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, b, res, opcode, regs.get_reg(RegName::F));
+                printf("0x%04X: XOR A, B :: (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, b, res, opcode, regs.get_reg(RegName::F));
                 break;
             }
             case 0xA9: {// 0xA9     (XOR A, C    - Bitwise XOR on A with C), cycles: 4
@@ -1604,12 +1604,12 @@ public:
             case 0xCA: {// 0xCA N N (JP Z, N N   - Load N N into PC if Zero flag is set), cycles: 10
                 // Does not affect flags
                 uint16_t new_pc = mem_read_16b(pc+1);
-                uint16_t zf = regs.get_flag(FlagName::Z);
-                printf("0x%04X: JP Z, 0x%04X (Z: %d) || 0x%02X 0x%02X\n", pc, new_pc, zf, opcode, flags_in);
-                if (zf) {
+                if (regs.get_flag(FlagName::Z)) {
+                    printf("0x%04X: JP Z, 0x%04X :: (Condition met: Z==1) || 0x%02X\n", pc, new_pc, opcode);
                     regs.set_reg(RegName::PC, new_pc);
                     return true;
                 } else {
+                    printf("0x%04X: JP Z, 0x%04X :: (Condition didn't met: Z==0) || 0x%02X\n", pc, new_pc, opcode);
                     num_bytes_read += 2;
                 }
                 break;
@@ -1647,6 +1647,38 @@ public:
                 } else if (new_opcode == 0x7F) {   // 0xCB 0x7F (BIT 7, A - Tests bit 7 of A), cycles: 8
                     uint16_t res = bit_operation(7, regs.get_reg(RegName::A));
                     printf("0x%04X: BIT 7, A :: (res: %d) || 0x%02X 0x%02X F: 0x%02X\n", pc, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x45) {   // 0xCB 0x45 (BIT 0, L - Tests bit 0 of L), cycles: 8
+                    uint16_t res = bit_operation(0, regs.get_reg(RegName::L));
+                    printf("0x%04X: BIT 0, L :: (res: %d) || 0x%02X 0x%02X F: 0x%02X\n", pc, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x55) {   // 0xCB 0x55 (BIT 2, L - Tests bit 2 of L), cycles: 8
+                    uint16_t res = bit_operation(2, regs.get_reg(RegName::L));
+                    printf("0x%04X: BIT 2, L :: (res: %d) || 0x%02X 0x%02X F: 0x%02X\n", pc, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x65) {   // 0xCB 0x65 (BIT 4, L - Tests bit 4 of L), cycles: 8
+                    uint16_t res = bit_operation(4, regs.get_reg(RegName::L));
+                    printf("0x%04X: BIT 4, L :: (res: %d) || 0x%02X 0x%02X F: 0x%02X\n", pc, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x75) {   // 0xCB 0x75 (BIT 6, L - Tests bit 6 of L), cycles: 8
+                    uint16_t res = bit_operation(6, regs.get_reg(RegName::L));
+                    printf("0x%04X: BIT 6, L :: (res: %d) || 0x%02X 0x%02X F: 0x%02X\n", pc, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x4D) {   // 0xCB 0x4D (BIT 1, L - Tests bit 1 of L), cycles: 8
+                    uint16_t res = bit_operation(1, regs.get_reg(RegName::L));
+                    printf("0x%04X: BIT 1, L :: (res: %d) || 0x%02X 0x%02X F: 0x%02X\n", pc, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x5D) {   // 0xCB 0x5D (BIT 3, L - Tests bit 3 of L), cycles: 8
+                    uint16_t res = bit_operation(3, regs.get_reg(RegName::L));
+                    printf("0x%04X: BIT 3, L :: (res: %d) || 0x%02X 0x%02X F: 0x%02X\n", pc, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x6D) {   // 0xCB 0x6D (BIT 5, L - Tests bit 5 of L), cycles: 8
+                    uint16_t res = bit_operation(5, regs.get_reg(RegName::L));
+                    printf("0x%04X: BIT 5, L :: (res: %d) || 0x%02X 0x%02X F: 0x%02X\n", pc, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x7D) {   // 0xCB 0x7D (BIT 7, L - Tests bit 7 of L), cycles: 8
+                    uint16_t res = bit_operation(7, regs.get_reg(RegName::L));
+                    printf("0x%04X: BIT 7, L :: (res: %d) || 0x%02X 0x%02X F: 0x%02X\n", pc, res, opcode, new_opcode, regs.get_reg(RegName::F));
                     num_bytes_read += 1;
                 } else {
                     printf("Unknown CB opcode: 0xCB 0x%X\n", new_opcode);
