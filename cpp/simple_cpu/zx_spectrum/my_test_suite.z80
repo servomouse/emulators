@@ -41,6 +41,7 @@ START:
     CALL TEST_CALLS
     CALL TEST_BIT_OP
     CALL TEST_DJNZ
+    CALL TEST_INCS
     HALT
 
 TEST_JMPS:
@@ -650,5 +651,99 @@ TEST_BIT_OP7:
     LD A, L
     AND 0x10
     JP Z, ERROR
+
+    RET
+
+TEST_INCS:
+    CALL TEST_INC_A
+    RET
+
+TEST_INC_A:
+    LD HL, 0x0100   ; Clear all flags and load 1 into A
+    PUSH HL
+    POP AF
+
+    ; --- Case 1: Standard Increment (0x01 -> 0x02) ---
+    INC A
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    LD B, 0x02
+    XOR B
+    JP NZ, ERROR
+
+    ; Verify Flags: Z=0, S=0, H=0, V=0, N=0, C stays 0
+    BIT 6, L        ; Z flag
+    JP NZ, ERROR
+    BIT 7, L        ; S flag
+    JP NZ, ERROR
+    BIT 4, L        ; H flag
+    JP NZ, ERROR
+    BIT 2, L        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP NZ, ERROR
+
+    LD HL, 0xFFFF   ; Set all flags and load 0xFF into A
+    PUSH HL
+    POP AF
+
+    ; --- Case 2: Half-Carry and Zero (0xFF -> 0x00) ---
+    INC A           ; Should wrap to 0, set Z and H
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    LD B, 0x00
+    XOR B
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=1, S=0, H=1, V=0, N=0, C stays 1
+    BIT 6, L        ; Z flag
+    JP NZ, ERROR
+    BIT 7, L        ; S flag
+    JP NZ, ERROR
+    BIT 4, L        ; H flag
+    JP Z, ERROR
+    BIT 2, L        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP Z, ERROR
+
+    ; --- Case 3: Overflow (0x7F -> 0x80) ---
+    LD HL, 0x7F00   ; Clear all flags and load 0x7F into A
+    PUSH HL
+    POP AF
+
+    INC A           ; Becomes 0x80 (-128), should set V, H and S
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    LD B, 0x80
+    XOR B
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=0, S=1, H=1, V=1, N=0, C stays 0
+    BIT 6, L        ; Z flag
+    JP NZ, ERROR
+    BIT 7, L        ; S flag
+    JP Z, ERROR
+    BIT 4, L        ; H flag
+    JP Z, ERROR
+    BIT 2, L        ; V/P flag
+    JP Z, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP NZ, ERROR
 
     RET
