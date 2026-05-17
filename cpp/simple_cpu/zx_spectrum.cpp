@@ -360,6 +360,7 @@ public:
             }
             break;
         }
+        return 0;
     }
 
     uint16_t z80_add(uint16_t a, uint16_t b, bool use_carry, bool is_16b) {
@@ -521,6 +522,23 @@ public:
                 regs.set_reg(RegName::A, res);
                 break;
             }
+            case 0x09: {// 0x09     (ADD HL, BC  - Add BC to HL), cycles: 11
+                // C as defined
+                // N reset
+                // P/V unaffected
+                // H as defined
+                // Z unaffected
+                // S unaffected
+                uint32_t hl = regs.get_reg(RegName::HL);
+                uint32_t val = regs.get_reg(RegName::BC);
+                uint32_t res = hl + val;
+                regs.update_flag(FlagName::C, res > 0xFFFF);
+                regs.clear_flag(FlagName::N);
+                regs.update_flag(FlagName::H, calculate_half_carry(hl, val, 0, true, false));
+                printf("0x%04X: ADD HL, BC :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::HL, res);
+                break;
+            }
             case 0x0B: {// 0x0B     (DEC BC      - Decrement BC), cycles: 6
                 // 16-bit operation, does not affect flags
                 regs.dec_reg(RegName::BC);
@@ -680,16 +698,12 @@ public:
                 // Z unaffected
                 // S unaffected
                 uint32_t hl = regs.get_reg(RegName::HL);
-                uint32_t de = regs.get_reg(RegName::DE);
-                uint32_t res = hl + de;
-                if (res > 0xFFFF) {
-                    regs.set_flag(FlagName::C);
-                } else {
-                    regs.clear_flag(FlagName::C);
-                }
+                uint32_t val = regs.get_reg(RegName::DE);
+                uint32_t res = hl + val;
+                regs.update_flag(FlagName::C, res > 0xFFFF);
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::H, ((hl & 0x0F) + (de & 0x0F)) > 0x0F);
-                printf("0x%04X: ADD HL, DE : (0x%04X + 0x%04X = 0x%04X) | 0x%02X 0x%02X\n", pc, hl, de, res, opcode, regs.get_reg(RegName::F));
+                regs.update_flag(FlagName::H, calculate_half_carry(hl, val, 0, true, false));
+                printf("0x%04X: ADD HL, DE :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::HL, res);
                 break;
             }
@@ -916,16 +930,12 @@ public:
                 // Z unaffected
                 // S unaffected
                 uint32_t hl = regs.get_reg(RegName::HL);
-                uint32_t res = hl + hl;
-                if (res > 0xFFFF) {
-                    regs.set_flag(FlagName::C);
-                } else {
-                    regs.clear_flag(FlagName::C);
-                }
+                uint32_t val = hl;
+                uint32_t res = hl + val;
+                regs.update_flag(FlagName::C, res > 0xFFFF);
                 regs.clear_flag(FlagName::N);
-                uint8_t nibble = hl & 0x0F;
-                regs.update_flag(FlagName::H, (nibble + nibble) > 0x0F);
-                printf("0x%04X: ADD HL, HL :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, hl, res, opcode, regs.get_reg(RegName::F));
+                regs.update_flag(FlagName::H, calculate_half_carry(hl, val, 0, true, false));
+                printf("0x%04X: ADD HL, HL :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::HL, res);
                 break;
             }
