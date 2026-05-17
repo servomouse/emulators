@@ -1,7 +1,7 @@
 0000                          .ORG   0000h   
 0000   31 00 F0               LD   SP,0xF000   
 0003   CD 10 00               CALL   TEST_ADDS   
-0006   CD 14 00               CALL   TEST_ADCS   
+0006   CD 1D 00               CALL   TEST_ADCS   
 0009   76                     HALT   
 000A   00 00        TEMP_SP_SAVE:   DW   0x0000   
 000C                ERROR:    
@@ -9,110 +9,418 @@
 000D   76                     HALT   
 000E   18 FC                  JR   ERROR   
 0010                TEST_ADDS:   
-0010   CD 15 00               CALL   TEST_ADD_HL_SP   
-0013   C9                     RET   
-0014                TEST_ADCS:   
-0014   C9                     RET   
-0015                TEST_ADD_HL_SP:   
-0015                          ; Save real SP
-0015   ED 73 0A 00            LD   (TEMP_SP_SAVE),SP   
-0019                          ; =========================================================
-0019                          ; CASE 1: No Carry, No Half-Carry (0x1000 + 0x0100)
-0019                          ; PRE-CONDITION: Set S, Z, V flags (0xC4) to test preservation
-0019                          ; Expected Result: 0x1100, Flags: S=1, Z=1, V=1, H=0, N=0, C=0
-0019                          ; =========================================================
-0019   21 00 10               LD   HL,0x1000   
-001C   31 00 01               LD   SP,0x0100   
-001F   01 C4 00               LD   BC,0x00C4   ; B=0, C=Initial Flags (11000100b)
-0022   C5                     PUSH   BC   
-0023   F1                     POP   AF   ; Load Flags
-0024   39                     ADD   HL,SP   
-0025   F5                     PUSH   AF   
-0026   C1                     POP   BC   ; C = Resulting Flags
-0027                          ; Verify Result (0x1100)
-0027   7C                     LD   A,H   
-0028   EE 11                  XOR   0x11   
-002A   C2 0C 00               JP   NZ,ERROR   
-002D   7D                     LD   A,L   
-002E   EE 00                  XOR   0x00   
-0030   C2 0C 00               JP   NZ,ERROR   
-0033                          ; Verify Flags:
-0033                          ; Expected: C4 (S,Z,V preserved) AND (H=0, N=0, C=0)
-0033   79                     LD   A,C   
-0034   EE C4                  XOR   0xC4   
-0036   C2 0C 00               JP   NZ,ERROR   
-0039                          ; =========================================================
-0039                          ; CASE 2: Half-Carry (Bit 11) (0x0800 + 0x0800)
-0039                          ; PRE-CONDITION: Clear all flags (0x00)
-0039                          ; Expected Result: 0x1000, Flags: H=1, N=0, C=0 (Others 0)
-0039                          ; =========================================================
-0039   21 00 08               LD   HL,0x0800   
-003C   31 00 08               LD   SP,0x0800   
-003F   01 00 00               LD   BC,0x0000   
-0042   C5                     PUSH   BC   
-0043   F1                     POP   AF   
-0044   39                     ADD   HL,SP   
-0045   F5                     PUSH   AF   
-0046   C1                     POP   BC   
-0047                          ; Verify Result (0x1000)
-0047   7C                     LD   A,H   
-0048   EE 10                  XOR   0x10   
-004A   C2 0C 00               JP   NZ,ERROR   
-004D   7D                     LD   A,L   
-004E   EE 00                  XOR   0x00   
-0050   C2 0C 00               JP   NZ,ERROR   
-0053                          ; Verify Flags: Should be 0x10 (H bit set)
-0053   79                     LD   A,C   
-0054   EE 10                  XOR   0x10   
-0056   C2 0C 00               JP   NZ,ERROR   
-0059                          ; =========================================================
-0059                          ; CASE 3: Full Carry (Bit 15) (0x8000 + 0x8000)
-0059                          ; PRE-CONDITION: Set Z flag (0x40)
-0059                          ; Expected Result: 0x0000, Flags: Z=1 (preserved), C=1, H=0, N=0
-0059                          ; =========================================================
-0059   21 00 80               LD   HL,0x8000   
-005C   31 00 80               LD   SP,0x8000   
-005F   01 40 00               LD   BC,0x0040   
-0062   C5                     PUSH   BC   
-0063   F1                     POP   AF   
-0064   39                     ADD   HL,SP   
-0065   F5                     PUSH   AF   
-0066   C1                     POP   BC   
-0067                          ; Verify Result (0x0000)
-0067   7C                     LD   A,H   
-0068   EE 00                  XOR   0x00   
-006A   C2 0C 00               JP   NZ,ERROR   
-006D   7D                     LD   A,L   
-006E   EE 00                  XOR   0x00   
-0070   C2 0C 00               JP   NZ,ERROR   
-0073                          ; Verify Flags: Expected 0x41 (Z preserved, C set)
-0073   79                     LD   A,C   
-0074   EE 41                  XOR   0x41   
-0076   C2 0C 00               JP   NZ,ERROR   
-0079                          ; =========================================================
-0079                          ; CASE 4: Half and Full Carry (0xF800 + 0x0800)
-0079                          ; PRE-CONDITION: Clear all flags (0x00)
-0079                          ; Expected Result: 0x0000, Flags: H=1, C=1, N=0
-0079                          ; =========================================================
-0079   21 00 F8               LD   HL,0xF800   
-007C   31 00 08               LD   SP,0x0800   
-007F   01 00 00               LD   BC,0x0000   
-0082   C5                     PUSH   BC   
-0083   F1                     POP   AF   
-0084   39                     ADD   HL,SP   
-0085   F5                     PUSH   AF   
-0086   C1                     POP   BC   
-0087                          ; Verify Result (0x0000)
-0087   7C                     LD   A,H   
-0088   EE 00                  XOR   0x00   
-008A   C2 0C 00               JP   NZ,ERROR   
-008D   7D                     LD   A,L   
-008E   EE 00                  XOR   0x00   
-0090   C2 0C 00               JP   NZ,ERROR   
-0093                          ; Verify Flags: Expected 0x11 (H=1, C=1)
-0093   79                     LD   A,C   
-0094   EE 11                  XOR   0x11   
-0096   C2 0C 00               JP   NZ,ERROR   
-0099                          ; Restore original SP
-0099   ED 7B 0A 00            LD   SP,(TEMP_SP_SAVE)   
-009D   C9                     RET
+0010   CD 1E 00               CALL   TEST_ADD_HL_BC   
+0013   CD C7 00               CALL   TEST_ADD_HL_DE   
+0016   CD 70 01               CALL   TEST_ADD_HL_HL   
+0019   CD 10 02               CALL   TEST_ADD_HL_SP   
+001C   C9                     RET   
+001D                TEST_ADCS:   
+001D   C9                     RET   
+001E                TEST_ADD_HL_BC:   
+001E                          ; =========================================================
+001E                          ; CASE 1: No Carry, No Half-Carry (0x1030 + 0x0204)
+001E                          ; PRE-CONDITION: Set all flags to test preservation
+001E                          ; Expected Result: 0x1234, Flags: S=1, Z=1, V=1, H=0, N=0, C=0
+001E                          ; =========================================================
+001E   21 30 10               LD   HL,0x1030   
+0021   01 04 02               LD   BC,0x0204   
+0024   11 FF 00               LD   DE,0x00FF   ; D=0, E=Initial Flags
+0027   D5                     PUSH   DE   
+0028   F1                     POP   AF   ; Load Flags
+0029   09                     ADD   HL,BC   
+002A   F5                     PUSH   AF   
+002B   D1                     POP   DE   ; E = Resulting Flags
+002C                          ; Verify Result (0x1234)
+002C   7C                     LD   A,H   
+002D   EE 12                  XOR   0x12   
+002F   C2 0C 00               JP   NZ,ERROR   
+0032   7D                     LD   A,L   
+0033   EE 34                  XOR   0x34   
+0035   C2 0C 00               JP   NZ,ERROR   
+0038                          ; Verify Flags
+0038   CB 7B                  BIT   7,E   ; S flag
+003A   CA 0C 00               JP   Z,ERROR   
+003D   CB 73                  BIT   6,E   ; Z flag
+003F   CA 0C 00               JP   Z,ERROR   
+0042   CB 63                  BIT   4,E   ; H flag
+0044   C2 0C 00               JP   NZ,ERROR   
+0047   CB 53                  BIT   2,E   ; V/P flag
+0049   CA 0C 00               JP   Z,ERROR   
+004C   CB 4B                  BIT   1,E   ; N flag
+004E   C2 0C 00               JP   NZ,ERROR   
+0051   CB 43                  BIT   0,E   ; C flag
+0053   C2 0C 00               JP   NZ,ERROR   
+0056                          ; =========================================================
+0056                          ; CASE 2: Half-Carry (Bit 11) (0x0800 + 0x0800)
+0056                          ; PRE-CONDITION: Clear all flags (0x00)
+0056                          ; Expected Result: 0x1000, Flags: H=1, N=0, C=0 (Others 0)
+0056                          ; =========================================================
+0056   21 00 08               LD   HL,0x0800   
+0059   01 00 08               LD   BC,0x0800   
+005C   11 00 00               LD   DE,0x0000   
+005F   D5                     PUSH   DE   
+0060   F1                     POP   AF   
+0061   09                     ADD   HL,BC   
+0062   F5                     PUSH   AF   
+0063   D1                     POP   DE   
+0064                          ; Verify Result (0x1000)
+0064   7C                     LD   A,H   
+0065   EE 10                  XOR   0x10   
+0067   C2 0C 00               JP   NZ,ERROR   
+006A   7D                     LD   A,L   
+006B   EE 00                  XOR   0x00   
+006D   C2 0C 00               JP   NZ,ERROR   
+0070                          ; Verify Flags
+0070   CB 7B                  BIT   7,E   ; S flag
+0072   C2 0C 00               JP   NZ,ERROR   
+0075   CB 73                  BIT   6,E   ; Z flag
+0077   C2 0C 00               JP   NZ,ERROR   
+007A   CB 63                  BIT   4,E   ; H flag
+007C   CA 0C 00               JP   Z,ERROR   
+007F   CB 53                  BIT   2,E   ; V/P flag
+0081   C2 0C 00               JP   NZ,ERROR   
+0084   CB 4B                  BIT   1,E   ; N flag
+0086   C2 0C 00               JP   NZ,ERROR   
+0089   CB 43                  BIT   0,E   ; C flag
+008B   C2 0C 00               JP   NZ,ERROR   
+008E                          ; =========================================================
+008E                          ; CASE 3: Half and Full Carry (0xF800 + 0x0800)
+008E                          ; PRE-CONDITION: Clear all flags (0x00)
+008E                          ; Expected Result: 0x0000, Flags: H=1, C=1, N=0
+008E                          ; =========================================================
+008E   21 00 F8               LD   HL,0xF800   
+0091   01 00 08               LD   BC,0x0800   
+0094   11 00 00               LD   DE,0x0000   
+0097   D5                     PUSH   DE   
+0098   F1                     POP   AF   
+0099   09                     ADD   HL,BC   
+009A   F5                     PUSH   AF   
+009B   D1                     POP   DE   
+009C                          ; Verify Result (0x0000)
+009C   7C                     LD   A,H   
+009D   EE 00                  XOR   0x00   
+009F   C2 0C 00               JP   NZ,ERROR   
+00A2   7D                     LD   A,L   
+00A3   EE 00                  XOR   0x00   
+00A5   C2 0C 00               JP   NZ,ERROR   
+00A8                          ; Verify Flags
+00A8   CB 7B                  BIT   7,E   ; S flag
+00AA   C2 0C 00               JP   NZ,ERROR   
+00AD   CB 73                  BIT   6,E   ; Z flag
+00AF   C2 0C 00               JP   NZ,ERROR   
+00B2   CB 63                  BIT   4,E   ; H flag
+00B4   CA 0C 00               JP   Z,ERROR   
+00B7   CB 53                  BIT   2,E   ; V/P flag
+00B9   C2 0C 00               JP   NZ,ERROR   
+00BC   CB 4B                  BIT   1,E   ; N flag
+00BE   C2 0C 00               JP   NZ,ERROR   
+00C1   CB 43                  BIT   0,E   ; C flag
+00C3   CA 0C 00               JP   Z,ERROR   
+00C6   C9                     RET   
+00C7                TEST_ADD_HL_DE:   
+00C7                          ; =========================================================
+00C7                          ; CASE 1: No Carry, No Half-Carry (0x1030 + 0x0204)
+00C7                          ; PRE-CONDITION: Set all flags to test preservation
+00C7                          ; Expected Result: 0x1234, Flags: S=1, Z=1, V=1, H=0, N=0, C=0
+00C7                          ; =========================================================
+00C7   21 30 10               LD   HL,0x1030   
+00CA   11 04 02               LD   DE,0x0204   
+00CD   01 FF 00               LD   BC,0x00FF   ; B=0, C=Initial Flags
+00D0   C5                     PUSH   BC   
+00D1   F1                     POP   AF   ; Load Flags
+00D2   19                     ADD   HL,DE   
+00D3   F5                     PUSH   AF   
+00D4   C1                     POP   BC   ; C = Resulting Flags
+00D5                          ; Verify Result (0x1234)
+00D5   7C                     LD   A,H   
+00D6   EE 12                  XOR   0x12   
+00D8   C2 0C 00               JP   NZ,ERROR   
+00DB   7D                     LD   A,L   
+00DC   EE 34                  XOR   0x34   
+00DE   C2 0C 00               JP   NZ,ERROR   
+00E1                          ; Verify Flags
+00E1   CB 79                  BIT   7,C   ; S flag
+00E3   CA 0C 00               JP   Z,ERROR   
+00E6   CB 71                  BIT   6,C   ; Z flag
+00E8   CA 0C 00               JP   Z,ERROR   
+00EB   CB 61                  BIT   4,C   ; H flag
+00ED   C2 0C 00               JP   NZ,ERROR   
+00F0   CB 51                  BIT   2,C   ; V/P flag
+00F2   CA 0C 00               JP   Z,ERROR   
+00F5   CB 49                  BIT   1,C   ; N flag
+00F7   C2 0C 00               JP   NZ,ERROR   
+00FA   CB 41                  BIT   0,C   ; C flag
+00FC   C2 0C 00               JP   NZ,ERROR   
+00FF                          ; =========================================================
+00FF                          ; CASE 2: Half-Carry (Bit 11) (0x0800 + 0x0800)
+00FF                          ; PRE-CONDITION: Clear all flags (0x00)
+00FF                          ; Expected Result: 0x1000, Flags: H=1, N=0, C=0 (Others 0)
+00FF                          ; =========================================================
+00FF   21 00 08               LD   HL,0x0800   
+0102   11 00 08               LD   DE,0x0800   
+0105   01 00 00               LD   BC,0x0000   
+0108   C5                     PUSH   BC   
+0109   F1                     POP   AF   
+010A   19                     ADD   HL,DE   
+010B   F5                     PUSH   AF   
+010C   C1                     POP   BC   
+010D                          ; Verify Result (0x1000)
+010D   7C                     LD   A,H   
+010E   EE 10                  XOR   0x10   
+0110   C2 0C 00               JP   NZ,ERROR   
+0113   7D                     LD   A,L   
+0114   EE 00                  XOR   0x00   
+0116   C2 0C 00               JP   NZ,ERROR   
+0119                          ; Verify Flags
+0119   CB 79                  BIT   7,C   ; S flag
+011B   C2 0C 00               JP   NZ,ERROR   
+011E   CB 71                  BIT   6,C   ; Z flag
+0120   C2 0C 00               JP   NZ,ERROR   
+0123   CB 61                  BIT   4,C   ; H flag
+0125   CA 0C 00               JP   Z,ERROR   
+0128   CB 51                  BIT   2,C   ; V/P flag
+012A   C2 0C 00               JP   NZ,ERROR   
+012D   CB 49                  BIT   1,C   ; N flag
+012F   C2 0C 00               JP   NZ,ERROR   
+0132   CB 41                  BIT   0,C   ; C flag
+0134   C2 0C 00               JP   NZ,ERROR   
+0137                          ; =========================================================
+0137                          ; CASE 3: Half and Full Carry (0xF800 + 0x0800)
+0137                          ; PRE-CONDITION: Clear all flags (0x00)
+0137                          ; Expected Result: 0x0000, Flags: H=1, C=1, N=0
+0137                          ; =========================================================
+0137   21 00 F8               LD   HL,0xF800   
+013A   11 00 08               LD   DE,0x0800   
+013D   01 00 00               LD   BC,0x0000   
+0140   C5                     PUSH   BC   
+0141   F1                     POP   AF   
+0142   19                     ADD   HL,DE   
+0143   F5                     PUSH   AF   
+0144   C1                     POP   BC   
+0145                          ; Verify Result (0x0000)
+0145   7C                     LD   A,H   
+0146   EE 00                  XOR   0x00   
+0148   C2 0C 00               JP   NZ,ERROR   
+014B   7D                     LD   A,L   
+014C   EE 00                  XOR   0x00   
+014E   C2 0C 00               JP   NZ,ERROR   
+0151                          ; Verify Flags
+0151   CB 79                  BIT   7,C   ; S flag
+0153   C2 0C 00               JP   NZ,ERROR   
+0156   CB 71                  BIT   6,C   ; Z flag
+0158   C2 0C 00               JP   NZ,ERROR   
+015B   CB 61                  BIT   4,C   ; H flag
+015D   CA 0C 00               JP   Z,ERROR   
+0160   CB 51                  BIT   2,C   ; V/P flag
+0162   C2 0C 00               JP   NZ,ERROR   
+0165   CB 49                  BIT   1,C   ; N flag
+0167   C2 0C 00               JP   NZ,ERROR   
+016A   CB 41                  BIT   0,C   ; C flag
+016C   CA 0C 00               JP   Z,ERROR   
+016F   C9                     RET   
+0170                TEST_ADD_HL_HL:   
+0170                          ; =========================================================
+0170                          ; CASE 1: No Carry, No Half-Carry (0x1234 + 0x1234)
+0170                          ; PRE-CONDITION: Set all flags to test preservation
+0170                          ; Expected Result: 0x1224, Flags: S=1, Z=1, V=1, H=0, N=0, C=0
+0170                          ; =========================================================
+0170   21 34 12               LD   HL,0x1234   
+0173   01 FF 00               LD   BC,0x00FF   ; B=0, C=Initial Flags
+0176   C5                     PUSH   BC   
+0177   F1                     POP   AF   ; Load Flags
+0178   29                     ADD   HL,HL   
+0179   F5                     PUSH   AF   
+017A   C1                     POP   BC   ; C = Resulting Flags
+017B                          ; Verify Result (0x1224)
+017B   7C                     LD   A,H   
+017C   EE 24                  XOR   0x24   
+017E   C2 0C 00               JP   NZ,ERROR   
+0181   7D                     LD   A,L   
+0182   EE 68                  XOR   0x68   
+0184   C2 0C 00               JP   NZ,ERROR   
+0187                          ; Verify Flags
+0187   CB 79                  BIT   7,C   ; S flag
+0189   CA 0C 00               JP   Z,ERROR   
+018C   CB 71                  BIT   6,C   ; Z flag
+018E   CA 0C 00               JP   Z,ERROR   
+0191   CB 61                  BIT   4,C   ; H flag
+0193   C2 0C 00               JP   NZ,ERROR   
+0196   CB 51                  BIT   2,C   ; V/P flag
+0198   CA 0C 00               JP   Z,ERROR   
+019B   CB 49                  BIT   1,C   ; N flag
+019D   C2 0C 00               JP   NZ,ERROR   
+01A0   CB 41                  BIT   0,C   ; C flag
+01A2   C2 0C 00               JP   NZ,ERROR   
+01A5                          ; =========================================================
+01A5                          ; CASE 2: Half-Carry (Bit 11) (0x0800 + 0x0800)
+01A5                          ; PRE-CONDITION: Clear all flags (0x00)
+01A5                          ; Expected Result: 0x1000, Flags: H=1, N=0, C=0 (Others 0)
+01A5                          ; =========================================================
+01A5   21 00 08               LD   HL,0x0800   ; 0x0800 + 0x0800 = 0x1000
+01A8   01 00 00               LD   BC,0x0000   
+01AB   C5                     PUSH   BC   
+01AC   F1                     POP   AF   
+01AD   29                     ADD   HL,HL   
+01AE   F5                     PUSH   AF   
+01AF   C1                     POP   BC   
+01B0                          ; Verify Result (0x1000)
+01B0   7C                     LD   A,H   
+01B1   EE 10                  XOR   0x10   
+01B3   C2 0C 00               JP   NZ,ERROR   
+01B6   7D                     LD   A,L   
+01B7   EE 00                  XOR   0x00   
+01B9   C2 0C 00               JP   NZ,ERROR   
+01BC                          ; Verify Flags
+01BC   CB 79                  BIT   7,C   ; S flag
+01BE   C2 0C 00               JP   NZ,ERROR   
+01C1   CB 71                  BIT   6,C   ; Z flag
+01C3   C2 0C 00               JP   NZ,ERROR   
+01C6   CB 61                  BIT   4,C   ; H flag
+01C8   CA 0C 00               JP   Z,ERROR   
+01CB   CB 51                  BIT   2,C   ; V/P flag
+01CD   C2 0C 00               JP   NZ,ERROR   
+01D0   CB 49                  BIT   1,C   ; N flag
+01D2   C2 0C 00               JP   NZ,ERROR   
+01D5   CB 41                  BIT   0,C   ; C flag
+01D7   C2 0C 00               JP   NZ,ERROR   
+01DA                          ; =========================================================
+01DA                          ; CASE 3: Half and Full Carry (0x8800 + 0x8800)
+01DA                          ; PRE-CONDITION: Clear all flags (0x00)
+01DA                          ; Expected Result: 0x1000, Flags: H=1, C=1, N=0
+01DA                          ; =========================================================
+01DA   21 00 88               LD   HL,0x8800   ; Bit 11 and Bit 15 will both carry when doubled!
+01DD   01 00 00               LD   BC,0x0000   
+01E0   C5                     PUSH   BC   
+01E1   F1                     POP   AF   
+01E2   29                     ADD   HL,HL   
+01E3   F5                     PUSH   AF   
+01E4   C1                     POP   BC   
+01E5                          ; Verify Result (0x1000)
+01E5   7C                     LD   A,H   
+01E6   EE 10                  XOR   0x10   
+01E8   C2 0C 00               JP   NZ,ERROR   
+01EB   7D                     LD   A,L   
+01EC   EE 00                  XOR   0x00   
+01EE   C2 0C 00               JP   NZ,ERROR   
+01F1                          ; Verify Flags
+01F1   CB 79                  BIT   7,C   ; S flag
+01F3   C2 0C 00               JP   NZ,ERROR   
+01F6   CB 71                  BIT   6,C   ; Z flag
+01F8   C2 0C 00               JP   NZ,ERROR   
+01FB   CB 61                  BIT   4,C   ; H flag
+01FD   CA 0C 00               JP   Z,ERROR   
+0200   CB 51                  BIT   2,C   ; V/P flag
+0202   C2 0C 00               JP   NZ,ERROR   
+0205   CB 49                  BIT   1,C   ; N flag
+0207   C2 0C 00               JP   NZ,ERROR   
+020A   CB 41                  BIT   0,C   ; C flag
+020C   CA 0C 00               JP   Z,ERROR   
+020F   C9                     RET   
+0210                TEST_ADD_HL_SP:   
+0210                          ; Save real SP
+0210   ED 73 0A 00            LD   (TEMP_SP_SAVE),SP   
+0214                          ; =========================================================
+0214                          ; CASE 1: No Carry, No Half-Carry (0x1030 + 0x0204)
+0214                          ; PRE-CONDITION: Set all flags to test preservation
+0214                          ; Expected Result: 0x1234, Flags: S=1, Z=1, V=1, H=0, N=0, C=0
+0214                          ; =========================================================
+0214   21 30 10               LD   HL,0x1030   
+0217   31 04 02               LD   SP,0x0204   
+021A   01 FF 00               LD   BC,0x00FF   ; B=0, C=Initial Flags
+021D   C5                     PUSH   BC   
+021E   F1                     POP   AF   ; Load Flags
+021F   39                     ADD   HL,SP   
+0220   F5                     PUSH   AF   
+0221   C1                     POP   BC   ; C = Resulting Flags
+0222                          ; Verify Result (0x1234)
+0222   7C                     LD   A,H   
+0223   EE 12                  XOR   0x12   
+0225   C2 0C 00               JP   NZ,ERROR   
+0228   7D                     LD   A,L   
+0229   EE 34                  XOR   0x34   
+022B   C2 0C 00               JP   NZ,ERROR   
+022E                          ; Verify Flags:
+022E                          ; Expected: S=1, Z=1, H=0, V=1, N=0, C=0
+022E   CB 79                  BIT   7,C   ; S flag
+0230   CA 0C 00               JP   Z,ERROR   
+0233   CB 71                  BIT   6,C   ; Z flag
+0235   CA 0C 00               JP   Z,ERROR   
+0238   CB 61                  BIT   4,C   ; H flag
+023A   C2 0C 00               JP   NZ,ERROR   
+023D   CB 51                  BIT   2,C   ; V/P flag
+023F   CA 0C 00               JP   Z,ERROR   
+0242   CB 49                  BIT   1,C   ; N flag
+0244   C2 0C 00               JP   NZ,ERROR   
+0247   CB 41                  BIT   0,C   ; C flag
+0249   C2 0C 00               JP   NZ,ERROR   
+024C                          ; =========================================================
+024C                          ; CASE 2: Half-Carry (Bit 11) (0x0800 + 0x0800)
+024C                          ; PRE-CONDITION: Clear all flags (0x00)
+024C                          ; Expected Result: 0x1000, Flags: H=1, N=0, C=0 (Others 0)
+024C                          ; =========================================================
+024C   21 00 08               LD   HL,0x0800   
+024F   31 00 08               LD   SP,0x0800   
+0252   01 00 00               LD   BC,0x0000   
+0255   C5                     PUSH   BC   
+0256   F1                     POP   AF   
+0257   39                     ADD   HL,SP   
+0258   F5                     PUSH   AF   
+0259   C1                     POP   BC   
+025A                          ; Verify Result (0x1000)
+025A   7C                     LD   A,H   
+025B   EE 10                  XOR   0x10   
+025D   C2 0C 00               JP   NZ,ERROR   
+0260   7D                     LD   A,L   
+0261   EE 00                  XOR   0x00   
+0263   C2 0C 00               JP   NZ,ERROR   
+0266                          ; Verify Flags:
+0266                          ; Expected: S=0, Z=0, H=1, V=0, N=0, C=0
+0266   CB 79                  BIT   7,C   ; S flag
+0268   C2 0C 00               JP   NZ,ERROR   
+026B   CB 71                  BIT   6,C   ; Z flag
+026D   C2 0C 00               JP   NZ,ERROR   
+0270   CB 61                  BIT   4,C   ; H flag
+0272   CA 0C 00               JP   Z,ERROR   
+0275   CB 51                  BIT   2,C   ; V/P flag
+0277   C2 0C 00               JP   NZ,ERROR   
+027A   CB 49                  BIT   1,C   ; N flag
+027C   C2 0C 00               JP   NZ,ERROR   
+027F   CB 41                  BIT   0,C   ; C flag
+0281   C2 0C 00               JP   NZ,ERROR   
+0284                          ; =========================================================
+0284                          ; CASE 3: Half and Full Carry (0xF800 + 0x0800)
+0284                          ; PRE-CONDITION: Clear all flags (0x00)
+0284                          ; Expected Result: 0x0000, Flags: H=1, C=1, N=0
+0284                          ; =========================================================
+0284   21 00 F8               LD   HL,0xF800   
+0287   31 00 08               LD   SP,0x0800   
+028A   01 00 00               LD   BC,0x0000   
+028D   C5                     PUSH   BC   
+028E   F1                     POP   AF   
+028F   39                     ADD   HL,SP   
+0290   F5                     PUSH   AF   
+0291   C1                     POP   BC   
+0292                          ; Verify Result (0x0000)
+0292   7C                     LD   A,H   
+0293   EE 00                  XOR   0x00   
+0295   C2 0C 00               JP   NZ,ERROR   
+0298   7D                     LD   A,L   
+0299   EE 00                  XOR   0x00   
+029B   C2 0C 00               JP   NZ,ERROR   
+029E                          ; Verify Flags:
+029E                          ; Expected: S=0, Z=0, H=1, V=0, N=0, C=1
+029E   CB 79                  BIT   7,C   ; S flag
+02A0   C2 0C 00               JP   NZ,ERROR   
+02A3   CB 71                  BIT   6,C   ; Z flag
+02A5   C2 0C 00               JP   NZ,ERROR   
+02A8   CB 61                  BIT   4,C   ; H flag
+02AA   CA 0C 00               JP   Z,ERROR   
+02AD   CB 51                  BIT   2,C   ; V/P flag
+02AF   C2 0C 00               JP   NZ,ERROR   
+02B2   CB 49                  BIT   1,C   ; N flag
+02B4   C2 0C 00               JP   NZ,ERROR   
+02B7   CB 41                  BIT   0,C   ; C flag
+02B9   CA 0C 00               JP   Z,ERROR   
+02BC                          ; Restore original SP
+02BC   ED 7B 0A 00            LD   SP,(TEMP_SP_SAVE)   
+02C0   C9                     RET
