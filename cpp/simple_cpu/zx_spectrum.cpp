@@ -34,6 +34,22 @@
  * User manual, page 65
  */
 
+enum class ALU_Op {
+    ADD = 0,
+    ADC,
+    INC,
+    SUB,
+    SBC,
+    DEC,
+    AND,
+    OR,
+    XOR,
+    RL,
+    RLC,
+    RR,
+    RRC
+};
+
 enum class FlagName {
     C = 0,
     N,
@@ -301,6 +317,51 @@ public:
         }
     }
     
+    uint16_t ALU(uint16_t op1, uint16_t op2, ALU_Op op, bool is_16b) {
+        // ADD,
+        // ADC,
+        // INC,
+        // SUB,
+        // SBC,
+        // DEC,
+        // AND,
+        // OR,
+        // XOR,
+        // RL,
+        // RLC,
+        // RR,
+        // RRC
+        
+        // C = 0,
+        // N,
+        // P_V,
+        // F3,
+        // H,
+        // F5,
+        // Z,
+        // S
+        switch(op) {
+            case ALU_Op::ADD:
+            case ALU_Op::ADC:
+            case ALU_Op::INC:
+            {
+                uint16_t carry_in = 0, oveflow = 0, half_carry = 0, z = 0, s = 0, res = 0;
+                if (op == ALU_Op::ADC) {
+                    carry_in = regs.get_flag(FlagName::C);
+                }
+                if (is_16b) {
+                    ;
+                } else {
+                    uint16_t temp1 = op1&0x0F + op2&0x0F + carry_in;
+                    if (temp1 > 0x0F) half_carry = 1;
+                    uint16_t temp2 = op1&0xF0 + op2&0xF0 + (half_carry << 4);
+                    res = temp1 | temp2;
+                }
+            }
+            break;
+        }
+    }
+
     uint16_t z80_add(uint16_t a, uint16_t b, bool use_carry, bool is_16b) {
         uint16_t carry_in = (use_carry && regs.get_flag(FlagName::C)) ? 1 : 0;
         uint32_t result = (uint32_t)a + b + carry_in;
@@ -403,7 +464,7 @@ public:
                 uint16_t res = (val + 1) & 0xFF;
                 regs.clear_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false, false));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
 
@@ -418,15 +479,15 @@ public:
                 // H as defined
                 // Z as defined
                 // S as defined
-                uint16_t b = regs.get_reg(RegName::B);
-                uint16_t res = b - 1;
+                uint16_t val = regs.get_reg(RegName::B);
+                uint16_t res = val - 1;
                 regs.set_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, b==0);
-                regs.update_flag(FlagName::H, calculate_half_carry(b, 1, 0, true));
+                regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, true, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false, true));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
 
-                printf("0x%04X: DEC B : (0x%02X->0x%02X) || 0x%02X F=0x%02X\n", pc, b, res, opcode, regs.get_reg(RegName::F));
+                printf("0x%04X: DEC B : (0x%02X->0x%02X) || 0x%02X F=0x%02X\n", pc, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::B, res);
                 break;
             }
@@ -477,7 +538,7 @@ public:
                 uint16_t res = (val + 1) & 0xFF;
                 regs.clear_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false, false));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
 
@@ -496,7 +557,7 @@ public:
                 uint16_t res = c - 1;
                 regs.set_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, c==0);
-                regs.update_flag(FlagName::H, calculate_half_carry(c, 1, 0, true));
+                regs.update_flag(FlagName::H, calculate_half_carry(c, 1, 0, false, true));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
 
@@ -587,7 +648,7 @@ public:
                 uint16_t res = (val + 1) & 0xFF;
                 regs.clear_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false, false));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
 
@@ -651,7 +712,7 @@ public:
                 uint16_t res = (val + 1) & 0xFF;
                 regs.clear_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false, false));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
 
@@ -670,7 +731,7 @@ public:
                 uint16_t res = e - 1;
                 regs.set_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, e==0);
-                regs.update_flag(FlagName::H, calculate_half_carry(e, 1, 0, true));
+                regs.update_flag(FlagName::H, calculate_half_carry(e, 1, 0, false, true));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
 
@@ -734,7 +795,7 @@ public:
                 uint16_t res = (val + 1) & 0xFF;
                 regs.clear_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false, false));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
 
@@ -817,7 +878,7 @@ public:
                 uint16_t res = h - 1;
                 regs.set_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, h==0);
-                regs.update_flag(FlagName::H, calculate_half_carry(h, 1, 0, true));
+                regs.update_flag(FlagName::H, calculate_half_carry(h, 1, 0, false, true));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
 
@@ -864,7 +925,7 @@ public:
                 regs.clear_flag(FlagName::N);
                 uint8_t nibble = hl & 0x0F;
                 regs.update_flag(FlagName::H, (nibble + nibble) > 0x0F);
-                printf("0x%04X: ADD HL, HL : (0x%04X + 0x%04X = 0x%04X) | 0x%02X 0x%02X\n", pc, hl, hl, res, opcode, regs.get_reg(RegName::F));
+                printf("0x%04X: ADD HL, HL :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, hl, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::HL, res);
                 break;
             }
@@ -894,7 +955,7 @@ public:
                 uint16_t res = (val + 1) & 0xFF;
                 regs.clear_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false, false));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
 
@@ -951,7 +1012,7 @@ public:
                 uint16_t res = (val + 1) & 0xFF;
                 regs.clear_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false, false));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
 
@@ -993,6 +1054,23 @@ public:
                 num_bytes_read ++;
                 break;
             }
+            case 0x39: {// 0x39     (ADD HL, SP  - Add SP to HL), cycles: 11
+                // C as defined
+                // N reset
+                // P/V unaffected
+                // H as defined
+                // Z unaffected
+                // S unaffected
+                uint32_t hl = regs.get_reg(RegName::HL);
+                uint32_t val = regs.get_reg(RegName::SP);
+                uint32_t res = hl + val;
+                regs.update_flag(FlagName::C, res > 0xFFFF);
+                regs.clear_flag(FlagName::N);
+                regs.update_flag(FlagName::H, calculate_half_carry(hl, val, 0, true, false));
+                printf("0x%04X: ADD HL, SP : (0x%04X + 0x%04X = 0x%04X) | 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::HL, res);
+                break;
+            }
             case 0x3A: {// 0x3A N N (LD A, (NN)  - Loads the value pointed to by nn into A.), cycles: 13
                 // Does not affect flags
                 uint16_t addr = mem_read_16b(pc+1);
@@ -1013,7 +1091,7 @@ public:
                 uint16_t res = (val + 1) & 0xFF;
                 regs.clear_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false, false));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
 
@@ -1378,6 +1456,12 @@ public:
                 regs.set_reg(RegName::A, regs.get_reg(RegName::E));
                 break;
             }
+            case 0x7C: {// 0x7C     (LD A, H     - Load H into A), cycles: 4
+                // Does not affect flags
+                printf("0x%04X: LD A, H || 0x%02X\n", pc, opcode);
+                regs.set_reg(RegName::A, regs.get_reg(RegName::H));
+                break;
+            }
             case 0x7D: {// 0x7D     (LD A, L     - Load L into A), cycles: 4
                 // Does not affect flags
                 printf("0x%04X: LD A, L || 0x%02X\n", pc, opcode);
@@ -1405,14 +1489,14 @@ public:
                 regs.update_flag(FlagName::C, res > 0xFF);
                 regs.clear_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, calculate_overflow(a, d, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, d, 0, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(a, d, 0, false, false));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
                 printf("0x%04X: ADD A, D : (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, d, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
             }
-            case 0x8D: {// 0x8D     (ADD A, L    - Adds L and the carry flag to A), cycles: 4
+            case 0x8D: {// 0x8D     (ADC A, L    - Adds L and the carry flag to A), cycles: 4
                 // C as defined
                 // N reset
                 // P/V detects overflow
@@ -1428,14 +1512,14 @@ public:
                 regs.update_flag(FlagName::C, res > 0xFF);
                 regs.clear_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, calculate_overflow(a, l, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, l, 0, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(a, l, 0, false, false));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
                 printf("0x%04X: ADC A, L || 0x%02X F=0x%02X\n", pc, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
             }
-            case 0xA0: {// 0xA0     (AND A, B), cycles: 4
+            case 0xA0: {// 0xA0     (AND A, B    - Bitwise AND on A with B), cycles: 4
                 // C reset
                 // N reset
                 // P/V detects parity
@@ -1455,7 +1539,7 @@ public:
                 regs.set_reg(RegName::A, res);
                 break;
             }
-            case 0xA1: {// 0xA1     (AND A, C), cycles: 4
+            case 0xA1: {// 0xA1     (AND A, C    - Bitwise AND on A with C), cycles: 4
                 // C reset
                 // N reset
                 // P/V detects parity
@@ -1475,7 +1559,7 @@ public:
                 regs.set_reg(RegName::A, res);
                 break;
             }
-            case 0xA7: {// 0xA7     (AND A, A), cycles: 4
+            case 0xA7: {// 0xA7     (AND A, A    - Bitwise AND on A with A), cycles: 4
                 // C reset
                 // N reset
                 // P/V detects parity
@@ -1627,27 +1711,30 @@ public:
                 regs.clear_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, z80_parity_flag(res));
                 regs.clear_flag(FlagName::H);
-                regs.update_flag(FlagName::P_V, z80_zero_flag(res));
-                regs.update_flag(FlagName::P_V, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::Z, z80_zero_flag(res));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
                 regs.set_reg(RegName::A, res);
                 printf("0x%04X: XOR A, (HL) : (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 break;
             }
-            case 0xAF: {// 0xAF     (XOR A, A), cycles: 4
+            case 0xAF: {// 0xAF     (XOR A, A    - Bitwise XOR on A with A), cycles: 4
                 // C reset
                 // N reset
                 // P/V detects parity
                 // H reset
                 // Z as defined
                 // S as defined
-                printf("0x%04X: XOR A, A | 0x%02X 0x%02X\n", pc, opcode, flags_in);
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::B);
+                uint16_t res = a ^ val;
                 regs.clear_flag(FlagName::C);
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, z80_parity_flag(0));
+                regs.update_flag(FlagName::P_V, z80_parity_flag(res));
                 regs.clear_flag(FlagName::H);
-                regs.set_flag(FlagName::Z);
-                regs.clear_flag(FlagName::S);
-                regs.set_reg(RegName::A, 0);
+                regs.update_flag(FlagName::Z, z80_zero_flag(res));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.set_reg(RegName::A, res);
+                printf("0x%04X: XOR A, A :: (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 break;
             }
             case 0xB0: {// 0xB0     (OR A, B), cycles: 4
@@ -1681,7 +1768,7 @@ public:
                 regs.update_flag(FlagName::C, h > a);
                 regs.set_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, calculate_overflow(a, h, res, true, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, h, 0, true));
+                regs.update_flag(FlagName::H, calculate_half_carry(a, h, 0, false, true));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
                 printf("0x%04X: CP A, H : (0x%04X - 0x%04X = 0x%04X) | 0x%02X 0x%02X\n", pc, a, h, res, opcode, regs.get_reg(RegName::F));
@@ -2185,7 +2272,7 @@ public:
                     regs.set_reg(RegName::HL, res);
                     bool pv = calculate_overflow(hl, de+carry_in, res, true, true);
                     pv? regs.set_flag(FlagName::P_V): regs.clear_flag(FlagName::P_V);
-                    bool hc = calculate_half_carry(hl, de, carry_in, true);
+                    bool hc = calculate_half_carry(hl, de, carry_in, false, true);
                     hc? regs.set_flag(FlagName::H): regs.clear_flag(FlagName::H);
                     res==0? regs.set_flag(FlagName::Z): regs.clear_flag(FlagName::Z);
                     (res&0x80)==0x80? regs.set_flag(FlagName::S): regs.clear_flag(FlagName::S);
@@ -2236,6 +2323,27 @@ public:
                     printf("Unknown misc opcode: 0xED 0x%X\n", new_opcode);
                     return false;
                 }
+                break;
+            }
+            case 0xEE: {// 0xEE N   (XOR A, N - Bitwise XOR on A with N), cycles: 7
+                // C reset
+                // N reset
+                // P/V detects parity
+                // H reset
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = mem_bus->read(pc+1);
+                uint16_t res = a ^ val;
+                regs.clear_flag(FlagName::C);
+                regs.clear_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, z80_parity_flag(res));
+                regs.clear_flag(FlagName::H);
+                regs.update_flag(FlagName::Z, z80_zero_flag(res));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                printf("0x%04X: XOR A, 0x%02X : (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, val, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                num_bytes_read += 1;
                 break;
             }
             case 0xF0: {// 0xF0     (RET P - If the sign flag is unset, the top stack entry is popped into PC), cycles: 11/5
@@ -2367,7 +2475,7 @@ public:
                 regs.update_flag(FlagName::C, val > a);
                 regs.set_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, true, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, true));
+                regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, true));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
                 printf("0x%04X: CP A, 0x%02X :: (0x%04X - 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, val, a, val, res, opcode, regs.get_reg(RegName::F));

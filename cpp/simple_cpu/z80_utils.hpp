@@ -40,13 +40,20 @@ bool calculate_overflow(uint32_t op1, uint32_t op2, uint32_t result, bool is_sub
  * @param is_sub  True if subtraction, False if addition.
  * @return        True if Half-Carry occurred.
  */
-bool calculate_half_carry(uint16_t op1, uint16_t op2, uint16_t carry_in, bool is_sub) {
+bool calculate_half_carry(uint16_t op1, uint16_t op2, uint16_t carry_in, bool is_16b, bool is_sub) {
     if (is_sub) {
+        if (is_16b) {
+            printf("Error! There is no 16-bit SUB operation on Z80!\n");
+            exit(1);
+        }
         // Half-Borrow: true if the lower nibble of op1 is less than op2
         return (static_cast<int32_t>(op1 & 0x0F) - static_cast<int32_t>(op2 & 0x0F) - static_cast<int32_t>(carry_in & 0x0F)) < 0;
     } else {
-        // Half-Carry: true if the sum of lower nibbles exceeds 0x0F
-        return ((op1 & 0x0F) + (op2 & 0x0F) + (carry_in & 0x0F)) > 0x0F;
+        if (is_16b) {   // Half-Carry: true if the sum of lower 3 nibbles exceeds 0x0FFF
+            return ((op1 & 0x0FFF) + (op2 & 0x0FFF) + carry_in) > 0x0FFF;
+        } else {// Half-Carry: true if the sum of lower nibbles exceeds 0x0F
+            return ((op1 & 0x0F) + (op2 & 0x0F) + carry_in) > 0x0F;
+        }
     }
 }
 
