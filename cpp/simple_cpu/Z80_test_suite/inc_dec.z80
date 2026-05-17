@@ -1,0 +1,1035 @@
+ORG 0000h
+    LD SP, 0xF000
+    CALL TEST_INCS
+    CALL TEST_DECS
+    HALT
+
+TEMP_SP_SAVE: DW 0x0000
+
+ERROR:
+    DI
+    HALT
+    JR ERROR
+
+TEST_INCS:
+    CALL TEST_INC_A
+    CALL TEST_INC_B
+    CALL TEST_INC_C
+    CALL TEST_INC_D
+    CALL TEST_INC_E
+    CALL TEST_INC_H
+    CALL TEST_INC_L
+    CALL TEST_INC_MEM_HL
+    CALL TEST_INC_BC
+    RET
+
+TEST_DECS:
+    CALL TEST_DEC_B
+    RET
+
+TEST_INC_A:
+    LD HL, 0x0100   ; Clear all flags and load 1 into A
+    PUSH HL
+    POP AF
+
+    ; --- Case 1: Standard Increment (0x01 -> 0x02) ---
+    INC A
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    LD B, 0x02
+    XOR B
+    JP NZ, ERROR
+
+    ; Verify Flags: Z=0, S=0, H=0, V=0, N=0, C stays 0
+    BIT 6, L        ; Z flag
+    JP NZ, ERROR
+    BIT 7, L        ; S flag
+    JP NZ, ERROR
+    BIT 4, L        ; H flag
+    JP NZ, ERROR
+    BIT 2, L        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP NZ, ERROR
+
+    LD HL, 0xFFFF   ; Set all flags and load 0xFF into A
+    PUSH HL
+    POP AF
+
+    ; --- Case 2: Half-Carry and Zero (0xFF -> 0x00) ---
+    INC A           ; Should wrap to 0, set Z and H
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    LD B, 0x00
+    XOR B
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=1, S=0, H=1, V=0, N=0, C stays 1
+    BIT 6, L        ; Z flag
+    JP Z, ERROR
+    BIT 7, L        ; S flag
+    JP NZ, ERROR
+    BIT 4, L        ; H flag
+    JP Z, ERROR
+    BIT 2, L        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP Z, ERROR
+
+    ; --- Case 3: Overflow (0x7F -> 0x80) ---
+    LD HL, 0x7F00   ; Clear all flags and load 0x7F into A
+    PUSH HL
+    POP AF
+
+    INC A           ; Becomes 0x80 (-128), should set V, H and S
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    LD B, 0x80
+    XOR B
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=0, S=1, H=1, V=1, N=0, C stays 0
+    BIT 6, L        ; Z flag
+    JP NZ, ERROR
+    BIT 7, L        ; S flag
+    JP Z, ERROR
+    BIT 4, L        ; H flag
+    JP Z, ERROR
+    BIT 2, L        ; V/P flag
+    JP Z, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP NZ, ERROR
+
+    RET
+
+TEST_INC_B:
+    LD HL, 0x0200   ; Clear all flags and load the expected result into A
+    LD B, 0x01
+    PUSH HL
+    POP AF
+
+    ; --- Case 1: Standard Increment (0x01 -> 0x02) ---
+    INC B
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    XOR B
+    JP NZ, ERROR
+
+    ; Verify Flags: Z=0, S=0, H=0, V=0, N=0, C stays 0
+    BIT 6, L        ; Z flag
+    JP NZ, ERROR
+    BIT 7, L        ; S flag
+    JP NZ, ERROR
+    BIT 4, L        ; H flag
+    JP NZ, ERROR
+    BIT 2, L        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP NZ, ERROR
+
+    LD HL, 0x00FF   ; Set all flags and load the expected result into A
+    LD B, 0xFF
+    PUSH HL
+    POP AF
+
+    ; --- Case 2: Half-Carry and Zero (0xFF -> 0x00) ---
+    INC B           ; Should wrap to 0, set Z and H
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    XOR B
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=1, S=0, H=1, V=0, N=0, C stays 1
+    BIT 6, L        ; Z flag
+    JP Z, ERROR
+    BIT 7, L        ; S flag
+    JP NZ, ERROR
+    BIT 4, L        ; H flag
+    JP Z, ERROR
+    BIT 2, L        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP Z, ERROR
+
+    ; --- Case 3: Overflow (0x7F -> 0x80) ---
+    LD HL, 0x8000   ; Clear all flags and load the expected result into A
+    LD B, 0x7F
+    PUSH HL
+    POP AF
+
+    INC B           ; Becomes 0x80 (-128), should set V, H and S
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    XOR B
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=0, S=1, H=1, V=1, N=0, C stays 0
+    BIT 6, L        ; Z flag
+    JP NZ, ERROR
+    BIT 7, L        ; S flag
+    JP Z, ERROR
+    BIT 4, L        ; H flag
+    JP Z, ERROR
+    BIT 2, L        ; V/P flag
+    JP Z, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP NZ, ERROR
+
+    RET
+
+TEST_INC_C:
+    LD HL, 0x0200   ; Clear all flags and load the expected result into A
+    LD C, 0x01
+    PUSH HL
+    POP AF
+
+    ; --- Case 1: Standard Increment (0x01 -> 0x02) ---
+    INC C
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    XOR C
+    JP NZ, ERROR
+
+    ; Verify Flags: Z=0, S=0, H=0, V=0, N=0, C stays 0
+    BIT 6, L        ; Z flag
+    JP NZ, ERROR
+    BIT 7, L        ; S flag
+    JP NZ, ERROR
+    BIT 4, L        ; H flag
+    JP NZ, ERROR
+    BIT 2, L        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP NZ, ERROR
+
+    LD HL, 0x00FF   ; Set all flags and load the expected result into A
+    LD C, 0xFF
+    PUSH HL
+    POP AF
+
+    ; --- Case 2: Half-Carry and Zero (0xFF -> 0x00) ---
+    INC C           ; Should wrap to 0, set Z and H
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    XOR C
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=1, S=0, H=1, V=0, N=0, C stays 1
+    BIT 6, L        ; Z flag
+    JP Z, ERROR
+    BIT 7, L        ; S flag
+    JP NZ, ERROR
+    BIT 4, L        ; H flag
+    JP Z, ERROR
+    BIT 2, L        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP Z, ERROR
+
+    ; --- Case 3: Overflow (0x7F -> 0x80) ---
+    LD HL, 0x8000   ; Clear all flags and load the expected result into A
+    LD C, 0x7F
+    PUSH HL
+    POP AF
+
+    INC C           ; Becomes 0x80 (-128), should set V, H and S
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    XOR C
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=0, S=1, H=1, V=1, N=0, C stays 0
+    BIT 6, L        ; Z flag
+    JP NZ, ERROR
+    BIT 7, L        ; S flag
+    JP Z, ERROR
+    BIT 4, L        ; H flag
+    JP Z, ERROR
+    BIT 2, L        ; V/P flag
+    JP Z, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP NZ, ERROR
+
+    RET
+
+TEST_INC_D:
+    LD HL, 0x0200   ; Clear all flags and load the expected result into A
+    LD D, 0x01
+    PUSH HL
+    POP AF
+
+    ; --- Case 1: Standard Increment (0x01 -> 0x02) ---
+    INC D
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    XOR D
+    JP NZ, ERROR
+
+    ; Verify Flags: Z=0, S=0, H=0, V=0, N=0, C stays 0
+    BIT 6, L        ; Z flag
+    JP NZ, ERROR
+    BIT 7, L        ; S flag
+    JP NZ, ERROR
+    BIT 4, L        ; H flag
+    JP NZ, ERROR
+    BIT 2, L        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP NZ, ERROR
+
+    LD HL, 0x00FF   ; Set all flags and load the expected result into A
+    LD D, 0xFF
+    PUSH HL
+    POP AF
+
+    ; --- Case 2: Half-Carry and Zero (0xFF -> 0x00) ---
+    INC D           ; Should wrap to 0, set Z and H
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    XOR D
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=1, S=0, H=1, V=0, N=0, C stays 1
+    BIT 6, L        ; Z flag
+    JP Z, ERROR
+    BIT 7, L        ; S flag
+    JP NZ, ERROR
+    BIT 4, L        ; H flag
+    JP Z, ERROR
+    BIT 2, L        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP Z, ERROR
+
+    ; --- Case 3: Overflow (0x7F -> 0x80) ---
+    LD HL, 0x8000   ; Clear all flags and load the expected result into A
+    LD D, 0x7F
+    PUSH HL
+    POP AF
+
+    INC D           ; Becomes 0x80 (-128), should set V, H and S
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    XOR D
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=0, S=1, H=1, V=1, N=0, C stays 0
+    BIT 6, L        ; Z flag
+    JP NZ, ERROR
+    BIT 7, L        ; S flag
+    JP Z, ERROR
+    BIT 4, L        ; H flag
+    JP Z, ERROR
+    BIT 2, L        ; V/P flag
+    JP Z, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP NZ, ERROR
+
+    RET
+
+TEST_INC_E:
+    LD HL, 0x0200   ; Clear all flags and load the expected result into A
+    LD E, 0x01
+    PUSH HL
+    POP AF
+
+    ; --- Case 1: Standard Increment (0x01 -> 0x02) ---
+    INC E
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    XOR E
+    JP NZ, ERROR
+
+    ; Verify Flags: Z=0, S=0, H=0, V=0, N=0, C stays 0
+    BIT 6, L        ; Z flag
+    JP NZ, ERROR
+    BIT 7, L        ; S flag
+    JP NZ, ERROR
+    BIT 4, L        ; H flag
+    JP NZ, ERROR
+    BIT 2, L        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP NZ, ERROR
+
+    LD HL, 0x00FF   ; Set all flags and load the expected result into A
+    LD E, 0xFF
+    PUSH HL
+    POP AF
+
+    ; --- Case 2: Half-Carry and Zero (0xFF -> 0x00) ---
+    INC E           ; Should wrap to 0, set Z and H
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    XOR E
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=1, S=0, H=1, V=0, N=0, C stays 1
+    BIT 6, L        ; Z flag
+    JP Z, ERROR
+    BIT 7, L        ; S flag
+    JP NZ, ERROR
+    BIT 4, L        ; H flag
+    JP Z, ERROR
+    BIT 2, L        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP Z, ERROR
+
+    ; --- Case 3: Overflow (0x7F -> 0x80) ---
+    LD HL, 0x8000   ; Clear all flags and load the expected result into A
+    LD E, 0x7F
+    PUSH HL
+    POP AF
+
+    INC E           ; Becomes 0x80 (-128), should set V, H and S
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify result
+    XOR E
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=0, S=1, H=1, V=1, N=0, C stays 0
+    BIT 6, L        ; Z flag
+    JP NZ, ERROR
+    BIT 7, L        ; S flag
+    JP Z, ERROR
+    BIT 4, L        ; H flag
+    JP Z, ERROR
+    BIT 2, L        ; V/P flag
+    JP Z, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP NZ, ERROR
+
+    RET
+
+TEST_INC_H:
+    ; --- Case 1: Standard Increment (0x01 -> 0x02) ---
+    LD BC, 0x0200   ; B = expected result (02), C = flags to load (00)
+    LD H, 0x01
+    PUSH BC
+    POP AF          ; A = 02, Flags = 00
+
+    INC H
+    
+    PUSH AF
+    POP BC          ; C now contains Flags
+    
+    ; Verify result (A XOR H)
+    XOR H
+    JP NZ, ERROR
+
+    ; Verify Flags: Z=0, S=0, H=0, V=0, N=0, C=0
+    BIT 6, C        ; Z flag
+    JP NZ, ERROR
+    BIT 7, C        ; S flag
+    JP NZ, ERROR
+    BIT 4, C        ; H flag
+    JP NZ, ERROR
+    BIT 2, C        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, C        ; N flag
+    JP NZ, ERROR
+    BIT 0, C        ; C flag
+    JP NZ, ERROR
+
+    ; --- Case 2: Half-Carry and Zero (0xFF -> 0x00) ---
+    LD BC, 0x00FF   ; B = expected result (00), C = flags to load (FF)
+    LD H, 0xFF
+    PUSH BC
+    POP AF
+
+    INC H           
+    
+    PUSH AF
+    POP BC          ; C contains Flags
+    
+    XOR H
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=1, S=0, H=1, V=0, N=0, C stays 1
+    BIT 6, C        ; Z flag
+    JP Z, ERROR
+    BIT 7, C        ; S flag
+    JP NZ, ERROR
+    BIT 4, C        ; H flag
+    JP Z, ERROR
+    BIT 2, C        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, C        ; N flag
+    JP NZ, ERROR
+    BIT 0, C        ; C flag
+    JP Z, ERROR
+
+    ; --- Case 3: Overflow (0x7F -> 0x80) ---
+    LD BC, 0x8000   ; B = expected result (80), C = flags to load (00)
+    LD H, 0x7F
+    PUSH BC
+    POP AF
+
+    INC H           
+    
+    PUSH AF
+    POP BC          ; C contains Flags
+    
+    XOR H
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=0, S=1, H=1, V=1, N=0, C stays 0
+    BIT 6, C        ; Z flag
+    JP NZ, ERROR
+    BIT 7, C        ; S flag
+    JP Z, ERROR
+    BIT 4, C        ; H flag
+    JP Z, ERROR
+    BIT 2, C        ; V/P flag
+    JP Z, ERROR
+    BIT 1, C        ; N flag
+    JP NZ, ERROR
+    BIT 0, C        ; C flag
+    JP NZ, ERROR
+
+    RET
+
+TEST_INC_L:
+    ; --- Case 1: Standard Increment (0x01 -> 0x02) ---
+    LD BC, 0x0200   ; B = expected result (02), C = flags to load (00)
+    LD L, 0x01
+    PUSH BC
+    POP AF          ; A = 02, Flags = 00
+
+    INC L
+    
+    PUSH AF
+    POP BC          ; C now contains Flags
+    
+    ; Verify result (A XOR H)
+    XOR L
+    JP NZ, ERROR
+
+    ; Verify Flags: Z=0, S=0, H=0, V=0, N=0, C=0
+    BIT 6, C        ; Z flag
+    JP NZ, ERROR
+    BIT 7, C        ; S flag
+    JP NZ, ERROR
+    BIT 4, C        ; H flag
+    JP NZ, ERROR
+    BIT 2, C        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, C        ; N flag
+    JP NZ, ERROR
+    BIT 0, C        ; C flag
+    JP NZ, ERROR
+
+    ; --- Case 2: Half-Carry and Zero (0xFF -> 0x00) ---
+    LD BC, 0x00FF   ; B = expected result (00), C = flags to load (FF)
+    LD L, 0xFF
+    PUSH BC
+    POP AF
+
+    INC L           
+    
+    PUSH AF
+    POP BC          ; C contains Flags
+    
+    XOR L
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=1, S=0, H=1, V=0, N=0, C stays 1
+    BIT 6, C        ; Z flag
+    JP Z, ERROR
+    BIT 7, C        ; S flag
+    JP NZ, ERROR
+    BIT 4, C        ; H flag
+    JP Z, ERROR
+    BIT 2, C        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, C        ; N flag
+    JP NZ, ERROR
+    BIT 0, C        ; C flag
+    JP Z, ERROR
+
+    ; --- Case 3: Overflow (0x7F -> 0x80) ---
+    LD BC, 0x8000   ; B = expected result (80), C = flags to load (00)
+    LD L, 0x7F
+    PUSH BC
+    POP AF
+
+    INC L           
+    
+    PUSH AF
+    POP BC          ; C contains Flags
+    
+    XOR L
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=0, S=1, H=1, V=1, N=0, C stays 0
+    BIT 6, C        ; Z flag
+    JP NZ, ERROR
+    BIT 7, C        ; S flag
+    JP Z, ERROR
+    BIT 4, C        ; H flag
+    JP Z, ERROR
+    BIT 2, C        ; V/P flag
+    JP Z, ERROR
+    BIT 1, C        ; N flag
+    JP NZ, ERROR
+    BIT 0, C        ; C flag
+    JP NZ, ERROR
+
+    RET
+
+TEST_INC_MEM_HL:
+    ; Setup: Point HL to a safe scratchpad RAM location
+    ; For this example, let's assume 0xC000 is safe.
+    LD HL, 0xC000
+
+    ; --- Case 1: Standard Increment (0x01 -> 0x02) ---
+    LD (HL), 0x01
+    LD BC, 0x0200   ; B = expected result (02), C = flags to load (00)
+    PUSH BC
+    POP AF          ; Flags cleared
+
+    INC (HL)
+    
+    PUSH AF
+    POP DE          ; E now contains Flags
+    
+    ; Verify memory result
+    LD A, (HL)
+    XOR B            ; Compare (HL) with 0x02
+    JP NZ, ERROR
+
+    ; Verify Flags: Z=0, S=0, H=0, V=0, N=0, C=0
+    BIT 6, E        ; Z flag
+    JP NZ, ERROR
+    BIT 4, E        ; H flag
+    JP NZ, ERROR
+    BIT 2, E        ; V flag
+    JP NZ, ERROR
+    BIT 1, E        ; N flag
+    JP NZ, ERROR
+
+    ; --- Case 2: Half-Carry and Zero (0xFF -> 0x00) ---
+    LD (HL), 0xFF
+    LD BC, 0x00FF   ; B = expected result (00), C = flags to load (FF)
+    PUSH BC
+    POP AF
+
+    INC (HL)
+    
+    PUSH AF
+    POP DE          ; E contains Flags
+    
+    ; Verify memory result
+    LD A, (HL)
+    XOR B
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=1, S=0, H=1, V=0, N=0, C stays 1
+    BIT 6, E        ; Z flag
+    JP Z, ERROR     ; Must be set
+    BIT 4, E        ; H flag
+    JP Z, ERROR     ; Must be set
+    BIT 2, E        ; V flag
+    JP NZ, ERROR
+    BIT 0, E        ; C flag
+    JP Z, ERROR     ; Must stay set
+
+    ; --- Case 3: Overflow (0x7F -> 0x80) ---
+    LD (HL), 0x7F
+    LD BC, 0x8000   ; B = expected result (80), C = flags to load (00)
+    PUSH BC
+    POP AF
+
+    INC (HL)
+    
+    PUSH AF
+    POP DE          ; E contains Flags
+    
+    ; Verify memory result
+    LD A, (HL)
+    XOR B
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=0, S=1, H=1, V=1, N=0, C stays 0
+    BIT 7, E        ; S flag
+    JP Z, ERROR
+    BIT 4, E        ; H flag
+    JP Z, ERROR
+    BIT 2, E        ; V flag
+    JP Z, ERROR
+    BIT 1, E        ; N flag
+    JP NZ, ERROR
+
+    RET
+
+TEST_INC_BC:
+    ; --- Case 1: Basic Increment and Flag Preservation ---
+    LD BC, 0x0000
+    
+    ; Set a known flag state
+    LD HL, 0x0000
+    PUSH HL
+    POP AF
+    
+    INC BC
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify Result
+    LD A, 0x00
+    XOR B
+    JP NZ, ERROR
+    LD A, 0x01
+    XOR C
+    JP NZ, ERROR
+    
+    ; Verify Flags: Must be all cleared
+
+    BIT 6, L        ; Z flag
+    JP NZ, ERROR
+    BIT 7, L        ; S flag
+    JP NZ, ERROR
+    BIT 4, L        ; H flag
+    JP NZ, ERROR
+    BIT 2, L        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP NZ, ERROR
+
+    ; --- Case 2: Basic Increment and Flag Preservation ---
+    LD BC, 0x1234
+    
+    ; Set a known flag state
+    LD HL, 0x00FF
+    PUSH HL
+    POP AF
+    
+    INC BC
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify Result
+    LD A, 0x12
+    XOR B
+    JP NZ, ERROR
+    LD A, 0x35
+    XOR C
+    JP NZ, ERROR
+    
+    ; Verify Flags: Must be all set
+
+    BIT 6, L        ; Z flag
+    JP Z, ERROR
+    BIT 7, L        ; S flag
+    JP Z, ERROR
+    BIT 4, L        ; H flag
+    JP Z, ERROR
+    BIT 2, L        ; V/P flag
+    JP Z, ERROR
+    BIT 1, L        ; N flag
+    JP Z, ERROR
+    BIT 0, L        ; C flag
+    JP Z, ERROR
+
+    ; --- Case 3: LSB overflow and Flag Preservation ---
+    LD BC, 0x12FF
+    
+    ; Set a known flag state
+    LD HL, 0x00FF
+    PUSH HL
+    POP AF
+    
+    INC BC
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify Result
+    LD A, 0x13
+    XOR B
+    JP NZ, ERROR
+    LD A, 0x00
+    XOR C
+    JP NZ, ERROR
+    
+    ; Verify Flags: Must be all set
+
+    BIT 6, L        ; Z flag
+    JP Z, ERROR
+    BIT 7, L        ; S flag
+    JP Z, ERROR
+    BIT 4, L        ; H flag
+    JP Z, ERROR
+    BIT 2, L        ; V/P flag
+    JP Z, ERROR
+    BIT 1, L        ; N flag
+    JP Z, ERROR
+    BIT 0, L        ; C flag
+    JP Z, ERROR
+
+    ; --- Case 4: Sign overflow and Flag Preservation ---
+    LD BC, 0x7FFF
+    
+    ; Set a known flag state
+    LD HL, 0x0000
+    PUSH HL
+    POP AF
+    
+    INC BC
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify Result
+    LD A, 0x80
+    XOR B
+    JP NZ, ERROR
+    LD A, 0x00
+    XOR C
+    JP NZ, ERROR
+    
+    ; Verify Flags: Must be all cleared
+
+    BIT 6, L        ; Z flag
+    JP NZ, ERROR
+    BIT 7, L        ; S flag
+    JP NZ, ERROR
+    BIT 4, L        ; H flag
+    JP NZ, ERROR
+    BIT 2, L        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, L        ; N flag
+    JP NZ, ERROR
+    BIT 0, L        ; C flag
+    JP NZ, ERROR
+
+    ; --- Case 5: Full overflow and Flag Preservation ---
+    LD BC, 0xFFFF
+    
+    ; Set a known flag state
+    LD HL, 0x00FF
+    PUSH HL
+    POP AF
+    
+    INC BC
+    ; Move flags to L
+    PUSH AF
+    POP HL
+    
+    ; Verify Result
+    LD A, 0x00
+    XOR B
+    JP NZ, ERROR
+    LD A, 0x00
+    XOR C
+    JP NZ, ERROR
+    
+    ; Verify Flags: Must be all set
+
+    BIT 6, L        ; Z flag
+    JP Z, ERROR
+    BIT 7, L        ; S flag
+    JP Z, ERROR
+    BIT 4, L        ; H flag
+    JP Z, ERROR
+    BIT 2, L        ; V/P flag
+    JP Z, ERROR
+    BIT 1, L        ; N flag
+    JP Z, ERROR
+    BIT 0, L        ; C flag
+    JP Z, ERROR
+
+    RET
+
+TEST_DEC_B:
+    ; --- Case 1: Standard Decrement (0x02 -> 0x01) ---
+    LD DE, 0x0100   ; D = expected result (01), E = initial flags (00)
+    LD B, 0x02
+    PUSH DE
+    POP AF          ; Clear flags
+
+    DEC B
+    
+    PUSH AF
+    POP DE          ; E now contains Flags
+    
+    ; Verify result (A XOR B)
+    LD A, D
+    XOR B
+    JP NZ, ERROR
+
+    ; Verify Flags: Z=0, S=0, H=0, V=0, N=1, C=0
+    BIT 6, E        ; Z flag
+    JP NZ, ERROR
+    BIT 4, E        ; H flag
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (Should be SET for DEC)
+    JP Z, ERROR
+    BIT 0, E        ; C flag
+    JP NZ, ERROR
+
+    ; --- Case 2: Half-Carry and Wrap (0x00 -> 0xFF) ---
+    LD DE, 0xFF01   ; D = expected result (FF), E = initial flags (01, C set)
+    LD B, 0x00
+    PUSH DE
+    POP AF
+
+    DEC B           
+    
+    PUSH AF
+    POP DE          ; E contains Flags
+    
+    LD A, D
+    XOR B
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=0, S=1, H=1, V=0, N=1, C stays 1
+    BIT 6, E        ; Z flag
+    JP NZ, ERROR
+    BIT 7, E        ; S flag
+    JP Z, ERROR
+    BIT 4, E        ; H flag (Borrow from bit 4)
+    JP Z, ERROR
+    BIT 1, E        ; N flag
+    JP Z, ERROR
+    BIT 0, E        ; C flag
+    JP Z, ERROR
+
+    ; --- Case 3: Overflow (0x80 -> 0x7F) ---
+    LD DE, 0x7F00   ; D = expected result (7F), E = initial flags (00)
+    LD B, 0x80      ; Min negative
+    PUSH DE
+    POP AF
+
+    DEC B           ; Should result in 0x7F (Max positive), setting V
+    
+    PUSH AF
+    POP DE          ; E contains Flags
+    
+    LD A, D
+    XOR B
+    JP NZ, ERROR
+    
+    ; Verify Flags: Z=0, S=0, H=0, V=1, N=1, C stays 0
+    BIT 7, E        ; S flag
+    JP NZ, ERROR
+    BIT 2, E        ; V flag (Overflow)
+    JP Z, ERROR
+    BIT 1, E        ; N flag
+    JP Z, ERROR
+
+    RET
+
+TEST_DEC_SP:
+    ; Save real SP to restore later
+    LD HL, 0
+    ADD HL, SP
+    LD (TEMP_SP_SAVE), HL
+
+    ; --- Case 1: Flag Preservation and Wrap (0x0000 -> 0xFFFF) ---
+    LD SP, 0x0000
+    LD BC, 0x00D5   ; B = Expected Low byte (FF - checked via SP), C = Flags (D5)
+    PUSH BC
+    POP AF          ; Load flags with 0xD5
+
+    DEC SP
+    
+    ; Verify Flags: Must still be 0xD5
+    PUSH AF
+    POP BC
+    LD A, C
+    XOR 0xD5
+    JP NZ, ERROR
+
+    ; Verify Result: SP should be 0xFFFF
+    LD HL, 0
+    ADD HL, SP      ; HL now equals SP
+    LD A, H
+    AND L           ; If HL is 0xFFFF, A will be 0xFF
+    INC A           ; If A was 0xFF, it becomes 0
+    JP NZ, ERROR
+
+    ; Restore original SP
+    LD HL, (TEMP_SP_SAVE)
+    LD SP, HL
+    RET

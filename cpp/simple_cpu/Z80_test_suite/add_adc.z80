@@ -1,0 +1,144 @@
+ORG 0000h
+    LD SP, 0xF000
+    CALL TEST_ADDS
+    CALL TEST_ADCS
+    HALT
+
+TEMP_SP_SAVE: DW 0x0000
+
+ERROR:
+    DI
+    HALT
+    JR ERROR
+
+TEST_ADDS:
+    CALL TEST_ADD_HL_SP
+    RET
+
+TEST_ADCS:
+    RET
+
+TEST_ADD_HL_SP:
+    ; Save real SP
+    LD (TEMP_SP_SAVE), SP
+
+    ; =========================================================
+    ; CASE 1: No Carry, No Half-Carry (0x1000 + 0x0100)
+    ; PRE-CONDITION: Set S, Z, V flags (0xC4) to test preservation
+    ; Expected Result: 0x1100, Flags: S=1, Z=1, V=1, H=0, N=0, C=0
+    ; =========================================================
+    LD HL, 0x1000
+    LD SP, 0x0100
+    LD BC, 0x00C4   ; B=0, C=Initial Flags (11000100b)
+    PUSH BC
+    POP AF          ; Load Flags
+
+    ADD HL, SP
+
+    PUSH AF
+    POP BC          ; C = Resulting Flags
+    
+    ; Verify Result (0x1100)
+    LD A, H
+    XOR 0x11
+    JP NZ, ERROR
+    LD A, L
+    XOR 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: 
+    ; Expected: C4 (S,Z,V preserved) AND (H=0, N=0, C=0)
+    LD A, C
+    XOR 0xC4
+    JP NZ, ERROR
+
+    ; =========================================================
+    ; CASE 2: Half-Carry (Bit 11) (0x0800 + 0x0800)
+    ; PRE-CONDITION: Clear all flags (0x00)
+    ; Expected Result: 0x1000, Flags: H=1, N=0, C=0 (Others 0)
+    ; =========================================================
+    LD HL, 0x0800
+    LD SP, 0x0800
+    LD BC, 0x0000
+    PUSH BC
+    POP AF
+
+    ADD HL, SP
+
+    PUSH AF
+    POP BC
+
+    ; Verify Result (0x1000)
+    LD A, H
+    XOR 0x10
+    JP NZ, ERROR
+    LD A, L
+    XOR 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: Should be 0x10 (H bit set)
+    LD A, C
+    XOR 0x10
+    JP NZ, ERROR
+
+    ; =========================================================
+    ; CASE 3: Full Carry (Bit 15) (0x8000 + 0x8000)
+    ; PRE-CONDITION: Set Z flag (0x40)
+    ; Expected Result: 0x0000, Flags: Z=1 (preserved), C=1, H=0, N=0
+    ; =========================================================
+    LD HL, 0x8000
+    LD SP, 0x8000
+    LD BC, 0x0040
+    PUSH BC
+    POP AF
+
+    ADD HL, SP
+
+    PUSH AF
+    POP BC
+
+    ; Verify Result (0x0000)
+    LD A, H
+    XOR 0x00
+    JP NZ, ERROR
+    LD A, L
+    XOR 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: Expected 0x41 (Z preserved, C set)
+    LD A, C
+    XOR 0x41
+    JP NZ, ERROR
+
+    ; =========================================================
+    ; CASE 4: Half and Full Carry (0xF800 + 0x0800)
+    ; PRE-CONDITION: Clear all flags (0x00)
+    ; Expected Result: 0x0000, Flags: H=1, C=1, N=0
+    ; =========================================================
+    LD HL, 0xF800
+    LD SP, 0x0800
+    LD BC, 0x0000
+    PUSH BC
+    POP AF
+
+    ADD HL, SP
+
+    PUSH AF
+    POP BC
+
+    ; Verify Result (0x0000)
+    LD A, H
+    XOR 0x00
+    JP NZ, ERROR
+    LD A, L
+    XOR 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: Expected 0x11 (H=1, C=1)
+    LD A, C
+    XOR 0x11
+    JP NZ, ERROR
+
+    ; Restore original SP
+    LD SP, (TEMP_SP_SAVE)
+    RET
