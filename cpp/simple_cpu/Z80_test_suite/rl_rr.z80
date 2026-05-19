@@ -1,0 +1,280 @@
+ORG 0000h
+    LD SP, 0xF000
+    CALL TEST_RLCA
+    CALL TEST_RRCA
+    CALL TEST_RLA
+    CALL TEST_RRA
+    HALT
+
+ERROR:
+    DI
+    HALT
+    JR ERROR
+
+TEST_RLCA:
+    ; =========================================================
+    ; CASE 1: 0x55 -> 0xAA (Bit 7 is 0, Carry should be 0)
+    ; PRE-CONDITION: Set Sign, Zero, Overflow, and Carry (0xC5) to test preservation
+    ; Expected Result: 0xAA, Flags: S=1, Z=1, V=1, H=0, N=0, C=0 (C is cleared)
+    ; =========================================================
+    LD BC, 0x55C5   ; C = Initial Flags (11000101b)
+    PUSH BC
+    POP AF          ; Load A and Flags
+
+    RLCA            ; Covers 0x07
+
+    PUSH AF
+    POP BC          ; C = Resulting Flags
+
+    ; Verify Result (0xAA)
+    XOR 0xAA
+    JP NZ, ERROR
+
+    ; Verify Flags: S, Z, V preserved (1). H, N, C must be 0.
+    BIT 7, C        ; S flag
+    JP Z, ERROR
+    BIT 6, C        ; Z flag
+    JP Z, ERROR
+    BIT 4, C        ; H flag
+    JP NZ, ERROR
+    BIT 2, C        ; V/P flag
+    JP Z, ERROR
+    BIT 1, C        ; N flag
+    JP NZ, ERROR
+    BIT 0, C        ; C flag (Should be cleared because bit 7 of 0x55 was 0)
+    JP NZ, ERROR
+
+    ; =========================================================
+    ; CASE 2: 0xAA -> 0x55 (Bit 7 is 1, Carry should be 1)
+    ; PRE-CONDITION: Clear all flags (0x00)
+    ; Expected Result: 0x55, Flags: S=0, Z=0, V=0, H=0, N=0, C=1 (C is set)
+    ; =========================================================
+    LD BC, 0xAA00   ; Clear all flags
+    PUSH BC
+    POP AF
+
+    RLCA            ; Covers 0x07
+
+    PUSH AF
+    POP BC
+
+    ; Verify Result (0x55)
+    XOR 0x55
+    JP NZ, ERROR
+
+    ; Verify Flags: S, Z, V, H, N must be 0. C must be 1.
+    BIT 7, C        ; S flag
+    JP NZ, ERROR
+    BIT 6, C        ; Z flag
+    JP NZ, ERROR
+    BIT 4, C        ; H flag
+    JP NZ, ERROR
+    BIT 2, C        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, C        ; N flag
+    JP NZ, ERROR
+    BIT 0, C        ; C flag (Should be set because bit 7 of 0xAA was 1)
+    JP Z, ERROR
+
+    RET
+
+TEST_RRCA:
+    ; =========================================================
+    ; CASE 1: 0x55 -> 0xAA (Bit 0 is 1, Carry should be 1)
+    ; PRE-CONDITION: Clear all flags (0x00)
+    ; Expected Result: 0xAA, Flags: S=0, Z=0, V=0, H=0, N=0, C=1 (C is set)
+    ; =========================================================
+    LD BC, 0x5500   ; Clear all flags
+    PUSH BC
+    POP AF
+
+    RRCA            ; Covers 0x0F
+
+    PUSH AF
+    POP BC
+
+    ; Verify Result (0xAA)
+    XOR 0xAA
+    JP NZ, ERROR
+
+    ; Verify Flags: S, Z, V, H, N must be 0. C must be 1.
+    BIT 7, C        ; S flag
+    JP NZ, ERROR
+    BIT 6, C        ; Z flag
+    JP NZ, ERROR
+    BIT 4, C        ; H flag
+    JP NZ, ERROR
+    BIT 2, C        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, C        ; N flag
+    JP NZ, ERROR
+    BIT 0, C        ; C flag (Should be set because bit 0 of 0x55 was 1)
+    JP Z, ERROR
+
+    ; =========================================================
+    ; CASE 2: 0xAA -> 0x55 (Bit 0 is 0, Carry should be 0)
+    ; PRE-CONDITION: Set Sign, Zero, Overflow, and Carry (0xC5) to test preservation
+    ; Expected Result: 0x55, Flags: S=1, Z=1, V=1, H=0, N=0, C=0 (C is cleared)
+    ; =========================================================
+    LD BC, 0xAAC5   ; C = Initial Flags (11000101b)
+    PUSH BC
+    POP AF
+
+    RRCA            ; Covers 0x0F
+
+    PUSH AF
+    POP BC
+
+    ; Verify Result (0x55)
+    XOR 0x55
+    JP NZ, ERROR
+
+    ; Verify Flags: S, Z, V preserved (1). H, N, C must be 0.
+    BIT 7, C        ; S flag
+    JP Z, ERROR
+    BIT 6, C        ; Z flag
+    JP Z, ERROR
+    BIT 4, C        ; H flag
+    JP NZ, ERROR
+    BIT 2, C        ; V/P flag
+    JP Z, ERROR
+    BIT 1, C        ; N flag
+    JP NZ, ERROR
+    BIT 0, C        ; C flag (Should be cleared because bit 0 of 0xAA was 0)
+    JP NZ, ERROR
+
+    RET
+
+TEST_RLA:
+    ; =========================================================
+    ; CASE 1: 0x55 with Carry=1 -> 0xAB (Bit 7 is 0 -> New Carry=0)
+    ; PRE-CONDITION: Set Sign, Zero, Overflow, and Carry (0xC5)
+    ; Expected Result: 0xAB, Flags: S=1, Z=1, V=1, H=0, N=0, C=0
+    ; =========================================================
+    LD BC, 0x55C5   ; B = Initial A (0x55), C = Initial Flags (Carry is 1)
+    PUSH BC
+    POP AF          ; Load A and Flags simultaneously
+
+    RLA             ; Covers 0x17
+
+    PUSH AF
+    POP BC          ; C = Resulting Flags
+
+    ; Verify Result (0xAB)
+    XOR 0xAB
+    JP NZ, ERROR
+
+    ; Verify Flags: S, Z, V preserved (1). H, N, C must be 0.
+    BIT 7, C        ; S flag
+    JP Z, ERROR
+    BIT 6, C        ; Z flag
+    JP Z, ERROR
+    BIT 4, C        ; H flag
+    JP NZ, ERROR
+    BIT 2, C        ; V/P flag
+    JP Z, ERROR
+    BIT 1, C        ; N flag
+    JP NZ, ERROR
+    BIT 0, C        ; C flag (Bit 7 of 0x55 was 0, so Carry clears)
+    JP NZ, ERROR
+
+    ; =========================================================
+    ; CASE 2: 0xAA with Carry=0 -> 0x54 (Bit 7 is 1 -> New Carry=1)
+    ; PRE-CONDITION: Clear all flags (0x00)
+    ; Expected Result: 0x54, Flags: S=0, Z=0, V=0, H=0, N=0, C=1
+    ; =========================================================
+    LD BC, 0xAA00   ; B = Initial A (0xAA), C = Initial Flags (Carry is 0)
+    PUSH BC
+    POP AF
+
+    RLA             ; Covers 0x17
+
+    PUSH AF
+    POP BC
+
+    ; Verify Result (0x54)
+    XOR 0x54
+    JP NZ, ERROR
+
+    ; Verify Flags: S, Z, V, H, N must be 0. C must be 1.
+    BIT 7, C        ; S flag
+    JP NZ, ERROR
+    BIT 6, C        ; Z flag
+    JP NZ, ERROR
+    BIT 4, C        ; H flag
+    JP NZ, ERROR
+    BIT 2, C        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, C        ; N flag
+    JP NZ, ERROR
+    BIT 0, C        ; C flag (Bit 7 of 0xAA was 1, so Carry sets)
+    JP Z, ERROR
+
+    RET
+
+TEST_RRA:
+    ; =========================================================
+    ; CASE 1: 0x55 with Carry=0 -> 0x2A (Bit 0 is 1 -> New Carry=1)
+    ; PRE-CONDITION: Clear all flags (0x00)
+    ; Expected Result: 0x2A, Flags: S=0, Z=0, V=0, H=0, N=0, C=1
+    ; =========================================================
+    LD BC, 0x5500   ; B = Initial A (0x55), C = Initial Flags (Carry is 0)
+    PUSH BC
+    POP AF
+
+    RRA             ; Covers 0x1F
+
+    PUSH AF
+    POP BC
+
+    ; Verify Result (0x2A)
+    XOR 0x2A
+    JP NZ, ERROR
+
+    ; Verify Flags: S, Z, V, H, N must be 0. C must be 1.
+    BIT 7, C        ; S flag
+    JP NZ, ERROR
+    BIT 6, C        ; Z flag
+    JP NZ, ERROR
+    BIT 4, C        ; H flag
+    JP NZ, ERROR
+    BIT 2, C        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, C        ; N flag
+    JP NZ, ERROR
+    BIT 0, C        ; C flag (Bit 0 of 0x55 was 1, so Carry sets)
+    JP Z, ERROR
+
+    ; =========================================================
+    ; CASE 2: 0xAA with Carry=1 -> 0xD5 (Bit 0 is 0 -> New Carry=0)
+    ; PRE-CONDITION: Set Sign, Zero, Overflow, and Carry (0xC5)
+    ; Expected Result: 0xD5, Flags: S=1, Z=1, V=1, H=0, N=0, C=0
+    ; =========================================================
+    LD BC, 0xAAC5   ; B = Initial A (0xAA), C = Initial Flags (Carry is 1)
+    PUSH BC
+    POP AF
+
+    RRA             ; Covers 0x1F
+
+    PUSH AF
+    POP BC
+
+    ; Verify Result (0xD5)
+    XOR 0xD5
+    JP NZ, ERROR
+
+    ; Verify Flags: S, Z, V preserved (1). H, N, C must be 0.
+    BIT 7, C        ; S flag
+    JP Z, ERROR
+    BIT 6, C        ; Z flag
+    JP Z, ERROR
+    BIT 4, C        ; H flag
+    JP NZ, ERROR
+    BIT 2, C        ; V/P flag
+    JP Z, ERROR
+    BIT 1, C        ; N flag
+    JP NZ, ERROR
+    BIT 0, C        ; C flag (Bit 0 of 0xAA was 0, so Carry clears)
+    JP NZ, ERROR
+
+    RET
