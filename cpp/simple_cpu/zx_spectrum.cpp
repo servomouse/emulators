@@ -447,7 +447,7 @@ public:
                 mem_bus->write(addr, a);
                 break;
             }
-            case 0x03: {// 0x03     (INC BC), cycles: 6
+            case 0x03: {// 0x03     (INC BC      - Adds one to BC), cycles: 6
                 // Does not affect flags
                 uint16_t val = regs.get_reg(RegName::BC);
                 printf("0x%04X: INC BC | 0x%02X 0x%02X\n", pc, opcode, regs.get_reg(RegName::F));
@@ -682,6 +682,31 @@ public:
                 num_bytes_read += 1;
                 break;
             }
+            case 0x17: {// 0x17     (RLA         - Cyclic rotate A 1 position to the left), cycles 4
+                // C as defined
+                // N reset
+                // P/V unaffected
+                // H reset
+                // Z unaffected
+                // S unaffected
+                // The contents of A are rotated left one bit position.
+                // The contents of bit 7 are copied to the carry flag and
+                // the previous contents of the carry flag are copied to bit 0.
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t res = a << 1;
+                uint16_t carry_in = regs.get_flag(FlagName::C);
+                if (res & 0x100) {
+                    regs.set_flag(FlagName::C);
+                } else {
+                    regs.clear_flag(FlagName::C);
+                }
+                res |= carry_in;
+                regs.clear_flag(FlagName::N);
+                regs.clear_flag(FlagName::H);
+                printf("0x%04X: RLA :: (0x%02X -> 0x%02X) || 0x%02X F=0x%02X\n", pc, a, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
             case 0x18: {// 0x18 N   (JR N        - Add signed N to PC), cycles: 12/7
                 // Does not affect flags
                 int8_t pc_inc = static_cast<int8_t>(mem_bus->read(pc+1));
@@ -759,6 +784,31 @@ public:
                 printf("0x%04X: LD E, 0x%02X || 0x%02X\n", pc, val, opcode);
                 regs.set_reg(RegName::E, val);
                 num_bytes_read += 1;
+                break;
+            }
+            case 0x1F: {// 0x1F     (RRA         - Cyclic rotate A 1 position to the right), cycles 4
+                // C as defined
+                // N reset
+                // P/V unaffected
+                // H reset
+                // Z unaffected
+                // S unaffected
+                // The contents of A are rotated right one bit position.
+                // The contents of bit 0 are copied to the carry flag and
+                // the previous contents of the carry flag are copied to bit 7.
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t res = a >> 1;
+                uint16_t carry_in = regs.get_reg(RegName::C);
+                if (a & 1) {
+                    regs.set_flag(FlagName::C);
+                } else {
+                    regs.clear_flag(FlagName::C);
+                }
+                res |= carry_in;
+                regs.clear_flag(FlagName::N);
+                regs.clear_flag(FlagName::H);
+                printf("0x%04X: RRA :: (0x%02X -> 0x%02X) || 0x%02X 0x%02X\n", pc, a, res, opcode, flags_in);
+                regs.set_reg(RegName::A, res);
                 break;
             }
             case 0x20: {// 0x20 N   (JR NZ, N    - If Z flag is unset, add signed N to PC), cycles: 12/7
