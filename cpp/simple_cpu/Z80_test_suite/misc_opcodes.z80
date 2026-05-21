@@ -1,0 +1,280 @@
+ORG 0000h
+    LD SP, 0xF000
+    CALL TEST_EX_AF_AF
+    CALL TEST_EXX
+    CALL TEST_CPL
+    CALL TEST_DAA
+    HALT
+
+ERROR:
+    DI
+    HALT
+    JR ERROR
+
+TEST_EX_AF_AF:  ; Covers 0x08
+    ; --- Step 1: Initialize AF' ---
+    ; We need to get values into AF' first. 
+    ; We load them into AF, then swap them to the shadow side.
+    LD BC, 0xAA00   ; B = 0xAA (Future A'), C = 0x00 (Will hold flags)
+    ; We can't easily force 0xBB into F' directly without pushing/popping,
+    ; so let's use the stack to prime our initial AF state.
+
+    LD DE, 0xAABB
+    PUSH DE
+    POP AF
+    EX AF, AF'
+
+    LD DE, 0x1122   ; D = A value (0x11), E = F value (0x22)
+    PUSH DE
+    POP AF          ; Main AF is now 0x1122
+
+    EX AF, AF'
+
+    PUSH AF
+    POP BC
+    
+    LD A, B
+    XOR 0xAA
+    JP NZ, ERROR
+    
+    LD A, C
+    XOR 0xBB
+    JP NZ, ERROR
+
+    EX AF, AF'
+    PUSH AF
+    POP BC
+
+    LD A, B
+    XOR 0x11
+    JP NZ, ERROR
+    
+    LD A, C
+    XOR 0x22
+    JP NZ, ERROR
+
+    RET
+
+TEST_EXX:   ; Covers 0xD9
+    LD BC, 0x1111
+    LD DE, 0x2222
+    LD HL, 0x3333
+    EXX
+
+    LD DE, 0x00FF   ; Set flags
+    PUSH DE
+    POP AF
+
+    LD BC, 0xAAAA
+    LD DE, 0xBBBB
+    LD HL, 0xCCCC
+
+    EXX
+    PUSH AF         ; Save flags to check them later
+
+    LD A, B
+    XOR 0x11
+    JP NZ, ERROR
+    LD A, C
+    XOR 0x11
+    JP NZ, ERROR
+
+    LD A, D
+    XOR 0x22
+    JP NZ, ERROR
+    LD A, E
+    XOR 0x22
+    JP NZ, ERROR
+
+    LD A, H
+    XOR 0x33
+    JP NZ, ERROR
+    LD A, L
+    XOR 0x33
+    JP NZ, ERROR
+
+    POP BC          ; C = Current Flags
+    LD A, C
+    XOR 0xFF
+    JP NZ, ERROR
+
+    LD DE, 0x0000   ; Clear flags
+    PUSH DE
+    POP AF          
+
+    EXX             ; Swap back to pull shadow values into main view
+    PUSH AF         ; Save flags to check them later
+
+    LD A, B
+    XOR 0xAA
+    JP NZ, ERROR
+    LD A, C
+    XOR 0xAA
+    JP NZ, ERROR
+
+    LD A, D
+    XOR 0xBB
+    JP NZ, ERROR
+    LD A, E
+    XOR 0xBB
+    JP NZ, ERROR
+
+    LD A, H
+    XOR 0xCC
+    JP NZ, ERROR
+    LD A, L
+    XOR 0xCC
+    JP NZ, ERROR
+
+    POP BC          ; C = Current Flags
+    LD A, C
+    XOR 0x00
+    JP NZ, ERROR
+
+    RET
+
+TEST_CPL:   ; Covers 0x2F
+    ; =========================================================
+    ; CASE 1: 0x55 -> 0xAA (All bits flipped)
+    ; PRE-CONDITION: Clear all flags (0x00)
+    ; Expected Result: 0xAA, Flags: H=1, N=1 (Others remain 0)
+    ; =========================================================
+    LD BC, 0x5500   ; B = Initial A (0x55), C = Initial Flags (0x00)
+    PUSH BC
+    POP AF
+
+    CPL
+
+    PUSH AF
+    POP BC          ; C = Resulting Flags
+
+    ; Verify Result (0xAA)
+    XOR 0xAA
+    JP NZ, ERROR
+
+    ; Verify Flags: H and N must be set to 1. All others must be 0.
+    BIT 7, C        ; S flag
+    JP NZ, ERROR
+    BIT 6, C        ; Z flag
+    JP NZ, ERROR
+    BIT 4, C        ; H flag (Must be set by CPL)
+    JP Z, ERROR
+    BIT 2, C        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, C        ; N flag (Must be set by CPL)
+    JP Z, ERROR
+    BIT 0, C        ; C flag
+    JP NZ, ERROR
+
+    ; =========================================================
+    ; CASE 2: 0xAA -> 0x55 
+    ; PRE-CONDITION: Set all flags (0xFF)
+    ; Expected Result: 0x55, Flags: S=1, Z=1, V=1, H=1, N=1, C=1
+    ; =========================================================
+    LD BC, 0xAAFF   ; B = Initial A (0xAA), C = Initial Flags (0xFF)
+    PUSH BC
+    POP AF
+
+    CPL
+
+    PUSH AF
+    POP BC          ; C = Resulting Flags
+
+    ; Verify Result (0x55)
+    XOR 0x55
+    JP NZ, ERROR
+
+    ; Verify Flags: S, Z, V, C are preserved (1). H and N are forced to 1.
+    BIT 7, C        ; S flag
+    JP Z, ERROR
+    BIT 6, C        ; Z flag
+    JP Z, ERROR
+    BIT 4, C        ; H flag
+    JP Z, ERROR
+    BIT 2, C        ; V/P flag
+    JP Z, ERROR
+    BIT 1, C        ; N flag
+    JP Z, ERROR
+    BIT 0, C        ; C flag
+    JP Z, ERROR
+
+    RET
+
+TEST_DAA:   ; Covers 0x27
+    ; =========================================================
+    ; CASE 1: Post-Addition Adjustment (0x98 + 0x22 = 0xBA -> 120)
+    ; =========================================================
+    LD BC, 0x90000   ; Clear flags
+    PUSH BC
+    POP AF
+
+    LD A, 0x98
+    ADD A, 0x22
+    LD D, A         ; Copy the result to D
+
+    DAA
+
+    PUSH AF
+    POP BC          ; C = Resulting Flags
+
+    ; Verify Flags first
+    BIT 7, C        ; S flag
+    JP NZ, ERROR    ; Result is positive
+    BIT 6, C        ; Z flag
+    JP NZ, ERROR    ; Result is non-zero
+    BIT 4, C        ; H flag
+    JP Z, ERROR     ; Expected to be set
+    BIT 2, C        ; V/P flag
+    JP Z, ERROR     ; Parity should be 1
+    BIT 1, C        ; N flag
+    JP NZ, ERROR    ; Not affected, should stay 0 after ADD
+    BIT 0, C        ; C flag
+    JP Z, ERROR     ; Result (120) is greater than 99 -> C should be set
+
+    LD A, B
+    XOR 0x20        ; Verify the adjusted result (0x20)
+    JP NZ, ERROR
+
+    LD A, D
+    XOR 0xBA        ; Verify that addition was correct
+    JP NZ, ERROR
+
+    ; =========================================================
+    ; CASE 2: Post-Subtraction Adjustment (0x92 - 0x18 = 0x7A -> 74)
+    ; =========================================================
+    LD BC, 0x0000   ; Clean flags
+    PUSH BC
+    POP AF
+
+    LD A, 0x92
+    SUB 0x18
+    LD D, A         ; Copy the result to D
+
+    DAA
+
+    PUSH AF
+    POP BC
+
+    ; Verify flags first
+    BIT 7, C        ; S flag
+    JP NZ, ERROR    ; Result is negative
+    BIT 6, C        ; Z flag
+    JP NZ, ERROR    ; Result is not zero
+    BIT 4, C        ; H flag
+    JP Z, ERROR     ; Should be set
+    BIT 2, C        ; V/P flag
+    JP Z, ERROR     ; Parity should be 1
+    BIT 1, C        ; N flag
+    JP Z, ERROR     ; Not affected, should stay 1 after SUB
+    BIT 0, C        ; C flag
+    JP NZ, ERROR
+
+    LD A, B
+    XOR 0x74        ; Verify adjusted result (0x74)
+    JP NZ, ERROR
+
+    LD A, D
+    XOR 0x7A        ; Verify that subtraction was correct
+    JP NZ, ERROR
+
+    RET

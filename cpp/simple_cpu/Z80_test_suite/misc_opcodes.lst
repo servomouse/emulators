@@ -1,0 +1,227 @@
+0000                          .ORG   0000h   
+0000   31 00 F0               LD   SP,0xF000   
+0003   CD 14 00               CALL   TEST_EX_AF_AF   
+0006   CD 41 00               CALL   TEST_EXX   
+0009   CD B9 00               CALL   TEST_CPL   
+000C   CD 10 01               CALL   TEST_DAA   
+000F   76                     HALT   
+0010                ERROR:    
+0010   F3                     DI   
+0011   76                     HALT   
+0012   18 FC                  JR   ERROR   
+0014                TEST_EX_AF_AF:   ; Covers 0x08
+0014                          ; --- Step 1: Initialize AF' ---
+0014                          ; We need to get values into AF' first.
+0014                          ; We load them into AF, then swap them to the shadow side.
+0014   01 00 AA               LD   BC,0xAA00   ; B = 0xAA (Future A'), C = 0x00 (Will hold flags)
+0017                          ; We can't easily force 0xBB into F' directly without pushing/popping,
+0017                          ; so let's use the stack to prime our initial AF state.
+0017   11 BB AA               LD   DE,0xAABB   
+001A   D5                     PUSH   DE   
+001B   F1                     POP   AF   
+001C   08                     EX   AF,AF'   
+001D   11 22 11               LD   DE,0x1122   ; D = A value (0x11), E = F value (0x22)
+0020   D5                     PUSH   DE   
+0021   F1                     POP   AF   ; Main AF is now 0x1122
+0022   08                     EX   AF,AF'   
+0023   F5                     PUSH   AF   
+0024   C1                     POP   BC   
+0025   78                     LD   A,B   
+0026   EE AA                  XOR   0xAA   
+0028   C2 10 00               JP   NZ,ERROR   
+002B   79                     LD   A,C   
+002C   EE BB                  XOR   0xBB   
+002E   C2 10 00               JP   NZ,ERROR   
+0031   08                     EX   AF,AF'   
+0032   F5                     PUSH   AF   
+0033   C1                     POP   BC   
+0034   78                     LD   A,B   
+0035   EE 11                  XOR   0x11   
+0037   C2 10 00               JP   NZ,ERROR   
+003A   79                     LD   A,C   
+003B   EE 22                  XOR   0x22   
+003D   C2 10 00               JP   NZ,ERROR   
+0040   C9                     RET   
+0041                TEST_EXX:   ; Covers 0xD9
+0041   01 11 11               LD   BC,0x1111   
+0044   11 22 22               LD   DE,0x2222   
+0047   21 33 33               LD   HL,0x3333   
+004A   D9                     EXX   
+004B   11 FF 00               LD   DE,0x00FF   ; Set flags
+004E   D5                     PUSH   DE   
+004F   F1                     POP   AF   
+0050   01 AA AA               LD   BC,0xAAAA   
+0053   11 BB BB               LD   DE,0xBBBB   
+0056   21 CC CC               LD   HL,0xCCCC   
+0059   D9                     EXX   
+005A   F5                     PUSH   AF   ; Save flags to check them later
+005B   78                     LD   A,B   
+005C   EE 11                  XOR   0x11   
+005E   C2 10 00               JP   NZ,ERROR   
+0061   79                     LD   A,C   
+0062   EE 11                  XOR   0x11   
+0064   C2 10 00               JP   NZ,ERROR   
+0067   7A                     LD   A,D   
+0068   EE 22                  XOR   0x22   
+006A   C2 10 00               JP   NZ,ERROR   
+006D   7B                     LD   A,E   
+006E   EE 22                  XOR   0x22   
+0070   C2 10 00               JP   NZ,ERROR   
+0073   7C                     LD   A,H   
+0074   EE 33                  XOR   0x33   
+0076   C2 10 00               JP   NZ,ERROR   
+0079   7D                     LD   A,L   
+007A   EE 33                  XOR   0x33   
+007C   C2 10 00               JP   NZ,ERROR   
+007F   C1                     POP   BC   ; C = Current Flags
+0080   79                     LD   A,C   
+0081   EE FF                  XOR   0xFF   
+0083   C2 10 00               JP   NZ,ERROR   
+0086   11 00 00               LD   DE,0x0000   ; Clear flags
+0089   D5                     PUSH   DE   
+008A   F1                     POP   AF   
+008B   D9                     EXX   ; Swap back to pull shadow values into main view
+008C   F5                     PUSH   AF   ; Save flags to check them later
+008D   78                     LD   A,B   
+008E   EE AA                  XOR   0xAA   
+0090   C2 10 00               JP   NZ,ERROR   
+0093   79                     LD   A,C   
+0094   EE AA                  XOR   0xAA   
+0096   C2 10 00               JP   NZ,ERROR   
+0099   7A                     LD   A,D   
+009A   EE BB                  XOR   0xBB   
+009C   C2 10 00               JP   NZ,ERROR   
+009F   7B                     LD   A,E   
+00A0   EE BB                  XOR   0xBB   
+00A2   C2 10 00               JP   NZ,ERROR   
+00A5   7C                     LD   A,H   
+00A6   EE CC                  XOR   0xCC   
+00A8   C2 10 00               JP   NZ,ERROR   
+00AB   7D                     LD   A,L   
+00AC   EE CC                  XOR   0xCC   
+00AE   C2 10 00               JP   NZ,ERROR   
+00B1   C1                     POP   BC   ; C = Current Flags
+00B2   79                     LD   A,C   
+00B3   EE 00                  XOR   0x00   
+00B5   C2 10 00               JP   NZ,ERROR   
+00B8   C9                     RET   
+00B9                TEST_CPL:   ; Covers 0x2F
+00B9                          ; =========================================================
+00B9                          ; CASE 1: 0x55 -> 0xAA (All bits flipped)
+00B9                          ; PRE-CONDITION: Clear all flags (0x00)
+00B9                          ; Expected Result: 0xAA, Flags: H=1, N=1 (Others remain 0)
+00B9                          ; =========================================================
+00B9   01 00 55               LD   BC,0x5500   ; B = Initial A (0x55), C = Initial Flags (0x00)
+00BC   C5                     PUSH   BC   
+00BD   F1                     POP   AF   
+00BE   2F                     CPL   
+00BF   F5                     PUSH   AF   
+00C0   C1                     POP   BC   ; C = Resulting Flags
+00C1                          ; Verify Result (0xAA)
+00C1   EE AA                  XOR   0xAA   
+00C3   C2 10 00               JP   NZ,ERROR   
+00C6                          ; Verify Flags: H and N must be set to 1. All others must be 0.
+00C6   CB 79                  BIT   7,C   ; S flag
+00C8   C2 10 00               JP   NZ,ERROR   
+00CB   CB 71                  BIT   6,C   ; Z flag
+00CD   C2 10 00               JP   NZ,ERROR   
+00D0   CB 61                  BIT   4,C   ; H flag (Must be set by CPL)
+00D2   CA 10 00               JP   Z,ERROR   
+00D5   CB 51                  BIT   2,C   ; V/P flag
+00D7   C2 10 00               JP   NZ,ERROR   
+00DA   CB 49                  BIT   1,C   ; N flag (Must be set by CPL)
+00DC   CA 10 00               JP   Z,ERROR   
+00DF   CB 41                  BIT   0,C   ; C flag
+00E1   C2 10 00               JP   NZ,ERROR   
+00E4                          ; =========================================================
+00E4                          ; CASE 2: 0xAA -> 0x55
+00E4                          ; PRE-CONDITION: Set all flags (0xFF)
+00E4                          ; Expected Result: 0x55, Flags: S=1, Z=1, V=1, H=1, N=1, C=1
+00E4                          ; =========================================================
+00E4   01 FF AA               LD   BC,0xAAFF   ; B = Initial A (0xAA), C = Initial Flags (0xFF)
+00E7   C5                     PUSH   BC   
+00E8   F1                     POP   AF   
+00E9   2F                     CPL   
+00EA   F5                     PUSH   AF   
+00EB   C1                     POP   BC   ; C = Resulting Flags
+00EC                          ; Verify Result (0x55)
+00EC   EE 55                  XOR   0x55   
+00EE   C2 10 00               JP   NZ,ERROR   
+00F1                          ; Verify Flags: S, Z, V, C are preserved (1). H and N are forced to 1.
+00F1   CB 79                  BIT   7,C   ; S flag
+00F3   CA 10 00               JP   Z,ERROR   
+00F6   CB 71                  BIT   6,C   ; Z flag
+00F8   CA 10 00               JP   Z,ERROR   
+00FB   CB 61                  BIT   4,C   ; H flag
+00FD   CA 10 00               JP   Z,ERROR   
+0100   CB 51                  BIT   2,C   ; V/P flag
+0102   CA 10 00               JP   Z,ERROR   
+0105   CB 49                  BIT   1,C   ; N flag
+0107   CA 10 00               JP   Z,ERROR   
+010A   CB 41                  BIT   0,C   ; C flag
+010C   CA 10 00               JP   Z,ERROR   
+010F   C9                     RET   
+0110                TEST_DAA:   ; Covers 0x27
+0110                          ; =========================================================
+0110                          ; CASE 1: Post-Addition Adjustment (0x98 + 0x22 = 0xBA -> 120)
+0110                          ; =========================================================
+0110   01 00 00               LD   BC,0x90000   ; Clear flags
+0113   C5                     PUSH   BC   
+0114   F1                     POP   AF   
+0115   3E 98                  LD   A,0x98   
+0117   C6 22                  ADD   A,0x22   
+0119   57                     LD   D,A   ; Copy the result to D
+011A   27                     DAA   
+011B   F5                     PUSH   AF   
+011C   C1                     POP   BC   ; C = Resulting Flags
+011D                          ; Verify Flags first
+011D   CB 79                  BIT   7,C   ; S flag
+011F   C2 10 00               JP   NZ,ERROR   ; Result is positive
+0122   CB 71                  BIT   6,C   ; Z flag
+0124   C2 10 00               JP   NZ,ERROR   ; Result is non-zero
+0127   CB 61                  BIT   4,C   ; H flag
+0129   CA 10 00               JP   Z,ERROR   ; Expected to be set
+012C   CB 51                  BIT   2,C   ; V/P flag
+012E   CA 10 00               JP   Z,ERROR   ; Parity should be 1
+0131   CB 49                  BIT   1,C   ; N flag
+0133   C2 10 00               JP   NZ,ERROR   ; Not affected, should stay 0 after ADD
+0136   CB 41                  BIT   0,C   ; C flag
+0138   CA 10 00               JP   Z,ERROR   ; Result (120) is greater than 99 -> C should be set
+013B   78                     LD   A,B   
+013C   EE 20                  XOR   0x20   ; Verify the adjusted result (0x20)
+013E   C2 10 00               JP   NZ,ERROR   
+0141   7A                     LD   A,D   
+0142   EE BA                  XOR   0xBA   ; Verify that addition was correct
+0144   C2 10 00               JP   NZ,ERROR   
+0147                          ; =========================================================
+0147                          ; CASE 2: Post-Subtraction Adjustment (0x92 - 0x18 = 0x7A -> 74)
+0147                          ; =========================================================
+0147   01 00 00               LD   BC,0x0000   ; Clean flags
+014A   C5                     PUSH   BC   
+014B   F1                     POP   AF   
+014C   3E 92                  LD   A,0x92   
+014E   D6 18                  SUB   0x18   
+0150   57                     LD   D,A   ; Copy the result to D
+0151   27                     DAA   
+0152   F5                     PUSH   AF   
+0153   C1                     POP   BC   
+0154                          ; Verify flags first
+0154   CB 79                  BIT   7,C   ; S flag
+0156   C2 10 00               JP   NZ,ERROR   ; Result is negative
+0159   CB 71                  BIT   6,C   ; Z flag
+015B   C2 10 00               JP   NZ,ERROR   ; Result is not zero
+015E   CB 61                  BIT   4,C   ; H flag
+0160   CA 10 00               JP   Z,ERROR   ; Should be set
+0163   CB 51                  BIT   2,C   ; V/P flag
+0165   CA 10 00               JP   Z,ERROR   ; Parity should be 1
+0168   CB 49                  BIT   1,C   ; N flag
+016A   CA 10 00               JP   Z,ERROR   ; Not affected, should stay 1 after SUB
+016D   CB 41                  BIT   0,C   ; C flag
+016F   C2 10 00               JP   NZ,ERROR   
+0172   78                     LD   A,B   
+0173   EE 74                  XOR   0x74   ; Verify adjusted result (0x74)
+0175   C2 10 00               JP   NZ,ERROR   
+0178   7A                     LD   A,D   
+0179   EE 7A                  XOR   0x7A   ; Verify that subtraction was correct
+017B   C2 10 00               JP   NZ,ERROR   
+017E   C9                     RET
