@@ -21,7 +21,7 @@ TEST_ADDS:
 TEST_ADCS:
     RET
 
-TEST_ADD_HL_BC:
+TEST_ADD_HL_BC: ; Covers ADD HL, BC
     ; =========================================================
     ; CASE 1: No Carry, No Half-Carry (0x1030 + 0x0204)
     ; PRE-CONDITION: Set all flags to test preservation
@@ -138,7 +138,7 @@ TEST_ADD_HL_BC:
 
     RET
 
-TEST_ADD_HL_DE:
+TEST_ADD_HL_DE: ; Covers ADD HL, DE
     ; =========================================================
     ; CASE 1: No Carry, No Half-Carry (0x1030 + 0x0204)
     ; PRE-CONDITION: Set all flags to test preservation
@@ -255,7 +255,7 @@ TEST_ADD_HL_DE:
 
     RET
 
-TEST_ADD_HL_HL:
+TEST_ADD_HL_HL: ; Covers ADD HL, HL
     ; =========================================================
     ; CASE 1: No Carry, No Half-Carry (0x1234 + 0x1234)
     ; PRE-CONDITION: Set all flags to test preservation
@@ -369,7 +369,7 @@ TEST_ADD_HL_HL:
 
     RET
 
-TEST_ADD_HL_SP:
+TEST_ADD_HL_SP: ; Covers ADD HL, SP
     ; Save real SP
     LD (TEMP_SP_SAVE), SP
 

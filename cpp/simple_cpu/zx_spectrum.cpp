@@ -588,15 +588,15 @@ public:
                 // H as defined
                 // Z as defined
                 // S as defined
-                uint16_t c = regs.get_reg(RegName::C);
-                uint16_t res = c - 1;
+                uint16_t val = regs.get_reg(RegName::C);
+                uint16_t res = val - 1;
                 regs.set_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, c==0);
-                regs.update_flag(FlagName::H, calculate_half_carry(c, 1, 0, false, true));
+                regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, true, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false, true));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
 
-                printf("0x%04X: DEC C : (0x%02X->0x%02X) || 0x%02X F=0x%02X\n", pc, c, res, opcode, regs.get_reg(RegName::F));
+                printf("0x%04X: DEC C : (0x%02X->0x%02X) || 0x%02X F=0x%02X\n", pc, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::C, res);
                 break;
             }
@@ -916,15 +916,15 @@ public:
                 // H as defined
                 // Z as defined
                 // S as defined
-                uint16_t h = regs.get_reg(RegName::H);
-                uint16_t res = h - 1;
+                uint16_t val = regs.get_reg(RegName::H);
+                uint16_t res = val - 1;
                 regs.set_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, h==0);
-                regs.update_flag(FlagName::H, calculate_half_carry(h, 1, 0, false, true));
+                regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, true, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false, true));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
 
-                printf("0x%04X: DEC H : (0x%02X->0x%02X) || 0x%02X F=0x%02X\n", pc, h, res, opcode, regs.get_reg(RegName::F));
+                printf("0x%04X: DEC H : (0x%02X->0x%02X) || 0x%02X F=0x%02X\n", pc, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::H, res);
                 break;
             }
@@ -1146,7 +1146,7 @@ public:
                 uint16_t addr = regs.get_reg(RegName::HL);
                 uint16_t val = mem_bus->read(addr);
                 uint16_t res = (val - 1) & 0xFF;
-                regs.clear_flag(FlagName::N);
+                regs.set_flag(FlagName::N);
                 regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, true, false));
                 regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false, true));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res));
@@ -2340,7 +2340,34 @@ public:
             }
             case 0xDD: {// 0xDD     (IX Instructions, read one more byte to get the actual opcode)
                 uint16_t new_opcode = mem_bus->read(pc+1);
-                if (new_opcode == 0x40) {   // 0xDD 0x40 (LD B, B - The contents of B are loaded into B), cycles: 8
+                if (new_opcode == 0x21) {   // 0xDD 0x21 N N (LD IX, NN - Loads nn into register IX), cycles: 14
+                    uint16_t value = mem_read_16b(pc+2);
+                    printf("0x%04X: LD IX, 0x%04X || 0x%02X 0x%02X\n", pc, value, opcode, new_opcode);
+                    regs.set_reg(RegName::IX, value);
+                    num_bytes_read += 3;
+                } else if (new_opcode == 0x35) {   // 0xDD 0x35 D (DEC (IX+D), N - Subtracts one from the memory location pointed to by IX plus d), cycles: 23
+                    int8_t offset = mem_bus->read(pc+2);
+                    uint16_t addr = regs.get_reg(RegName::IX);
+                    uint16_t res_addr = addr + offset;
+                    uint16_t val = mem_bus->read(res_addr);
+                    uint16_t res = (val - 1) & 0xFF;
+                    regs.set_flag(FlagName::N);
+                    regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, true, false));
+                    regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false, true));
+                    regs.update_flag(FlagName::Z, z80_zero_flag(res));
+                    regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                    printf("0x%04X: DEC (IX+0x%02X) :: (0x%04X + 0x%02X -> 0x%04X, 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, addr, offset, res_addr, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    mem_bus->write(res_addr, res);
+                    num_bytes_read += 2;
+                } else if (new_opcode == 0x36) {   // 0xDD 0x36 D (LD (IX+D), N - Stores n to the memory location pointed to by IX plus d), cycles: 19
+                    uint8_t offset = mem_bus->read(pc+2);
+                    uint16_t addr = regs.get_reg(RegName::IX);
+                    uint16_t res_addr = addr + offset;
+                    uint16_t val = mem_bus->read(pc+3);
+                    printf("0x%04X: LD (IX+0x%02X), 0x%02X :: (0x%04X + 0x%02X -> 0x%04X) || 0x%02X 0x%02X\n", pc, offset, val, addr, offset, res_addr, opcode, new_opcode);
+                    mem_bus->write(res_addr, val);
+                    num_bytes_read += 3;
+                } else if (new_opcode == 0x40) {   // 0xDD 0x40 (LD B, B - The contents of B are loaded into B), cycles: 8
                     printf("0x%04X: LD B, B || 0x%02X 0x%02X\n", pc, opcode, new_opcode);
                     regs.set_reg(RegName::B, regs.get_reg(RegName::B));
                     num_bytes_read += 1;
@@ -2809,11 +2836,11 @@ public:
             cont = execute_opcode(opcode);
             // regs.inc_reg(RegName::PC);
             // counter ++;
-            uint16_t sp = regs.get_reg(RegName::SP);
-            if (sp > 0xF000) {
-                printf("Error: Stack overflow! SP = 0x%04X\n", sp);
-                break;
-            }
+            // uint16_t sp = regs.get_reg(RegName::SP);
+            // if (sp > 0xF000) {
+            //     printf("Error: Stack overflow! SP = 0x%04X\n", sp);
+            //     break;
+            // }
             // if(mem_bus->read(0x0005) != 0xC3 || mem_bus->read(0x0006) != 0x00 || mem_bus->read(0x0007) != 0xF0) {
             //     printf("Error: Memory overriden!\n");
             //     break;
