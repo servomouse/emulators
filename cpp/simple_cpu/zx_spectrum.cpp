@@ -2701,7 +2701,34 @@ public:
             }
             case 0xFD: {// 0xFD     (IY Instructions, read one more byte to get the actual opcode)
                 uint16_t new_opcode = mem_bus->read(pc+1);
-                if (new_opcode == 0xE1) {   // 0xFD 0xE1 (POP IY), cycles: 14
+                if (new_opcode == 0x21) {   // 0xFD 0x21 N N (LD IY, NN - Loads nn into register IY), cycles: 14
+                    uint16_t value = mem_read_16b(pc+2);
+                    printf("0x%04X: LD IY, 0x%04X || 0x%02X 0x%02X\n", pc, value, opcode, new_opcode);
+                    regs.set_reg(RegName::IY, value);
+                    num_bytes_read += 3;
+                } else if (new_opcode == 0x35) {   // 0xFD 0x35 D (DEC (IY+D), N - Subtracts one from the memory location pointed to by IY plus d), cycles: 23
+                    int8_t offset = mem_bus->read(pc+2);
+                    uint16_t addr = regs.get_reg(RegName::IY);
+                    uint16_t res_addr = addr + offset;
+                    uint16_t val = mem_bus->read(res_addr);
+                    uint16_t res = (val - 1) & 0xFF;
+                    regs.set_flag(FlagName::N);
+                    regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, true, false));
+                    regs.update_flag(FlagName::H, calculate_half_carry(val, 1, 0, false, true));
+                    regs.update_flag(FlagName::Z, z80_zero_flag(res));
+                    regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                    printf("0x%04X: DEC (IY+0x%02X) :: (0x%04X + 0x%02X -> 0x%04X, 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, addr, offset, res_addr, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    mem_bus->write(res_addr, res);
+                    num_bytes_read += 2;
+                } else if (new_opcode == 0x36) {   // 0xFD 0x36 D (LD (IY+D), N - Stores n to the memory location pointed to by IY plus d), cycles: 19
+                    uint8_t offset = mem_bus->read(pc+2);
+                    uint16_t addr = regs.get_reg(RegName::IY);
+                    uint16_t res_addr = addr + offset;
+                    uint16_t val = mem_bus->read(pc+3);
+                    printf("0x%04X: LD (IY+0x%02X), 0x%02X :: (0x%04X + 0x%02X -> 0x%04X) || 0x%02X 0x%02X\n", pc, offset, val, addr, offset, res_addr, opcode, new_opcode);
+                    mem_bus->write(res_addr, val);
+                    num_bytes_read += 3;
+                } else if (new_opcode == 0xE1) {   // 0xFD 0xE1 (POP IY), cycles: 14
                     printf("0x%04X: POP IY || 0x%02X 0x%02X\n", pc, opcode, new_opcode);
                     pop_reg(RegName::IY);
                     num_bytes_read += 1;
