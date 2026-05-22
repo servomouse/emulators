@@ -5,6 +5,7 @@ ORG 0000h
     HALT
 
 TEMP_SP_SAVE: DW 0x0000
+SP_RESULT_ADDR EQU 0xFF02
 TEST_RAM EQU 0xFF00
 IX_ABS_ADDR EQU 0xFF05  ; TEST_RAM + 0x05 (Positive offset)
 IY_ABS_ADDR EQU 0xFEFB  ; TEST_RAM - 0x05 (Negative offset: 0xFB)
@@ -22,9 +23,16 @@ TEST_INCS:
     CALL TEST_INC_E
     CALL TEST_INC_H
     CALL TEST_INC_L
-
     CALL TEST_INC_MEM_HL
+    CALL TEST_INC_IX_D
+    CALL TEST_INC_IY_D
+
     CALL TEST_INC_BC
+    CALL TEST_INC_DE
+    CALL TEST_INC_HL
+    CALL TEST_INC_IX
+    CALL TEST_INC_IY
+    CALL TEST_INC_SP
     RET
 
 TEST_DECS:
@@ -39,8 +47,15 @@ TEST_DECS:
     CALL TEST_DEC_IX_D
     CALL TEST_DEC_IY_D
 
+    CALL TEST_DEC_BC
+    CALL TEST_DEC_DE
+    CALL TEST_DEC_HL
+    CALL TEST_DEC_IX
+    CALL TEST_DEC_IY
     CALL TEST_DEC_SP
     RET
+
+; Increment opcodes:
 
 TEST_INC_A:
     LD HL, 0x0100   ; Clear all flags and load 1 into A
@@ -753,6 +768,199 @@ TEST_INC_MEM_HL:
 
     RET
 
+TEST_INC_IX_D:
+    LD IX, TEST_RAM     ; Point IX to base RAM address
+
+    ; --- Case 1: Standard Increment (0x01 -> 0x02) ---
+    LD A, 0x01
+    LD (IX_ABS_ADDR), A ; Write 0x01 directly to 0x8005
+    
+    LD DE, 0x00FF       ; E = Initial Flags (0xFF, testing N flag clearing)
+    PUSH DE
+    POP AF              
+
+    INC (IX+0x05)       ; Target address should calculate to 0x8005
+    
+    PUSH AF         
+    POP DE              ; E = New Flags
+
+    ; Verify Result via absolute address
+    LD A, (IX_ABS_ADDR) 
+    CP 0x02         
+    JP NZ, ERROR    
+
+    ; Verify Flags stored in E:
+    BIT 7, E        ; S flag (Expected: 0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (Expected: 0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (Expected: 0)
+    JP NZ, ERROR
+    BIT 2, E        ; V/P flag (Expected: 0)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (Expected: 0, INC ALWAYS clears N)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (Expected: 1, preserves initial 1)
+    JP Z, ERROR
+
+    ; --- Case 2: Overflow (0x7F -> 0x80) ---
+    ; Tests the specific edge case where a positive signed byte increments to negative
+    LD A, 0x7F
+    LD (IX_ABS_ADDR), A 
+    
+    LD DE, 0x0000       ; E = Initial Flags (0x00)
+    PUSH DE
+    POP AF              
+
+    INC (IX+0x05)       
+    
+    PUSH AF         
+    POP DE              
+
+    LD A, (IX_ABS_ADDR)     
+    CP 0x80         
+    JP NZ, ERROR    
+    
+    BIT 7, E        ; S flag (Expected: 1, 0x80 is negative)
+    JP Z, ERROR
+    BIT 6, E        ; Z flag (Expected: 0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (Expected: 1, 0x7F to 0x80 carries from bit 3)
+    JP Z, ERROR
+    BIT 2, E        ; V/P flag (Expected: 1, OVERFLOW!)
+    JP Z, ERROR
+    BIT 1, E        ; N flag (Expected: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (Expected: 0, preserves initial 0)
+    JP NZ, ERROR
+
+    ; --- Case 3: Zero Wrap (0xFF -> 0x00) ---
+    LD A, 0xFF
+    LD (IX_ABS_ADDR), A 
+    
+    LD DE, 0x00FF       ; E = Initial Flags (0xFF)
+    PUSH DE
+    POP AF              
+
+    INC (IX+0x05)       
+    
+    PUSH AF
+    POP DE              
+
+    LD A, (IX_ABS_ADDR)     
+    CP 0x00         
+    JP NZ, ERROR    
+    
+    BIT 7, E        ; S flag (Expected: 0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (Expected: 1, result is zero)
+    JP Z, ERROR
+    BIT 4, E        ; H flag (Expected: 1, 0xFF to 0x00 carries from bit 3)
+    JP Z, ERROR
+    BIT 2, E        ; V/P flag (Expected: 0, wrapping to 0 is not signed overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (Expected: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (Expected: 1, preserves initial 1)
+    JP Z, ERROR
+
+    RET
+
+TEST_INC_IY_D:
+    LD IY, TEST_RAM     ; Point IY to base RAM address
+
+    ; --- Case 1: Standard Increment (0x01 -> 0x02) ---
+    LD A, 0x01
+    LD (IY_ABS_ADDR), A ; Write 0x01 directly to 0x7FFB
+    
+    LD DE, 0x00FF       ; E = Initial Flags (0xFF)
+    PUSH DE
+    POP AF              
+
+    INC (IY-5)       ; Target address should calculate to 0x7FFB
+    
+    PUSH AF         
+    POP DE              ; E = New Flags
+
+    LD A, (IY_ABS_ADDR) 
+    CP 0x02         
+    JP NZ, ERROR    
+
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (0)
+    JP NZ, ERROR
+    BIT 2, E        ; V/P flag (0)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (1)
+    JP Z, ERROR
+
+    ; --- Case 2: Overflow (0x7F -> 0x80) ---
+    LD A, 0x7F
+    LD (IY_ABS_ADDR), A 
+    
+    LD DE, 0x0000       ; E = Initial Flags (0x00)
+    PUSH DE
+    POP AF              
+
+    INC (IY-5)       
+    
+    PUSH AF         
+    POP DE              
+
+    LD A, (IY_ABS_ADDR)     
+    CP 0x80         
+    JP NZ, ERROR    
+    
+    BIT 7, E        ; S flag (1)
+    JP Z, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (1)
+    JP Z, ERROR
+    BIT 2, E        ; V/P flag (1, OVERFLOW)
+    JP Z, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (0)
+    JP NZ, ERROR
+
+    ; --- Case 3: Zero Wrap (0xFF -> 0x00) ---
+    LD A, 0xFF
+    LD (IY_ABS_ADDR), A 
+    
+    LD DE, 0x00FF       ; E = Initial Flags (0xFF)
+    PUSH DE
+    POP AF              
+
+    INC (IY-5)       
+    
+    PUSH AF
+    POP DE              
+
+    LD A, (IY_ABS_ADDR)     
+    CP 0x00         
+    JP NZ, ERROR    
+    
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (1)
+    JP Z, ERROR
+    BIT 4, E        ; H flag (1)
+    JP Z, ERROR
+    BIT 2, E        ; V/P flag (0)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (1)
+    JP Z, ERROR
+
+    RET
+
 TEST_INC_BC:
     ; --- Case 1: Basic Increment and Flag Preservation ---
     LD BC, 0x0000
@@ -935,6 +1143,557 @@ TEST_INC_BC:
     JP Z, ERROR
 
     RET
+
+TEST_INC_DE:
+    ; --- Case 1: Standard Increment (0x0001 -> 0x0002) ---
+    LD DE, 0x0001   
+    LD HL, 0x00FF   ; L = 0xFF (Initial flags set to 1)
+    PUSH HL
+    POP AF          
+
+    INC DE          ; Execute Opcode: DE = DE + 1. DE becomes 0x0002.
+    
+    PUSH AF
+    POP HL          ; L = Preserved Flags
+
+    ; Verify Result 
+    LD A, D
+    CP 0x00
+    JP NZ, ERROR
+    LD A, E
+    CP 0x02
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all 1)
+    BIT 7, L        
+    JP Z, ERROR
+    BIT 6, L        
+    JP Z, ERROR
+    BIT 4, L        
+    JP Z, ERROR
+    BIT 2, L        
+    JP Z, ERROR
+    BIT 1, L        
+    JP Z, ERROR
+    BIT 0, L        
+    JP Z, ERROR
+
+    ; --- Case 2: Byte Boundary / Half-Carry (0x00FF -> 0x0100) ---
+    LD DE, 0x00FF
+    LD HL, 0x0000   ; L = 0x00 (Initial flags set to 0)
+    PUSH HL
+    POP AF          
+
+    INC DE          
+    
+    PUSH AF
+    POP HL          
+
+    ; Verify Result
+    LD A, D
+    CP 0x01
+    JP NZ, ERROR
+    LD A, E
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all 0)
+    BIT 7, L        
+    JP NZ, ERROR
+    BIT 6, L        
+    JP NZ, ERROR
+    BIT 4, L        
+    JP NZ, ERROR
+    BIT 2, L        
+    JP NZ, ERROR
+    BIT 1, L        
+    JP NZ, ERROR
+    BIT 0, L        
+    JP NZ, ERROR
+
+    ; --- Case 3: 16-bit Wrap / Overflow (0xFFFF -> 0x0000) ---
+    LD DE, 0xFFFF
+    LD HL, 0x0055   ; L = 0x55 
+    PUSH HL
+    POP AF          
+
+    INC DE          
+    
+    PUSH AF
+    POP HL          
+
+    ; Verify Result
+    LD A, D
+    CP 0x00
+    JP NZ, ERROR
+    LD A, E
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: S=0, Z=1, H=1, P/V=1, N=0, C=1)
+    BIT 7, L        
+    JP NZ, ERROR
+    BIT 6, L        
+    JP Z, ERROR
+    BIT 4, L        
+    JP Z, ERROR
+    BIT 2, L        
+    JP Z, ERROR
+    BIT 1, L        
+    JP NZ, ERROR
+    BIT 0, L        
+    JP Z, ERROR
+
+    RET
+
+TEST_INC_HL:
+    ; --- Case 1: Standard Increment (0x0001 -> 0x0002) ---
+    LD HL, 0x0001   
+    LD DE, 0x00FF   ; E = 0xFF (Initial flags set to 1)
+    PUSH DE
+    POP AF          
+
+    INC HL          
+    
+    PUSH AF
+    POP DE          ; E = Preserved Flags
+
+    ; Verify Result 
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x02
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all 1)
+    BIT 7, E        
+    JP Z, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP Z, ERROR
+    BIT 0, E        
+    JP Z, ERROR
+
+    ; --- Case 2: Byte Boundary / Half-Carry (0x00FF -> 0x0100) ---
+    LD HL, 0x00FF
+    LD DE, 0x0000   ; E = 0x00 (Initial flags set to 0)
+    PUSH DE
+    POP AF          
+
+    INC HL          
+    
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    LD A, H
+    CP 0x01
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all 0)
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP NZ, ERROR
+    BIT 4, E        
+    JP NZ, ERROR
+    BIT 2, E        
+    JP NZ, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP NZ, ERROR
+
+    ; --- Case 3: 16-bit Wrap / Overflow (0xFFFF -> 0x0000) ---
+    LD HL, 0xFFFF
+    LD DE, 0x0055   ; E = 0x55 
+    PUSH DE
+    POP AF          
+
+    INC HL          
+    
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP Z, ERROR
+
+    RET
+
+TEST_INC_IX:
+    ; --- Case 1: Standard Increment (0x0001 -> 0x0002) ---
+    LD IX, 0x0001   
+    LD DE, 0x00FF   ; E = 0xFF 
+    PUSH DE
+    POP AF          
+
+    INC IX          
+    
+    PUSH AF
+    POP DE          
+
+    PUSH IX
+    POP HL
+
+    ; Verify Result 
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x02
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all 1)
+    BIT 7, E        
+    JP Z, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP Z, ERROR
+    BIT 0, E        
+    JP Z, ERROR
+
+    ; --- Case 2: Byte Boundary / Half-Carry (0x00FF -> 0x0100) ---
+    LD IX, 0x00FF
+    LD DE, 0x0000   ; E = 0x00
+    PUSH DE
+    POP AF          
+
+    INC IX          
+    
+    PUSH AF
+    POP DE          
+
+    PUSH IX
+    POP HL
+
+    ; Verify Result
+    LD A, H
+    CP 0x01
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all 0)
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP NZ, ERROR
+    BIT 4, E        
+    JP NZ, ERROR
+    BIT 2, E        
+    JP NZ, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP NZ, ERROR
+
+    ; --- Case 3: 16-bit Wrap / Overflow (0xFFFF -> 0x0000) ---
+    LD IX, 0xFFFF
+    LD DE, 0x0055   ; E = 0x55
+    PUSH DE
+    POP AF          
+
+    INC IX          
+    
+    PUSH AF
+    POP DE          
+
+    PUSH IX
+    POP HL
+
+    ; Verify Result
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP Z, ERROR
+
+    RET
+
+TEST_INC_IY:
+    ; --- Case 1: Standard Increment (0x0001 -> 0x0002) ---
+    LD IY, 0x0001   
+    LD DE, 0x00FF   ; E = 0xFF 
+    PUSH DE
+    POP AF          
+
+    INC IY          
+    
+    PUSH AF
+    POP DE          
+
+    PUSH IY
+    POP HL
+
+    ; Verify Result 
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x02
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        
+    JP Z, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP Z, ERROR
+    BIT 0, E        
+    JP Z, ERROR
+
+    ; --- Case 2: Byte Boundary / Half-Carry (0x00FF -> 0x0100) ---
+    LD IY, 0x00FF
+    LD DE, 0x0000   ; E = 0x00
+    PUSH DE
+    POP AF          
+
+    INC IY          
+    
+    PUSH AF
+    POP DE          
+
+    PUSH IY
+    POP HL
+
+    ; Verify Result
+    LD A, H
+    CP 0x01
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP NZ, ERROR
+    BIT 4, E        
+    JP NZ, ERROR
+    BIT 2, E        
+    JP NZ, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP NZ, ERROR
+
+    ; --- Case 3: 16-bit Wrap / Overflow (0xFFFF -> 0x0000) ---
+    LD IY, 0xFFFF
+    LD DE, 0x0055   ; E = 0x55
+    PUSH DE
+    POP AF          
+
+    INC IY          
+    
+    PUSH AF
+    POP DE          
+
+    PUSH IY
+    POP HL
+
+    ; Verify Result
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP Z, ERROR
+
+    RET
+
+TEST_INC_SP:
+    ; --- Case 1: Standard Increment (0x0001 -> 0x0002) ---
+    LD (TEMP_SP_SAVE), SP ; Save the real stack pointer safely
+    
+    ; Setup flags while we still have a working stack!
+    LD DE, 0x00FF
+    PUSH DE
+    POP AF              ; Flags = 0xFF
+    
+    LD SP, 0x0001       ; Set dummy SP
+    INC SP              ; Execute Opcode!
+    
+    ; We cannot push AF yet! Save result to a safe static memory address
+    LD (SP_RESULT_ADDR), SP 
+    
+    LD SP, (TEMP_SP_SAVE) ; Phew, real stack is back.
+    
+    PUSH AF
+    POP DE              ; E = Preserved flags
+
+    ; Verify Result 
+    LD HL, (SP_RESULT_ADDR) ; Read SP result back
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x02
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        
+    JP Z, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP Z, ERROR
+    BIT 0, E        
+    JP Z, ERROR
+
+    ; --- Case 2: Byte Boundary / Half-Carry (0x00FF -> 0x0100) ---
+    LD (TEMP_SP_SAVE), SP 
+    
+    LD DE, 0x0000
+    PUSH DE
+    POP AF              ; Flags = 0x00
+    
+    LD SP, 0x00FF       
+    INC SP              
+    
+    LD (SP_RESULT_ADDR), SP 
+    LD SP, (TEMP_SP_SAVE) 
+    
+    PUSH AF
+    POP DE              
+
+    ; Verify Result 
+    LD HL, (SP_RESULT_ADDR) 
+    LD A, H
+    CP 0x01
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP NZ, ERROR
+    BIT 4, E        
+    JP NZ, ERROR
+    BIT 2, E        
+    JP NZ, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP NZ, ERROR
+
+    ; --- Case 3: 16-bit Wrap / Overflow (0xFFFF -> 0x0000) ---
+    LD (TEMP_SP_SAVE), SP 
+    
+    LD DE, 0x0055
+    PUSH DE
+    POP AF              ; Flags = 0x55
+    
+    LD SP, 0xFFFF       
+    INC SP              
+    
+    LD (SP_RESULT_ADDR), SP 
+    LD SP, (TEMP_SP_SAVE) 
+    
+    PUSH AF
+    POP DE              
+
+    ; Verify Result 
+    LD HL, (SP_RESULT_ADDR) 
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP Z, ERROR
+
+    RET
+
+; Decrement opcodes:
 
 TEST_DEC_A:
     ; --- Case 1: Standard Decrement (0x01 -> 0x00) ---
@@ -1860,6 +2619,540 @@ TEST_DEC_IY_D:
     JP Z, ERROR
     BIT 0, E        ; C flag (0)
     JP NZ, ERROR
+
+    RET
+
+TEST_DEC_BC:
+    ; --- Case 1: Standard Decrement (0x0002 -> 0x0001) ---
+    LD BC, 0x0002   ; Initial 16-bit value
+    LD DE, 0x00FF   ; D = dummy A, E = 0xFF (Initial flags set to 1)
+    PUSH DE
+    POP AF          ; Flags = 0xFF
+
+    DEC BC          ; Execute Opcode: BC = BC - 1. BC becomes 0x0001.
+    
+    PUSH AF
+    POP DE          ; Extract flags into E.
+
+    ; Verify Result 
+    LD A, B
+    CP 0x00
+    JP NZ, ERROR
+    LD A, C
+    CP 0x01
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all documented flags should remain 1)
+    BIT 7, E        ; S flag
+    JP Z, ERROR
+    BIT 6, E        ; Z flag
+    JP Z, ERROR
+    BIT 4, E        ; H flag
+    JP Z, ERROR
+    BIT 2, E        ; V/P flag
+    JP Z, ERROR
+    BIT 1, E        ; N flag
+    JP Z, ERROR
+    BIT 0, E        ; C flag
+    JP Z, ERROR
+
+    ; --- Case 2: Byte Boundary / Borrow (0x0100 -> 0x00FF) ---
+    LD BC, 0x0100
+    LD DE, 0x0000   ; E = 0x00 (Initial flags set to 0)
+    PUSH DE
+    POP AF          ; Flags = 0x00
+
+    DEC BC          ; Execute Opcode: BC becomes 0x00FF.
+    
+    PUSH AF
+    POP DE          ; E = New Flags
+
+    ; Verify Result
+    LD A, B
+    CP 0x00
+    JP NZ, ERROR
+    LD A, C
+    CP 0xFF
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all documented flags should remain 0)
+    BIT 7, E        ; S flag
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag
+    JP NZ, ERROR
+    BIT 4, E        ; H flag
+    JP NZ, ERROR
+    BIT 2, E        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, E        ; N flag
+    JP NZ, ERROR
+    BIT 0, E        ; C flag
+    JP NZ, ERROR
+
+    ; --- Case 3: 16-bit Wrap / Underflow (0x0000 -> 0xFFFF) ---
+    LD BC, 0x0000
+    LD DE, 0x0055   ; E = 0x55 (Alternating: 01010101)
+    PUSH DE
+    POP AF          ; Flags = 0x55
+
+    DEC BC          ; Execute Opcode: BC wraps around to 0xFFFF.
+    
+    PUSH AF
+    POP DE          ; E = New Flags
+
+    ; Verify Result
+    LD A, B
+    CP 0xFF
+    JP NZ, ERROR
+    LD A, C
+    CP 0xFF
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: S=0, Z=1, H=1, P/V=1, N=0, C=1)
+    BIT 7, E        ; S flag (Expected: 0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (Expected: 1)
+    JP Z, ERROR
+    BIT 4, E        ; H flag (Expected: 1)
+    JP Z, ERROR
+    BIT 2, E        ; V/P flag (Expected: 1)
+    JP Z, ERROR
+    BIT 1, E        ; N flag (Expected: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (Expected: 1)
+    JP Z, ERROR
+
+    RET
+
+TEST_DEC_DE:
+    ; --- Case 1: Standard Decrement (0x0002 -> 0x0001) ---
+    LD DE, 0x0002   
+    LD HL, 0x00FF   ; L = 0xFF (Initial flags set to 1)
+    PUSH HL
+    POP AF          
+
+    DEC DE          
+    
+    PUSH AF
+    POP HL          ; L = Preserved Flags
+
+    ; Verify Result 
+    LD A, D
+    CP 0x00
+    JP NZ, ERROR
+    LD A, E
+    CP 0x01
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all 1)
+    BIT 7, L        
+    JP Z, ERROR
+    BIT 6, L        
+    JP Z, ERROR
+    BIT 4, L        
+    JP Z, ERROR
+    BIT 2, L        
+    JP Z, ERROR
+    BIT 1, L        
+    JP Z, ERROR
+    BIT 0, L        
+    JP Z, ERROR
+
+    ; --- Case 2: Byte Boundary / Borrow (0x0100 -> 0x00FF) ---
+    LD DE, 0x0100
+    LD HL, 0x0000   ; L = 0x00 (Initial flags set to 0)
+    PUSH HL
+    POP AF          
+
+    DEC DE          
+    
+    PUSH AF
+    POP HL          
+
+    ; Verify Result
+    LD A, D
+    CP 0x00
+    JP NZ, ERROR
+    LD A, E
+    CP 0xFF
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all 0)
+    BIT 7, L        
+    JP NZ, ERROR
+    BIT 6, L        
+    JP NZ, ERROR
+    BIT 4, L        
+    JP NZ, ERROR
+    BIT 2, L        
+    JP NZ, ERROR
+    BIT 1, L        
+    JP NZ, ERROR
+    BIT 0, L        
+    JP NZ, ERROR
+
+    ; --- Case 3: 16-bit Wrap / Underflow (0x0000 -> 0xFFFF) ---
+    LD DE, 0x0000
+    LD HL, 0x0055   ; L = 0x55 
+    PUSH HL
+    POP AF          
+
+    DEC DE          
+    
+    PUSH AF
+    POP HL          
+
+    ; Verify Result
+    LD A, D
+    CP 0xFF
+    JP NZ, ERROR
+    LD A, E
+    CP 0xFF
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: S=0, Z=1, H=1, P/V=1, N=0, C=1)
+    BIT 7, L        
+    JP NZ, ERROR
+    BIT 6, L        
+    JP Z, ERROR
+    BIT 4, L        
+    JP Z, ERROR
+    BIT 2, L        
+    JP Z, ERROR
+    BIT 1, L        
+    JP NZ, ERROR
+    BIT 0, L        
+    JP Z, ERROR
+
+    RET
+
+TEST_DEC_HL:
+    ; --- Case 1: Standard Decrement (0x0002 -> 0x0001) ---
+    LD HL, 0x0002   
+    LD DE, 0x00FF   ; E = 0xFF (Initial flags set to 1)
+    PUSH DE
+    POP AF          
+
+    DEC HL          
+    
+    PUSH AF
+    POP DE          ; E = Preserved Flags
+
+    ; Verify Result 
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x01
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all 1)
+    BIT 7, E        
+    JP Z, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP Z, ERROR
+    BIT 0, E        
+    JP Z, ERROR
+
+    ; --- Case 2: Byte Boundary / Borrow (0x0100 -> 0x00FF) ---
+    LD HL, 0x0100
+    LD DE, 0x0000   ; E = 0x00 (Initial flags set to 0)
+    PUSH DE
+    POP AF          
+
+    DEC HL          
+    
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0xFF
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all 0)
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP NZ, ERROR
+    BIT 4, E        
+    JP NZ, ERROR
+    BIT 2, E        
+    JP NZ, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP NZ, ERROR
+
+    ; --- Case 3: 16-bit Wrap / Underflow (0x0000 -> 0xFFFF) ---
+    LD HL, 0x0000
+    LD DE, 0x0055   ; E = 0x55 
+    PUSH DE
+    POP AF          
+
+    DEC HL          
+    
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    LD A, H
+    CP 0xFF
+    JP NZ, ERROR
+    LD A, L
+    CP 0xFF
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: S=0, Z=1, H=1, P/V=1, N=0, C=1)
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP Z, ERROR
+
+    RET
+
+TEST_DEC_IX:
+    ; --- Case 1: Standard Decrement (0x0002 -> 0x0001) ---
+    LD IX, 0x0002   ; Initial 16-bit value
+    LD DE, 0x00FF   ; D = dummy A, E = 0xFF (Initial flags set to 1)
+    PUSH DE
+    POP AF          ; Flags = 0xFF
+
+    DEC IX          ; Execute Opcode: IX = IX - 1. IX becomes 0x0001.
+    
+    PUSH AF
+    POP DE          ; Extract flags into E.
+
+    ; Extract IX result into HL for verification
+    PUSH IX
+    POP HL
+
+    ; Verify Result 
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x01
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all documented flags should remain 1)
+    BIT 7, E        ; S flag
+    JP Z, ERROR
+    BIT 6, E        ; Z flag
+    JP Z, ERROR
+    BIT 4, E        ; H flag
+    JP Z, ERROR
+    BIT 2, E        ; V/P flag
+    JP Z, ERROR
+    BIT 1, E        ; N flag
+    JP Z, ERROR
+    BIT 0, E        ; C flag
+    JP Z, ERROR
+
+    ; --- Case 2: Byte Boundary / Borrow (0x0100 -> 0x00FF) ---
+    LD IX, 0x0100
+    LD DE, 0x0000   ; E = 0x00 (Initial flags set to 0)
+    PUSH DE
+    POP AF          ; Flags = 0x00
+
+    DEC IX          ; Execute Opcode: IX becomes 0x00FF.
+    
+    PUSH AF
+    POP DE          ; E = New Flags
+
+    ; Extract IX result into HL
+    PUSH IX
+    POP HL
+
+    ; Verify Result
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0xFF
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all documented flags should remain 0)
+    BIT 7, E        ; S flag
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag
+    JP NZ, ERROR
+    BIT 4, E        ; H flag
+    JP NZ, ERROR
+    BIT 2, E        ; V/P flag
+    JP NZ, ERROR
+    BIT 1, E        ; N flag
+    JP NZ, ERROR
+    BIT 0, E        ; C flag
+    JP NZ, ERROR
+
+    ; --- Case 3: 16-bit Wrap / Underflow (0x0000 -> 0xFFFF) ---
+    LD IX, 0x0000
+    LD DE, 0x0055   ; E = 0x55 (Alternating: 01010101)
+    PUSH DE
+    POP AF          ; Flags = 0x55
+
+    DEC IX          ; Execute Opcode: IX wraps around to 0xFFFF.
+    
+    PUSH AF
+    POP DE          ; E = New Flags
+
+    ; Extract IX result into HL
+    PUSH IX
+    POP HL
+
+    ; Verify Result
+    LD A, H
+    CP 0xFF
+    JP NZ, ERROR
+    LD A, L
+    CP 0xFF
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: S=0, Z=1, H=1, P/V=1, N=0, C=1)
+    BIT 7, E        ; S flag (Expected: 0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (Expected: 1)
+    JP Z, ERROR
+    BIT 4, E        ; H flag (Expected: 1)
+    JP Z, ERROR
+    BIT 2, E        ; V/P flag (Expected: 1)
+    JP Z, ERROR
+    BIT 1, E        ; N flag (Expected: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (Expected: 1)
+    JP Z, ERROR
+
+    RET
+
+TEST_DEC_IY:
+    ; --- Case 1: Standard Decrement (0x0002 -> 0x0001) ---
+    LD IY, 0x0002   
+    LD DE, 0x00FF   ; E = 0xFF (Initial flags set to 1)
+    PUSH DE
+    POP AF          
+
+    DEC IY          
+    
+    PUSH AF
+    POP DE          ; E = Preserved Flags
+
+    ; Extract IY result into HL for verification
+    PUSH IY
+    POP HL
+
+    ; Verify Result 
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x01
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all 1)
+    BIT 7, E        
+    JP Z, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP Z, ERROR
+    BIT 0, E        
+    JP Z, ERROR
+
+    ; --- Case 2: Byte Boundary / Borrow (0x0100 -> 0x00FF) ---
+    LD IY, 0x0100
+    LD DE, 0x0000   ; E = 0x00 (Initial flags set to 0)
+    PUSH DE
+    POP AF          
+
+    DEC IY          
+    
+    PUSH AF
+    POP DE          
+
+    ; Extract IY result into HL
+    PUSH IY
+    POP HL
+
+    ; Verify Result
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0xFF
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: all 0)
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP NZ, ERROR
+    BIT 4, E        
+    JP NZ, ERROR
+    BIT 2, E        
+    JP NZ, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP NZ, ERROR
+
+    ; --- Case 3: 16-bit Wrap / Underflow (0x0000 -> 0xFFFF) ---
+    LD IY, 0x0000
+    LD DE, 0x0055   ; E = 0x55 
+    PUSH DE
+    POP AF          
+
+    DEC IY          
+    
+    PUSH AF
+    POP DE          
+
+    ; Extract IY result into HL
+    PUSH IY
+    POP HL
+
+    ; Verify Result
+    LD A, H
+    CP 0xFF
+    JP NZ, ERROR
+    LD A, L
+    CP 0xFF
+    JP NZ, ERROR
+
+    ; Verify Flags (Expected: S=0, Z=1, H=1, P/V=1, N=0, C=1)
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP Z, ERROR
 
     RET
 
