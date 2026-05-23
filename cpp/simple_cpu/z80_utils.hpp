@@ -67,8 +67,9 @@ bool z80_parity_flag(uint16_t a) {
     // return (!( (a ^ (a >> 1) ^ (a >> 2) ^ (a >> 3) ^ (a >> 4) ^ (a >> 5) ^ (a >> 6) ^ (a >> 7)) & 1 ));
 }
 
-bool z80_zero_flag(uint16_t a) {
-    return a == 0;
+bool z80_zero_flag(uint16_t a, bool is_16b) {
+    if (is_16b) return a == 0;
+    return (a & 0xFF) == 0;
 }
 
 bool z80_sign_flag(uint16_t a, bool is_16b) {
