@@ -2481,19 +2481,72 @@ public:
             }
             case 0xDD: {// 0xDD     (IX Instructions, read one more byte to get the actual opcode)
                 uint16_t new_opcode = mem_bus->read(pc+1);
-                if (new_opcode == 0x21) {   // 0xDD 0x21 N N (LD IX, NN - Loads nn into register IX), cycles: 14
+                if (new_opcode == 0x09) {          // 0xDD 0x19     (ADD IX, BC  - Add BC to IX), cycles: 15
+                    // C as defined
+                    // N reset
+                    // P/V unaffected
+                    // H as defined
+                    // Z unaffected
+                    // S unaffected
+                    uint32_t ix = regs.get_reg(RegName::IX);
+                    uint32_t val = regs.get_reg(RegName::BC);
+                    uint32_t res = ix + val;
+                    regs.update_flag(FlagName::C, res > 0xFFFF);
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::H, calculate_half_carry(ix, val, 0, true, false));
+                    printf("0x%04X: ADD IX, BC :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, ix, val, res, opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::IX, res);
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x19) {   // 0xDD 0x19     (ADD IX, DE  - Add DE to IX), cycles: 15
+                    // C as defined
+                    // N reset
+                    // P/V unaffected
+                    // H as defined
+                    // Z unaffected
+                    // S unaffected
+                    uint32_t ix = regs.get_reg(RegName::IX);
+                    uint32_t val = regs.get_reg(RegName::DE);
+                    uint32_t res = ix + val;
+                    regs.update_flag(FlagName::C, res > 0xFFFF);
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::H, calculate_half_carry(ix, val, 0, true, false));
+                    printf("0x%04X: ADD IX, DE :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, ix, val, res, opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::IX, res);
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x21) {   // 0xDD 0x21 N N (LD IX, NN - Loads nn into register IX), cycles: 14
                     uint16_t value = mem_read_16b(pc+2);
                     printf("0x%04X: LD IX, 0x%04X || 0x%02X 0x%02X\n", pc, value, opcode, new_opcode);
                     regs.set_reg(RegName::IX, value);
                     num_bytes_read += 3;
-                } else if (new_opcode == 0x2B) {   // 0xDD 0x2B   (DEC IX - Subtracts one from IX), cycles: 10
+                } else if (new_opcode == 0x22) {   // 0xDD 0x22 N N (LD (NN), IX - Stores IX into the memory location pointed to by nn), cycles: 20
+                    uint16_t addr = mem_read_16b(pc+2);
+                    printf("0x%04X: LD 0x%04X, IX || 0x%02X 0x%02X\n", pc, addr, opcode, new_opcode);
+                    mem_write_16b(addr, regs.get_reg(RegName::IX));
+                    num_bytes_read += 3;
+                } else if (new_opcode == 0x29) {   // 0xDD 0x29     (ADD IX, IX  - Add IX to IX), cycles: 15
+                    // C as defined
+                    // N reset
+                    // P/V unaffected
+                    // H as defined
+                    // Z unaffected
+                    // S unaffected
+                    uint32_t ix = regs.get_reg(RegName::IX);
+                    uint32_t val = regs.get_reg(RegName::IX);
+                    uint32_t res = ix + val;
+                    regs.update_flag(FlagName::C, res > 0xFFFF);
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::H, calculate_half_carry(ix, val, 0, true, false));
+                    printf("0x%04X: ADD IX, IX :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, ix, val, res, opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::IX, res);
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x2B) {   // 0xDD 0x2B     (DEC IX - Subtracts one from IX), cycles: 10
                     // Does not affect flags
                     uint16_t val = regs.get_reg(RegName::IX);
                     uint16_t res = val - 1;
                     printf("0x%04X: DEC IX :: (0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::IX, res);
                     num_bytes_read += 1;
-                } else if (new_opcode == 0x34) {   // 0xFD 0x34 D (INC (IX+D), N - Adds one to the memory location pointed to by IX plus d), cycles: 23
+                } else if (new_opcode == 0x34) {   // 0xDD 0x34 D   (INC (IX+D) - Adds one to the memory location pointed to by IX plus d), cycles: 23
                     int8_t offset = mem_bus->read(pc+2);
                     uint16_t addr = regs.get_reg(RegName::IX);
                     uint16_t res_addr = addr + offset;
@@ -2507,7 +2560,7 @@ public:
                     printf("0x%04X: INC (IX+0x%02X) :: (0x%04X + 0x%02X -> 0x%04X, 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, addr, offset, res_addr, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
                     mem_bus->write(res_addr, res);
                     num_bytes_read += 2;
-                } else if (new_opcode == 0x35) {   // 0xDD 0x35 D (DEC (IX+D), N - Subtracts one from the memory location pointed to by IX plus d), cycles: 23
+                } else if (new_opcode == 0x35) {   // 0xDD 0x35 D   (DEC (IX+D) - Subtracts one from the memory location pointed to by IX plus d), cycles: 23
                     int8_t offset = mem_bus->read(pc+2);
                     uint16_t addr = regs.get_reg(RegName::IX);
                     uint16_t res_addr = addr + offset;
@@ -2521,7 +2574,7 @@ public:
                     printf("0x%04X: DEC (IX+0x%02X) :: (0x%04X + 0x%02X -> 0x%04X, 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, addr, offset, res_addr, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
                     mem_bus->write(res_addr, res);
                     num_bytes_read += 2;
-                } else if (new_opcode == 0x36) {   // 0xDD 0x36 D (LD (IX+D), N - Stores n to the memory location pointed to by IX plus d), cycles: 19
+                } else if (new_opcode == 0x36) {   // 0xDD 0x36 D   (LD (IX+D), N - Stores n to the memory location pointed to by IX plus d), cycles: 19
                     uint8_t offset = mem_bus->read(pc+2);
                     uint16_t addr = regs.get_reg(RegName::IX);
                     uint16_t res_addr = addr + offset;
@@ -2529,15 +2582,47 @@ public:
                     printf("0x%04X: LD (IX+0x%02X), 0x%02X :: (0x%04X + 0x%02X -> 0x%04X) || 0x%02X 0x%02X\n", pc, offset, val, addr, offset, res_addr, opcode, new_opcode);
                     mem_bus->write(res_addr, val);
                     num_bytes_read += 3;
-                } else if (new_opcode == 0x40) {   // 0xDD 0x40 (LD B, B - The contents of B are loaded into B), cycles: 8
+                } else if (new_opcode == 0x39) {   // 0xDD 0x39     (ADD IX, SP  - Add SP to IX), cycles: 15
+                    // C as defined
+                    // N reset
+                    // P/V unaffected
+                    // H as defined
+                    // Z unaffected
+                    // S unaffected
+                    uint32_t ix = regs.get_reg(RegName::IX);
+                    uint32_t val = regs.get_reg(RegName::SP);
+                    uint32_t res = ix + val;
+                    regs.update_flag(FlagName::C, res > 0xFFFF);
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::H, calculate_half_carry(ix, val, 0, true, false));
+                    printf("0x%04X: ADD IX, SP :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, ix, val, res, opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::IX, res);
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x40) {   // 0xDD 0x40     (LD B, B - The contents of B are loaded into B), cycles: 8
                     printf("0x%04X: LD B, B || 0x%02X 0x%02X\n", pc, opcode, new_opcode);
                     regs.set_reg(RegName::B, regs.get_reg(RegName::B));
                     num_bytes_read += 1;
-                } else if (new_opcode == 0xE1) {   // 0xDD 0xE1 (POP IX), cycles: 14
+                } else if (new_opcode == 0x86) {   // 0xDD 0x86 D   (ADD A, (IX+D) - Adds the value pointed to by IX plus d to A), cycles: 19
+                    int8_t offset = mem_bus->read(pc+2);
+                    uint16_t a = regs.get_reg(RegName::A);
+                    uint16_t addr = regs.get_reg(RegName::IX);
+                    uint16_t res_addr = addr + offset;
+                    uint16_t val = mem_bus->read(res_addr);
+                    uint16_t res = a + val;
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::C, res > 0xFF);
+                    regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, false));
+                    regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, false, false));
+                    regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
+                    regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                    printf("0x%04X: ADD A, (IX + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::A, res);
+                    num_bytes_read += 2;
+                } else if (new_opcode == 0xE1) {   // 0xDD 0xE1     (POP IX), cycles: 14
                     printf("0x%04X: POP IY || 0x%02X 0x%02X\n", pc, opcode, new_opcode);
                     pop_reg(RegName::IX);
                     num_bytes_read += 1;
-                } else if (new_opcode == 0xE5) {   // 0xDD 0xE5 (PUSH IX), cycles: 15
+                } else if (new_opcode == 0xE5) {   // 0xDD 0xE5     (PUSH IX), cycles: 15
                     // Does not affect flags
                     printf("0x%04X: PUSH IX || 0x%02X 0x%02X, SP: 0x%04X\n", pc, opcode, flags_in, regs.get_reg(RegName::SP));
                     push_reg(RegName::IX);
@@ -2868,11 +2953,64 @@ public:
             }
             case 0xFD: {// 0xFD     (IY Instructions, read one more byte to get the actual opcode)
                 uint16_t new_opcode = mem_bus->read(pc+1);
-                if (new_opcode == 0x21) {   // 0xFD 0x21 N N (LD IY, NN - Loads nn into register IY), cycles: 14
+                if (new_opcode == 0x09) {          // 0xFD 0x19     (ADD IY, BC  - Add BC to IY), cycles: 15
+                    // C as defined
+                    // N reset
+                    // P/V unaffected
+                    // H as defined
+                    // Z unaffected
+                    // S unaffected
+                    uint32_t iy = regs.get_reg(RegName::IY);
+                    uint32_t val = regs.get_reg(RegName::BC);
+                    uint32_t res = iy + val;
+                    regs.update_flag(FlagName::C, res > 0xFFFF);
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::H, calculate_half_carry(iy, val, 0, true, false));
+                    printf("0x%04X: ADD IY, BC :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, iy, val, res, opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::IY, res);
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x19) {   // 0xFD 0x19     (ADD IY, DE  - Add DE to IY), cycles: 15
+                    // C as defined
+                    // N reset
+                    // P/V unaffected
+                    // H as defined
+                    // Z unaffected
+                    // S unaffected
+                    uint32_t iy = regs.get_reg(RegName::IY);
+                    uint32_t val = regs.get_reg(RegName::DE);
+                    uint32_t res = iy + val;
+                    regs.update_flag(FlagName::C, res > 0xFFFF);
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::H, calculate_half_carry(iy, val, 0, true, false));
+                    printf("0x%04X: ADD IY, DE :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, iy, val, res, opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::IY, res);
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x21) {   // 0xFD 0x21 N N (LD IY, NN - Loads nn into register IY), cycles: 14
                     uint16_t value = mem_read_16b(pc+2);
                     printf("0x%04X: LD IY, 0x%04X || 0x%02X 0x%02X\n", pc, value, opcode, new_opcode);
                     regs.set_reg(RegName::IY, value);
                     num_bytes_read += 3;
+                } else if (new_opcode == 0x22) {   // 0xFD 0x22 N N (LD (NN), IY - Stores IY into the memory location pointed to by nn), cycles: 20
+                    uint16_t addr = mem_read_16b(pc+2);
+                    printf("0x%04X: LD 0x%04X, IY || 0x%02X 0x%02X\n", pc, addr, opcode, new_opcode);
+                    mem_write_16b(addr, regs.get_reg(RegName::IY));
+                    num_bytes_read += 3;
+                } else if (new_opcode == 0x29) {   // 0xFD 0x29     (ADD IY, IY  - Add IY to IY), cycles: 15
+                    // C as defined
+                    // N reset
+                    // P/V unaffected
+                    // H as defined
+                    // Z unaffected
+                    // S unaffected
+                    uint32_t iy = regs.get_reg(RegName::IY);
+                    uint32_t val = regs.get_reg(RegName::IY);
+                    uint32_t res = iy + val;
+                    regs.update_flag(FlagName::C, res > 0xFFFF);
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::H, calculate_half_carry(iy, val, 0, true, false));
+                    printf("0x%04X: ADD IY, IY :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, iy, val, res, opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::IY, res);
+                    num_bytes_read += 1;
                 } else if (new_opcode == 0x2B) {   // 0xFD 0x2B   (DEC IY - Subtracts one from IY), cycles: 10
                     // Does not affect flags
                     uint16_t val = regs.get_reg(RegName::IY);
@@ -2916,6 +3054,38 @@ public:
                     printf("0x%04X: LD (IY+0x%02X), 0x%02X :: (0x%04X + 0x%02X -> 0x%04X) || 0x%02X 0x%02X\n", pc, offset, val, addr, offset, res_addr, opcode, new_opcode);
                     mem_bus->write(res_addr, val);
                     num_bytes_read += 3;
+                } else if (new_opcode == 0x39) {   // 0xFD 0x39     (ADD IY, SP  - Add SP to IY), cycles: 15
+                    // C as defined
+                    // N reset
+                    // P/V unaffected
+                    // H as defined
+                    // Z unaffected
+                    // S unaffected
+                    uint32_t iy = regs.get_reg(RegName::IY);
+                    uint32_t val = regs.get_reg(RegName::SP);
+                    uint32_t res = iy + val;
+                    regs.update_flag(FlagName::C, res > 0xFFFF);
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::H, calculate_half_carry(iy, val, 0, true, false));
+                    printf("0x%04X: ADD IY, SP :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, iy, val, res, opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::IY, res);
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x86) {   // 0xFD 0x86 D (ADD A, (IY+D) - Adds the value pointed to by IY plus d to A), cycles: 19
+                    int8_t offset = mem_bus->read(pc+2);
+                    uint16_t a = regs.get_reg(RegName::A);
+                    uint16_t addr = regs.get_reg(RegName::IY);
+                    uint16_t res_addr = addr + offset;
+                    uint16_t val = mem_bus->read(res_addr);
+                    uint16_t res = a + val;
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::C, res > 0xFF);
+                    regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, false));
+                    regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, false, false));
+                    regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
+                    regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                    printf("0x%04X: ADD A, (IY + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::A, res);
+                    num_bytes_read += 2;
                 } else if (new_opcode == 0xE1) {   // 0xFD 0xE1 (POP IY), cycles: 14
                     printf("0x%04X: POP IY || 0x%02X 0x%02X\n", pc, opcode, new_opcode);
                     pop_reg(RegName::IY);
