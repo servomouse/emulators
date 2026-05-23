@@ -2523,6 +2523,13 @@ public:
                     printf("0x%04X: LD 0x%04X, IX || 0x%02X 0x%02X\n", pc, addr, opcode, new_opcode);
                     mem_write_16b(addr, regs.get_reg(RegName::IX));
                     num_bytes_read += 3;
+                } else if (new_opcode == 0x23) {   // 0xDD 0x23     (INC IX - Adds one to IX), cycles: 10
+                    // Does not affect flags
+                    uint16_t val = regs.get_reg(RegName::IX);
+                    uint16_t res = val + 1;
+                    printf("0x%04X: INC IX :: (0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::IX, res);
+                    num_bytes_read += 1;
                 } else if (new_opcode == 0x29) {   // 0xDD 0x29     (ADD IX, IX  - Add IX to IX), cycles: 15
                     // C as defined
                     // N reset
@@ -2995,6 +3002,13 @@ public:
                     printf("0x%04X: LD 0x%04X, IY || 0x%02X 0x%02X\n", pc, addr, opcode, new_opcode);
                     mem_write_16b(addr, regs.get_reg(RegName::IY));
                     num_bytes_read += 3;
+                } else if (new_opcode == 0x23) {   // 0xFD 0x23     (INC IY - Adds one to IY), cycles: 10
+                    // Does not affect flags
+                    uint16_t val = regs.get_reg(RegName::IY);
+                    uint16_t res = val + 1;
+                    printf("0x%04X: INC IY :: (0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::IY, res);
+                    num_bytes_read += 1;
                 } else if (new_opcode == 0x29) {   // 0xFD 0x29     (ADD IY, IY  - Add IY to IY), cycles: 15
                     // C as defined
                     // N reset
