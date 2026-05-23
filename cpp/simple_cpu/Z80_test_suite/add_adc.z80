@@ -5,7 +5,10 @@ ORG 0000h
     HALT
 
 TEMP_SP_SAVE: DW 0x0000
+SP_RESULT_ADDR EQU 0xFF02
 TEST_RAM EQU 0xFF00
+IX_ABS_ADDR EQU 0xFF05  ; TEST_RAM + 0x05 (Positive offset)
+IY_ABS_ADDR EQU 0xFEFB  ; TEST_RAM - 0x05 (Negative offset: 0xFB)
 
 ERROR:
     DI
@@ -20,10 +23,20 @@ TEST_ADDS:
     CALL TEST_ADD_A_E
     CALL TEST_ADD_A_H
     CALL TEST_ADD_A_L
+    CALL TEST_ADD_A_IX_D
+    CALL TEST_ADD_A_IY_D
     CALL TEST_ADD_A_A
     CALL TEST_ADD_A_N
     CALL TEST_ADD_A_HL
     ; 16-bit operations:
+    CALL TEST_ADD_IX_BC
+    CALL TEST_ADD_IX_DE
+    CALL TEST_ADD_IX_SP
+    CALL TEST_ADD_IX_IX
+    CALL TEST_ADD_IY_BC
+    CALL TEST_ADD_IY_DE
+    CALL TEST_ADD_IY_SP
+    CALL TEST_ADD_IY_IY
     CALL TEST_ADD_HL_BC
     CALL TEST_ADD_HL_DE
     CALL TEST_ADD_HL_HL
@@ -513,6 +526,190 @@ TEST_ADD_A_L:
     
     RET
 
+TEST_ADD_A_IX_D:
+    LD IX, TEST_RAM     ; Point IX to base RAM address (0x8000)
+
+    ; --- Case 1: Positive Offset (+0x05) ---
+    ; Math: 0x7F + 0x7E = 0xFD
+    ; Reads from IX_ABS_ADDR (0x8005)
+    LD A, 0x7E
+    LD (IX_ABS_ADDR), A 
+    
+    LD A, 0x7F
+    ADD A, (IX+0x05)    ; 0x8000 + 5 = 0x8005
+
+    PUSH AF
+    POP DE              
+
+    CP 0xFD
+    JP NZ, ERROR
+
+    ; Expected Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    BIT 7, E        
+    JP Z, ERROR
+    BIT 6, E        
+    JP NZ, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP NZ, ERROR
+
+    ; --- Case 2: Negative Offset (0xFB = -0x05) ---
+    ; Math: 0x7F + 0x81 = 0x00
+    ; Reads from IY_ABS_ADDR (0x7FFB)
+    LD A, 0x81
+    LD (IY_ABS_ADDR), A 
+    
+    LD A, 0x7F
+    ADD A, (IX-5)    ; 0x8000 - 5 = 0x7FFB
+
+    PUSH AF
+    POP DE
+
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Expected Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP NZ, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP Z, ERROR
+
+    ; --- Case 3: Positive Offset (+0x05) ---
+    ; Math: 0x12 + 0x34 = 0x46
+    ; Reads from IX_ABS_ADDR (0x8005)
+    LD A, 0x34
+    LD (IX_ABS_ADDR), A 
+    
+    LD A, 0x12
+    ADD A, (IX+0x05)    ; 0x8000 + 5 = 0x8005
+
+    PUSH AF
+    POP DE
+
+    CP 0x46
+    JP NZ, ERROR
+
+    ; Expected Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP NZ, ERROR
+    BIT 4, E        
+    JP NZ, ERROR
+    BIT 2, E        
+    JP NZ, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP NZ, ERROR
+
+    RET
+
+TEST_ADD_A_IY_D:
+    LD IY, TEST_RAM     ; Point IY to base RAM address (0x8000)
+
+    ; --- Case 1: Negative Offset (0xFB = -0x05) ---
+    ; Math: 0x7F + 0x7E = 0xFD
+    ; Reads from IY_ABS_ADDR (0x7FFB)
+    LD A, 0x7E
+    LD (IY_ABS_ADDR), A 
+    
+    LD A, 0x7F
+    ADD A, (IY-5)    ; 0x8000 - 5 = 0x7FFB
+
+    PUSH AF
+    POP DE              
+
+    CP 0xFD
+    JP NZ, ERROR
+
+    ; Expected Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    BIT 7, E        
+    JP Z, ERROR
+    BIT 6, E        
+    JP NZ, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP NZ, ERROR
+
+    ; --- Case 2: Positive Offset (+0x05) ---
+    ; Math: 0x7F + 0x81 = 0x00
+    ; Reads from IX_ABS_ADDR (0x8005)
+    LD A, 0x81
+    LD (IX_ABS_ADDR), A 
+    
+    LD A, 0x7F
+    ADD A, (IY+0x05)    ; 0x8000 + 5 = 0x8005
+
+    PUSH AF
+    POP DE
+
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Expected Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP NZ, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP Z, ERROR
+
+    ; --- Case 3: Negative Offset (0xFB = -0x05) ---
+    ; Math: 0x12 + 0x34 = 0x46
+    ; Reads from IY_ABS_ADDR (0x7FFB)
+    LD A, 0x34
+    LD (IY_ABS_ADDR), A 
+    
+    LD A, 0x12
+    ADD A, (IY-5)    ; 0x8000 - 5 = 0x7FFB
+
+    PUSH AF
+    POP DE
+
+    CP 0x46
+    JP NZ, ERROR
+
+    ; Expected Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP NZ, ERROR
+    BIT 4, E        
+    JP NZ, ERROR
+    BIT 2, E        
+    JP NZ, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP NZ, ERROR
+
+    RET
+
 TEST_ADD_A_A:
     ; --- Case 1: 0x7F + 0x7F = 0xFE ---
     ; Expected Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
@@ -690,6 +887,1110 @@ TEST_ADD_A_HL:
     BIT 1, E        
     JP NZ, ERROR
     BIT 0, E        
+    JP Z, ERROR
+
+    RET
+
+; 16-bit opcodes:
+TEST_ADD_IX_BC:
+    ; --- Case 1: 0x0900 + 0x0800 = 0x1100 ---
+    ; Expected: Sets H, clears C. S, Z, P/V unchanged. N is reset.
+    LD IX, 0x0900
+    LD BC, 0x0800
+    LD HL, 0x0040   ; L = Initial flags (S=0, Z=1, H=0, P/V=0, N=0, C=0)
+    PUSH HL
+    POP AF
+
+    ADD IX, BC
+
+    PUSH AF
+    POP DE          ; E = New flags
+    PUSH IX
+    POP HL          ; HL = Result
+
+    LD A, H
+    CP 0x11
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, E        ; S (Preserved: 0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, E        ; H (Set: 1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V (Preserved: 0)
+    JP NZ, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Cleared: 0)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x9000 + 0x8000 = 0x1000 ---
+    ; Expected: Clears H, sets C. S, Z, P/V unchanged. N is reset.
+    LD IX, 0x9000
+    LD BC, 0x8000
+    LD HL, 0x0044   ; L = Initial flags (S=0, Z=1, H=0, P/V=1, N=0, C=0)
+    PUSH HL
+    POP AF
+
+    ADD IX, BC
+
+    PUSH AF
+    POP DE          
+    PUSH IX
+    POP HL          
+
+    LD A, H
+    CP 0x10
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, E        ; S (Preserved: 0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, E        ; H (Cleared: 0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V (Preserved: 1)
+    JP Z, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Set: 1)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x1234 + 0x1235 = 0x2469 ---
+    ; Expected: Clears H, clears C. S, Z, P/V unchanged. N is reset.
+    LD IX, 0x1234
+    LD BC, 0x1235
+    LD HL, 0x00C4   ; L = Initial flags (S=1, Z=1, H=0, P/V=1, N=0, C=0)
+    PUSH HL
+    POP AF
+
+    ADD IX, BC
+
+    PUSH AF
+    POP DE          
+    PUSH IX
+    POP HL          
+
+    LD A, H
+    CP 0x24
+    JP NZ, ERROR
+    LD A, L
+    CP 0x69
+    JP NZ, ERROR
+
+    BIT 7, E        ; S (Preserved: 1)
+    JP Z, ERROR
+    BIT 6, E        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, E        ; H (Cleared: 0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V (Preserved: 1)
+    JP Z, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Cleared: 0)
+    JP NZ, ERROR
+
+    ; --- Case 4: 0xFFFF + 0x0001 = 0x0000 ---
+    ; Expected: Sets H, sets C. S, Z, P/V unchanged. N is reset.
+    LD IX, 0xFFFF
+    LD BC, 0x0001
+    LD HL, 0x0080   ; L = Initial flags (S=1, Z=0, H=0, P/V=0, N=0, C=0)
+    PUSH HL
+    POP AF
+
+    ADD IX, BC
+
+    PUSH AF
+    POP DE          
+    PUSH IX
+    POP HL          
+
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, E        ; S (Preserved: 1)
+    JP Z, ERROR
+    BIT 6, E        ; Z (Preserved: 0)
+    JP NZ, ERROR
+    BIT 4, E        ; H (Set: 1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V (Preserved: 0)
+    JP NZ, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Set: 1)
+    JP Z, ERROR
+
+    RET
+
+TEST_ADD_IX_DE:
+    ; --- Case 1: 0x0900 + 0x0800 = 0x1100 ---
+    LD IX, 0x0900
+    LD DE, 0x0800
+    LD HL, 0x0040   
+    PUSH HL
+    POP AF
+
+    ADD IX, DE
+
+    PUSH AF
+    POP HL          ; L = New flags
+    PUSH IX
+    POP BC          ; BC = Result
+
+    LD A, B
+    CP 0x11
+    JP NZ, ERROR
+    LD A, C
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, L        ; S (Preserved: 0)
+    JP NZ, ERROR
+    BIT 6, L        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, L        ; H (Set: 1)
+    JP Z, ERROR
+    BIT 2, L        ; P/V (Preserved: 0)
+    JP NZ, ERROR
+    BIT 1, L        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, L        ; C (Cleared: 0)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x9000 + 0x8000 = 0x1000 ---
+    LD IX, 0x9000
+    LD DE, 0x8000
+    LD HL, 0x0044   
+    PUSH HL
+    POP AF
+
+    ADD IX, DE
+
+    PUSH AF
+    POP HL          
+    PUSH IX
+    POP BC          
+
+    LD A, B
+    CP 0x10
+    JP NZ, ERROR
+    LD A, C
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, L        ; S (Preserved: 0)
+    JP NZ, ERROR
+    BIT 6, L        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, L        ; H (Cleared: 0)
+    JP NZ, ERROR
+    BIT 2, L        ; P/V (Preserved: 1)
+    JP Z, ERROR
+    BIT 1, L        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, L        ; C (Set: 1)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x1234 + 0x1235 = 0x2469 ---
+    LD IX, 0x1234
+    LD DE, 0x1235
+    LD HL, 0x00C4   
+    PUSH HL
+    POP AF
+
+    ADD IX, DE
+
+    PUSH AF
+    POP HL          
+    PUSH IX
+    POP BC          
+
+    LD A, B
+    CP 0x24
+    JP NZ, ERROR
+    LD A, C
+    CP 0x69
+    JP NZ, ERROR
+
+    BIT 7, L        ; S (Preserved: 1)
+    JP Z, ERROR
+    BIT 6, L        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, L        ; H (Cleared: 0)
+    JP NZ, ERROR
+    BIT 2, L        ; P/V (Preserved: 1)
+    JP Z, ERROR
+    BIT 1, L        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, L        ; C (Cleared: 0)
+    JP NZ, ERROR
+
+    ; --- Case 4: 0xFFFF + 0x0001 = 0x0000 ---
+    LD IX, 0xFFFF
+    LD DE, 0x0001
+    LD HL, 0x0080   
+    PUSH HL
+    POP AF
+
+    ADD IX, DE
+
+    PUSH AF
+    POP HL          
+    PUSH IX
+    POP BC          
+
+    LD A, B
+    CP 0x00
+    JP NZ, ERROR
+    LD A, C
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, L        ; S (Preserved: 1)
+    JP Z, ERROR
+    BIT 6, L        ; Z (Preserved: 0)
+    JP NZ, ERROR
+    BIT 4, L        ; H (Set: 1)
+    JP Z, ERROR
+    BIT 2, L        ; P/V (Preserved: 0)
+    JP NZ, ERROR
+    BIT 1, L        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, L        ; C (Set: 1)
+    JP Z, ERROR
+
+    RET
+
+TEST_ADD_IX_SP:
+    ; --- Case 1: 0x0900 + 0x0800 = 0x1100 ---
+    LD (TEMP_SP_SAVE), SP 
+    LD IX, 0x0900
+    LD HL, 0x0040   
+    PUSH HL
+    POP AF              
+    LD SP, 0x0800       
+    
+    ADD IX, SP          
+    
+    LD (SP_RESULT_ADDR), IX 
+    LD SP, (TEMP_SP_SAVE) 
+    PUSH AF
+    POP DE              ; E = New flags
+    LD HL, (SP_RESULT_ADDR) 
+    
+    LD A, H
+    CP 0x11
+    JP NZ, ERROR
+    
+    BIT 7, E        ; S (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z (1)
+    JP Z, ERROR
+    BIT 4, E        ; H (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V (0)
+    JP NZ, ERROR
+    BIT 1, E        ; N (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (0)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x9000 + 0x8000 = 0x1000 ---
+    LD (TEMP_SP_SAVE), SP 
+    LD IX, 0x9000
+    LD HL, 0x0044   
+    PUSH HL
+    POP AF              
+    LD SP, 0x8000       
+    
+    ADD IX, SP          
+    
+    LD (SP_RESULT_ADDR), IX 
+    LD SP, (TEMP_SP_SAVE) 
+    PUSH AF
+    POP DE              
+    LD HL, (SP_RESULT_ADDR) 
+    
+    LD A, H
+    CP 0x10
+    JP NZ, ERROR
+    
+    BIT 7, E        ; S (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z (1)
+    JP Z, ERROR
+    BIT 4, E        ; H (0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V (1)
+    JP Z, ERROR
+    BIT 1, E        ; N (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (1)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x1234 + 0x1235 = 0x2469 ---
+    LD (TEMP_SP_SAVE), SP 
+    LD IX, 0x1234
+    LD HL, 0x00C4   
+    PUSH HL
+    POP AF              
+    LD SP, 0x1235       
+    
+    ADD IX, SP          
+    
+    LD (SP_RESULT_ADDR), IX 
+    LD SP, (TEMP_SP_SAVE) 
+    PUSH AF
+    POP DE              
+    LD HL, (SP_RESULT_ADDR) 
+    
+    LD A, H
+    CP 0x24
+    JP NZ, ERROR
+    LD A, L
+    CP 0x69
+    JP NZ, ERROR
+
+    BIT 7, E        ; S (1)
+    JP Z, ERROR
+    BIT 6, E        ; Z (1)
+    JP Z, ERROR
+    BIT 4, E        ; H (0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V (1)
+    JP Z, ERROR
+    BIT 1, E        ; N (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (0)
+    JP NZ, ERROR
+
+    ; --- Case 4: 0xFFFF + 0x0001 = 0x0000 ---
+    LD (TEMP_SP_SAVE), SP 
+    LD IX, 0xFFFF
+    LD HL, 0x0080   
+    PUSH HL
+    POP AF              
+    LD SP, 0x0001       
+    
+    ADD IX, SP          
+    
+    LD (SP_RESULT_ADDR), IX 
+    LD SP, (TEMP_SP_SAVE) 
+    PUSH AF
+    POP DE              
+    LD HL, (SP_RESULT_ADDR) 
+    
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, E        ; S (1)
+    JP Z, ERROR
+    BIT 6, E        ; Z (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V (0)
+    JP NZ, ERROR
+    BIT 1, E        ; N (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (1)
+    JP Z, ERROR
+
+    RET
+
+TEST_ADD_IX_IX:
+    ; --- Case 1: 0x0900 + 0x0900 = 0x1200 ---
+    LD IX, 0x0900
+    LD HL, 0x0040   
+    PUSH HL
+    POP AF
+
+    ADD IX, IX
+
+    PUSH AF
+    POP DE          
+    PUSH IX
+    POP HL          
+
+    LD A, H
+    CP 0x12
+    JP NZ, ERROR
+    
+    BIT 7, E        ; S (Preserved: 0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, E        ; H (Set: 1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V (Preserved: 0)
+    JP NZ, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Cleared: 0)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x9000 + 0x9000 = 0x2000 ---
+    LD IX, 0x9000
+    LD HL, 0x0044   
+    PUSH HL
+    POP AF
+
+    ADD IX, IX
+
+    PUSH AF
+    POP DE          
+    PUSH IX
+    POP HL          
+
+    LD A, H
+    CP 0x20
+    JP NZ, ERROR
+    
+    BIT 7, E        ; S (Preserved: 0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, E        ; H (Cleared: 0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V (Preserved: 1)
+    JP Z, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Set: 1)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x1234 + 0x1234 = 0x2468 ---
+    LD IX, 0x1234
+    LD HL, 0x00C4   
+    PUSH HL
+    POP AF
+
+    ADD IX, IX
+
+    PUSH AF
+    POP DE          
+    PUSH IX
+    POP HL          
+
+    LD A, H
+    CP 0x24
+    JP NZ, ERROR
+    LD A, L
+    CP 0x68
+    JP NZ, ERROR
+    
+    BIT 7, E        ; S (Preserved: 1)
+    JP Z, ERROR
+    BIT 6, E        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, E        ; H (Cleared: 0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V (Preserved: 1)
+    JP Z, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Cleared: 0)
+    JP NZ, ERROR
+
+    ; --- Case 4: 0xFFFF + 0xFFFF = 0xFFFE ---
+    LD IX, 0xFFFF
+    LD HL, 0x0080   
+    PUSH HL
+    POP AF
+
+    ADD IX, IX
+
+    PUSH AF
+    POP DE          
+    PUSH IX
+    POP HL          
+
+    LD A, H
+    CP 0xFF
+    JP NZ, ERROR
+    LD A, L
+    CP 0xFE
+    JP NZ, ERROR
+    
+    BIT 7, E        ; S (Preserved: 1)
+    JP Z, ERROR
+    BIT 6, E        ; Z (Preserved: 0)
+    JP NZ, ERROR
+    BIT 4, E        ; H (Set: 1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V (Preserved: 0)
+    JP NZ, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Set: 1)
+    JP Z, ERROR
+
+    RET
+TEST_ADD_IY_BC:
+    ; --- Case 1: 0x0900 + 0x0800 = 0x1100 ---
+    ; Expected: Sets H, clears C. S, Z, P/V unchanged. N is reset.
+    LD IY, 0x0900
+    LD BC, 0x0800
+    LD HL, 0x0040   ; L = Initial flags (S=0, Z=1, H=0, P/V=0, N=0, C=0)
+    PUSH HL
+    POP AF
+
+    ADD IY, BC
+
+    PUSH AF
+    POP DE          ; E = New flags
+    PUSH IY
+    POP HL          ; HL = Result
+
+    LD A, H
+    CP 0x11
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, E        ; S (Preserved: 0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, E        ; H (Set: 1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V (Preserved: 0)
+    JP NZ, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Cleared: 0)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x9000 + 0x8000 = 0x1000 ---
+    ; Expected: Clears H, sets C. S, Z, P/V unchanged. N is reset.
+    LD IY, 0x9000
+    LD BC, 0x8000
+    LD HL, 0x0044   ; L = Initial flags (S=0, Z=1, H=0, P/V=1, N=0, C=0)
+    PUSH HL
+    POP AF
+
+    ADD IY, BC
+
+    PUSH AF
+    POP DE          
+    PUSH IY
+    POP HL          
+
+    LD A, H
+    CP 0x10
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, E        ; S (Preserved: 0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, E        ; H (Cleared: 0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V (Preserved: 1)
+    JP Z, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Set: 1)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x1234 + 0x1235 = 0x2469 ---
+    ; Expected: Clears H, clears C. S, Z, P/V unchanged. N is reset.
+    LD IY, 0x1234
+    LD BC, 0x1235
+    LD HL, 0x00C4   ; L = Initial flags (S=1, Z=1, H=0, P/V=1, N=0, C=0)
+    PUSH HL
+    POP AF
+
+    ADD IY, BC
+
+    PUSH AF
+    POP DE          
+    PUSH IY
+    POP HL          
+
+    LD A, H
+    CP 0x24
+    JP NZ, ERROR
+    LD A, L
+    CP 0x69
+    JP NZ, ERROR
+
+    BIT 7, E        ; S (Preserved: 1)
+    JP Z, ERROR
+    BIT 6, E        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, E        ; H (Cleared: 0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V (Preserved: 1)
+    JP Z, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Cleared: 0)
+    JP NZ, ERROR
+
+    ; --- Case 4: 0xFFFF + 0x0001 = 0x0000 ---
+    ; Expected: Sets H, sets C. S, Z, P/V unchanged. N is reset.
+    LD IY, 0xFFFF
+    LD BC, 0x0001
+    LD HL, 0x0080   ; L = Initial flags (S=1, Z=0, H=0, P/V=0, N=0, C=0)
+    PUSH HL
+    POP AF
+
+    ADD IY, BC
+
+    PUSH AF
+    POP DE          
+    PUSH IY
+    POP HL          
+
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, E        ; S (Preserved: 1)
+    JP Z, ERROR
+    BIT 6, E        ; Z (Preserved: 0)
+    JP NZ, ERROR
+    BIT 4, E        ; H (Set: 1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V (Preserved: 0)
+    JP NZ, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Set: 1)
+    JP Z, ERROR
+
+    RET
+
+TEST_ADD_IY_DE:
+    ; --- Case 1: 0x0900 + 0x0800 = 0x1100 ---
+    LD IY, 0x0900
+    LD DE, 0x0800
+    LD HL, 0x0040   
+    PUSH HL
+    POP AF
+
+    ADD IY, DE
+
+    PUSH AF
+    POP HL          ; L = New flags
+    PUSH IY
+    POP BC          ; BC = Result
+
+    LD A, B
+    CP 0x11
+    JP NZ, ERROR
+    LD A, C
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, L        ; S (Preserved: 0)
+    JP NZ, ERROR
+    BIT 6, L        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, L        ; H (Set: 1)
+    JP Z, ERROR
+    BIT 2, L        ; P/V (Preserved: 0)
+    JP NZ, ERROR
+    BIT 1, L        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, L        ; C (Cleared: 0)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x9000 + 0x8000 = 0x1000 ---
+    LD IY, 0x9000
+    LD DE, 0x8000
+    LD HL, 0x0044   
+    PUSH HL
+    POP AF
+
+    ADD IY, DE
+
+    PUSH AF
+    POP HL          
+    PUSH IY
+    POP BC          
+
+    LD A, B
+    CP 0x10
+    JP NZ, ERROR
+    LD A, C
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, L        ; S (Preserved: 0)
+    JP NZ, ERROR
+    BIT 6, L        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, L        ; H (Cleared: 0)
+    JP NZ, ERROR
+    BIT 2, L        ; P/V (Preserved: 1)
+    JP Z, ERROR
+    BIT 1, L        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, L        ; C (Set: 1)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x1234 + 0x1235 = 0x2469 ---
+    LD IY, 0x1234
+    LD DE, 0x1235
+    LD HL, 0x00C4   
+    PUSH HL
+    POP AF
+
+    ADD IY, DE
+
+    PUSH AF
+    POP HL          
+    PUSH IY
+    POP BC          
+
+    LD A, B
+    CP 0x24
+    JP NZ, ERROR
+    LD A, C
+    CP 0x69
+    JP NZ, ERROR
+
+    BIT 7, L        ; S (Preserved: 1)
+    JP Z, ERROR
+    BIT 6, L        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, L        ; H (Cleared: 0)
+    JP NZ, ERROR
+    BIT 2, L        ; P/V (Preserved: 1)
+    JP Z, ERROR
+    BIT 1, L        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, L        ; C (Cleared: 0)
+    JP NZ, ERROR
+
+    ; --- Case 4: 0xFFFF + 0x0001 = 0x0000 ---
+    LD IY, 0xFFFF
+    LD DE, 0x0001
+    LD HL, 0x0080   
+    PUSH HL
+    POP AF
+
+    ADD IY, DE
+
+    PUSH AF
+    POP HL          
+    PUSH IY
+    POP BC          
+
+    LD A, B
+    CP 0x00
+    JP NZ, ERROR
+    LD A, C
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, L        ; S (Preserved: 1)
+    JP Z, ERROR
+    BIT 6, L        ; Z (Preserved: 0)
+    JP NZ, ERROR
+    BIT 4, L        ; H (Set: 1)
+    JP Z, ERROR
+    BIT 2, L        ; P/V (Preserved: 0)
+    JP NZ, ERROR
+    BIT 1, L        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, L        ; C (Set: 1)
+    JP Z, ERROR
+
+    RET
+
+TEST_ADD_IY_SP:
+    ; --- Case 1: 0x0900 + 0x0800 = 0x1100 ---
+    LD (TEMP_SP_SAVE), SP 
+    LD IY, 0x0900
+    LD HL, 0x0040   
+    PUSH HL
+    POP AF              
+    LD SP, 0x0800       
+    
+    ADD IY, SP          
+    
+    LD (SP_RESULT_ADDR), IY 
+    LD SP, (TEMP_SP_SAVE) 
+    PUSH AF
+    POP DE              ; E = New flags
+    LD HL, (SP_RESULT_ADDR) 
+    
+    LD A, H
+    CP 0x11
+    JP NZ, ERROR
+    
+    BIT 7, E        ; S (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z (1)
+    JP Z, ERROR
+    BIT 4, E        ; H (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V (0)
+    JP NZ, ERROR
+    BIT 1, E        ; N (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (0)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x9000 + 0x8000 = 0x1000 ---
+    LD (TEMP_SP_SAVE), SP 
+    LD IY, 0x9000
+    LD HL, 0x0044   
+    PUSH HL
+    POP AF              
+    LD SP, 0x8000       
+    
+    ADD IY, SP          
+    
+    LD (SP_RESULT_ADDR), IY 
+    LD SP, (TEMP_SP_SAVE) 
+    PUSH AF
+    POP DE              
+    LD HL, (SP_RESULT_ADDR) 
+    
+    LD A, H
+    CP 0x10
+    JP NZ, ERROR
+    
+    BIT 7, E        ; S (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z (1)
+    JP Z, ERROR
+    BIT 4, E        ; H (0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V (1)
+    JP Z, ERROR
+    BIT 1, E        ; N (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (1)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x1234 + 0x1235 = 0x2469 ---
+    LD (TEMP_SP_SAVE), SP 
+    LD IY, 0x1234
+    LD HL, 0x00C4   
+    PUSH HL
+    POP AF              
+    LD SP, 0x1235       
+    
+    ADD IY, SP          
+    
+    LD (SP_RESULT_ADDR), IY 
+    LD SP, (TEMP_SP_SAVE) 
+    PUSH AF
+    POP DE              
+    LD HL, (SP_RESULT_ADDR) 
+    
+    LD A, H
+    CP 0x24
+    JP NZ, ERROR
+    LD A, L
+    CP 0x69
+    JP NZ, ERROR
+
+    BIT 7, E        ; S (1)
+    JP Z, ERROR
+    BIT 6, E        ; Z (1)
+    JP Z, ERROR
+    BIT 4, E        ; H (0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V (1)
+    JP Z, ERROR
+    BIT 1, E        ; N (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (0)
+    JP NZ, ERROR
+
+    ; --- Case 4: 0xFFFF + 0x0001 = 0x0000 ---
+    LD (TEMP_SP_SAVE), SP 
+    LD IY, 0xFFFF
+    LD HL, 0x0080   
+    PUSH HL
+    POP AF              
+    LD SP, 0x0001       
+    
+    ADD IY, SP          
+    
+    LD (SP_RESULT_ADDR), IY 
+    LD SP, (TEMP_SP_SAVE) 
+    PUSH AF
+    POP DE              
+    LD HL, (SP_RESULT_ADDR) 
+    
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, E        ; S (1)
+    JP Z, ERROR
+    BIT 6, E        ; Z (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V (0)
+    JP NZ, ERROR
+    BIT 1, E        ; N (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (1)
+    JP Z, ERROR
+
+    RET
+
+TEST_ADD_IY_IY:
+    ; --- Case 1: 0x0900 + 0x0900 = 0x1200 ---
+    LD IY, 0x0900
+    LD HL, 0x0040   
+    PUSH HL
+    POP AF
+
+    ADD IY, IY
+
+    PUSH AF
+    POP DE          
+    PUSH IY
+    POP HL          
+
+    LD A, H
+    CP 0x12
+    JP NZ, ERROR
+    
+    BIT 7, E        ; S (Preserved: 0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, E        ; H (Set: 1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V (Preserved: 0)
+    JP NZ, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Cleared: 0)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x9000 + 0x9000 = 0x2000 ---
+    LD IY, 0x9000
+    LD HL, 0x0044   
+    PUSH HL
+    POP AF
+
+    ADD IY, IY
+
+    PUSH AF
+    POP DE          
+    PUSH IY
+    POP HL          
+
+    LD A, H
+    CP 0x20
+    JP NZ, ERROR
+    
+    BIT 7, E        ; S (Preserved: 0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, E        ; H (Cleared: 0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V (Preserved: 1)
+    JP Z, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Set: 1)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x1234 + 0x1234 = 0x2468 ---
+    LD IY, 0x1234
+    LD HL, 0x00C4   
+    PUSH HL
+    POP AF
+
+    ADD IY, IY
+
+    PUSH AF
+    POP DE          
+    PUSH IY
+    POP HL          
+
+    LD A, H
+    CP 0x24
+    JP NZ, ERROR
+    LD A, L
+    CP 0x68
+    JP NZ, ERROR
+    
+    BIT 7, E        ; S (Preserved: 1)
+    JP Z, ERROR
+    BIT 6, E        ; Z (Preserved: 1)
+    JP Z, ERROR
+    BIT 4, E        ; H (Cleared: 0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V (Preserved: 1)
+    JP Z, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Cleared: 0)
+    JP NZ, ERROR
+
+    ; --- Case 4: 0xFFFF + 0xFFFF = 0xFFFE ---
+    LD IY, 0xFFFF
+    LD HL, 0x0080   
+    PUSH HL
+    POP AF
+
+    ADD IY, IY
+
+    PUSH AF
+    POP DE          
+    PUSH IY
+    POP HL          
+
+    LD A, H
+    CP 0xFF
+    JP NZ, ERROR
+    LD A, L
+    CP 0xFE
+    JP NZ, ERROR
+    
+    BIT 7, E        ; S (Preserved: 1)
+    JP Z, ERROR
+    BIT 6, E        ; Z (Preserved: 0)
+    JP NZ, ERROR
+    BIT 4, E        ; H (Set: 1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V (Preserved: 0)
+    JP NZ, ERROR
+    BIT 1, E        ; N (Reset: 0)
+    JP NZ, ERROR
+    BIT 0, E        ; C (Set: 1)
     JP Z, ERROR
 
     RET
