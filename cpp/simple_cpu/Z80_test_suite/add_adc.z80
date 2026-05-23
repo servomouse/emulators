@@ -5,6 +5,7 @@ ORG 0000h
     HALT
 
 TEMP_SP_SAVE: DW 0x0000
+TEST_RAM EQU 0xFF00
 
 ERROR:
     DI
@@ -12,6 +13,17 @@ ERROR:
     JR ERROR
 
 TEST_ADDS:
+    ; 8-bit operations:
+    CALL TEST_ADD_A_B
+    CALL TEST_ADD_A_C
+    CALL TEST_ADD_A_D
+    CALL TEST_ADD_A_E
+    CALL TEST_ADD_A_H
+    CALL TEST_ADD_A_L
+    CALL TEST_ADD_A_A
+    CALL TEST_ADD_A_N
+    CALL TEST_ADD_A_HL
+    ; 16-bit operations:
     CALL TEST_ADD_HL_BC
     CALL TEST_ADD_HL_DE
     CALL TEST_ADD_HL_HL
@@ -19,6 +31,667 @@ TEST_ADDS:
     RET
 
 TEST_ADCS:
+    RET
+
+TEST_ADD_A_B:
+    ; --- Case 1: 0x7F + 0x7E = 0xFD ---
+    ; Expected Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    LD A, 0x7F
+    LD B, 0x7E
+    ADD A, B
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0xFD
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        ; S flag (1)
+    JP Z, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V flag (1 - Overflow: +127 + +126 wraps negative)
+    JP Z, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (0)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x7F + 0x81 = 0x00 ---
+    ; Expected Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    LD A, 0x7F
+    LD B, 0x81
+    ADD A, B
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (1)
+    JP Z, ERROR
+    BIT 4, E        ; H flag (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V flag (0 - +127 + -127 = 0, no overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (1)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 = 0x46 ---
+    ; Expected Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    LD A, 0x12
+    LD B, 0x34
+    ADD A, B
+
+    PUSH AF
+    POP DE
+
+    CP 0x46
+    JP NZ, ERROR
+
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V flag (0)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (0)
+    JP NZ, ERROR
+    
+    RET
+
+TEST_ADD_A_C:
+    ; --- Case 1: 0x7F + 0x7E = 0xFD ---
+    ; Expected Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    LD A, 0x7F
+    LD C, 0x7E
+    ADD A, C
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0xFD
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        ; S flag (1)
+    JP Z, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V flag (1 - Overflow: +127 + +126 wraps negative)
+    JP Z, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (0)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x7F + 0x81 = 0x00 ---
+    ; Expected Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    LD A, 0x7F
+    LD C, 0x81
+    ADD A, C
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (1)
+    JP Z, ERROR
+    BIT 4, E        ; H flag (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V flag (0 - +127 + -127 = 0, no overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (1)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 = 0x46 ---
+    ; Expected Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    LD A, 0x12
+    LD C, 0x34
+    ADD A, C
+
+    PUSH AF
+    POP DE
+
+    CP 0x46
+    JP NZ, ERROR
+
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V flag (0)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (0)
+    JP NZ, ERROR
+    
+    RET
+
+TEST_ADD_A_D:
+    ; --- Case 1: 0x7F + 0x7E = 0xFD ---
+    ; Expected Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    LD A, 0x7F
+    LD D, 0x7E
+    ADD A, D
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0xFD
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        ; S flag (1)
+    JP Z, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V flag (1 - Overflow: +127 + +126 wraps negative)
+    JP Z, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (0)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x7F + 0x81 = 0x00 ---
+    ; Expected Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    LD A, 0x7F
+    LD D, 0x81
+    ADD A, D
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (1)
+    JP Z, ERROR
+    BIT 4, E        ; H flag (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V flag (0 - +127 + -127 = 0, no overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (1)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 = 0x46 ---
+    ; Expected Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    LD A, 0x12
+    LD D, 0x34
+    ADD A, D
+
+    PUSH AF
+    POP DE
+
+    CP 0x46
+    JP NZ, ERROR
+
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V flag (0)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (0)
+    JP NZ, ERROR
+    
+    RET
+
+TEST_ADD_A_E:
+    ; --- Case 1: 0x7F + 0x7E = 0xFD ---
+    ; Expected Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    LD A, 0x7F
+    LD E, 0x7E
+    ADD A, E
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0xFD
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        ; S flag (1)
+    JP Z, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V flag (1 - Overflow: +127 + +126 wraps negative)
+    JP Z, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (0)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x7F + 0x81 = 0x00 ---
+    ; Expected Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    LD A, 0x7F
+    LD E, 0x81
+    ADD A, E
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (1)
+    JP Z, ERROR
+    BIT 4, E        ; H flag (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V flag (0 - +127 + -127 = 0, no overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (1)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 = 0x46 ---
+    ; Expected Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    LD A, 0x12
+    LD E, 0x34
+    ADD A, E
+
+    PUSH AF
+    POP DE
+
+    CP 0x46
+    JP NZ, ERROR
+
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V flag (0)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (0)
+    JP NZ, ERROR
+    
+    RET
+
+TEST_ADD_A_H:
+    ; --- Case 1: 0x7F + 0x7E = 0xFD ---
+    ; Expected Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    LD A, 0x7F
+    LD H, 0x7E
+    ADD A, H
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0xFD
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        ; S flag (1)
+    JP Z, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V flag (1 - Overflow: +127 + +126 wraps negative)
+    JP Z, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (0)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x7F + 0x81 = 0x00 ---
+    ; Expected Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    LD A, 0x7F
+    LD H, 0x81
+    ADD A, H
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (1)
+    JP Z, ERROR
+    BIT 4, E        ; H flag (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V flag (0 - +127 + -127 = 0, no overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (1)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 = 0x46 ---
+    ; Expected Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    LD A, 0x12
+    LD H, 0x34
+    ADD A, H
+
+    PUSH AF
+    POP DE
+
+    CP 0x46
+    JP NZ, ERROR
+
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V flag (0)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (0)
+    JP NZ, ERROR
+    
+    RET
+
+TEST_ADD_A_L:
+    ; --- Case 1: 0x7F + 0x7E = 0xFD ---
+    ; Expected Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    LD A, 0x7F
+    LD L, 0x7E
+    ADD A, L
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0xFD
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        ; S flag (1)
+    JP Z, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V flag (1 - Overflow: +127 + +126 wraps negative)
+    JP Z, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (0)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x7F + 0x81 = 0x00 ---
+    ; Expected Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    LD A, 0x7F
+    LD L, 0x81
+    ADD A, L
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (1)
+    JP Z, ERROR
+    BIT 4, E        ; H flag (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V flag (0 - +127 + -127 = 0, no overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (1)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 = 0x46 ---
+    ; Expected Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    LD A, 0x12
+    LD L, 0x34
+    ADD A, L
+
+    PUSH AF
+    POP DE
+
+    CP 0x46
+    JP NZ, ERROR
+
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V flag (0)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (0)
+    JP NZ, ERROR
+    
+    RET
+
+TEST_ADD_A_A:
+    ; --- Case 1: 0x7F + 0x7F = 0xFE ---
+    ; Expected Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    LD A, 0x7F
+    ADD A, A
+
+    PUSH AF
+    POP DE
+
+    CP 0xFE
+    JP NZ, ERROR
+
+    BIT 7, E        ; S flag (1)
+    JP Z, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V flag (1 - Overflow)
+    JP Z, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (0)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x80 + 0x80 = 0x00 ---
+    ; Expected Flags: S=0, Z=1, H=0, P/V=1, N=0, C=1
+    LD A, 0x80
+    ADD A, A
+
+    PUSH AF
+    POP DE
+
+    CP 0x00
+    JP NZ, ERROR
+
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (1)
+    JP Z, ERROR
+    BIT 4, E        ; H flag (0 - 0x00 + 0x00 = 0x00, no half-carry)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V flag (1 - Overflow: -128 + -128 wraps to positive 0)
+    JP Z, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (1)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x12 = 0x24 ---
+    ; Expected Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    LD A, 0x12
+    ADD A, A
+
+    PUSH AF
+    POP DE
+
+    CP 0x24
+    JP NZ, ERROR
+
+    BIT 7, E        ; S flag (0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z flag (0)
+    JP NZ, ERROR
+    BIT 4, E        ; H flag (0)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V flag (0)
+    JP NZ, ERROR
+    BIT 1, E        ; N flag (0)
+    JP NZ, ERROR
+    BIT 0, E        ; C flag (0)
+    JP NZ, ERROR
+    
+    RET
+
+TEST_ADD_A_N:
+    ; --- Case 1: 0x7F + 0x7E = 0xFD ---
+    LD A, 0x7F
+    ADD A, 0x7E
+
+    PUSH AF
+    POP DE
+
+    CP 0xFD
+    JP NZ, ERROR
+
+    ; Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    BIT 7, E        
+    JP Z, ERROR
+    BIT 6, E        
+    JP NZ, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x7F + 0x81 = 0x00 ---
+    LD A, 0x7F
+    ADD A, 0x81
+
+    PUSH AF
+    POP DE
+
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP NZ, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP Z, ERROR
+
+    RET
+
+TEST_ADD_A_HL:
+    LD HL, TEST_RAM   ; Point HL to safe RAM
+    
+    ; --- Case 1: 0x7F + 0x7E = 0xFD ---
+    LD (HL), 0x7E
+    LD A, 0x7F
+    ADD A, (HL)
+
+    PUSH AF
+    POP DE
+
+    CP 0xFD
+    JP NZ, ERROR
+
+    ; Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    BIT 7, E        
+    JP Z, ERROR
+    BIT 6, E        
+    JP NZ, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP Z, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x7F + 0x81 = 0x00 ---
+    LD (HL), 0x81
+    LD A, 0x7F
+    ADD A, (HL)
+
+    PUSH AF
+    POP DE
+
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP Z, ERROR
+    BIT 4, E        
+    JP Z, ERROR
+    BIT 2, E        
+    JP NZ, ERROR
+    BIT 1, E        
+    JP NZ, ERROR
+    BIT 0, E        
+    JP Z, ERROR
+
     RET
 
 TEST_ADD_HL_BC: ; Covers ADD HL, BC
