@@ -44,8 +44,20 @@ TEST_ADDS:
     RET
 
 TEST_ADCS:
+    CALL TEST_ADC_A_B
+    CALL TEST_ADC_A_C
+    CALL TEST_ADC_A_D
+    CALL TEST_ADC_A_E
+    CALL TEST_ADC_A_H
+    CALL TEST_ADC_A_L
+    CALL TEST_ADC_A_A
+    CALL TEST_ADC_A_HL
+    CALL TEST_ADC_A_N
+    CALL TEST_ADC_A_IX_D
+    CALL TEST_ADC_A_IY_D
     RET
 
+; 8-bit ADD opcodes
 TEST_ADD_A_B:
     ; --- Case 1: 0x7F + 0x7E = 0xFD ---
     ; Expected Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
@@ -891,7 +903,7 @@ TEST_ADD_A_HL:
 
     RET
 
-; 16-bit opcodes:
+; 16-bit ADD opcodes:
 TEST_ADD_IX_BC:
     ; --- Case 1: 0x0900 + 0x0800 = 0x1100 ---
     ; Expected: Sets H, clears C. S, Z, P/V unchanged. N is reset.
@@ -2467,3 +2479,934 @@ TEST_ADD_HL_SP: ; Covers ADD HL, SP
     ; Restore original SP
     LD SP, (TEMP_SP_SAVE)
     RET
+
+; 8-bit ADC opcodes:
+TEST_ADC_A_B:
+    ; --- Case 1: 0x7F + 0x02 + C(1) = 0x82 ---
+    LD A, 0x7F
+    LD B, 0x02
+    SCF             ; Set Carry flag
+    ADC A, B
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0x82
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    BIT 7, E        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set (signed overflow)
+    JP Z, ERROR
+    BIT 1, E        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, E        ; C should be cleared (no carry from MSB)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0xFC + 0x03 + C(1) = 0x00 ---
+    LD A, 0xFC
+    LD B, 0x03
+    SCF             ; Set Carry flag
+    ADC A, B
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    BIT 7, E        ; S should be cleared (result is positive/zero)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, E        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, E        ; C should be set (carry from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 + C(1) = 0x47 ---
+    LD A, 0x12
+    LD B, 0x34
+    SCF             ; Set Carry flag
+    ADC A, B
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x47
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be cleared
+    JP NZ, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_ADC_A_C:
+    ; --- Case 1: 0x7F + 0x02 + C(1) = 0x82 ---
+    LD A, 0x7F
+    LD C, 0x02
+    SCF             ; Set Carry flag
+    ADC A, C
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0x82
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    BIT 7, E        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set (signed overflow)
+    JP Z, ERROR
+    BIT 1, E        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, E        ; C should be cleared (no carry from MSB)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0xFC + 0x03 + C(1) = 0x00 ---
+    LD A, 0xFC
+    LD C, 0x03
+    SCF             ; Set Carry flag
+    ADC A, C
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    BIT 7, E        ; S should be cleared (result is positive/zero)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, E        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, E        ; C should be set (carry from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 + C(1) = 0x47 ---
+    LD A, 0x12
+    LD C, 0x34
+    SCF             ; Set Carry flag
+    ADC A, C
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x47
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be cleared
+    JP NZ, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_ADC_A_D:
+    ; --- Case 1: 0x7F + 0x02 + C(1) = 0x82 ---
+    LD A, 0x7F
+    LD D, 0x02
+    SCF             ; Set Carry flag
+    ADC A, D
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify Result
+    CP 0x82
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    BIT 7, C        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set (signed overflow)
+    JP Z, ERROR
+    BIT 1, C        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, C        ; C should be cleared (no carry from MSB)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0xFC + 0x03 + C(1) = 0x00 ---
+    LD A, 0xFC
+    LD D, 0x03
+    SCF             ; Set Carry flag
+    ADC A, D
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    BIT 7, C        ; S should be cleared (result is positive/zero)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, C        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, C        ; C should be set (carry from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 + C(1) = 0x47 ---
+    LD A, 0x12
+    LD D, 0x34
+    SCF             ; Set Carry flag
+    ADC A, D
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x47
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    BIT 7, C        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, C        ; N should be cleared
+    JP NZ, ERROR
+    BIT 0, C        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_ADC_A_E:
+    ; --- Case 1: 0x7F + 0x02 + C(1) = 0x82 ---
+    LD A, 0x7F
+    LD E, 0x02
+    SCF             ; Set Carry flag
+    ADC A, E
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify Result
+    CP 0x82
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    BIT 7, C        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set (signed overflow)
+    JP Z, ERROR
+    BIT 1, C        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, C        ; C should be cleared (no carry from MSB)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0xFC + 0x03 + C(1) = 0x00 ---
+    LD A, 0xFC
+    LD E, 0x03
+    SCF             ; Set Carry flag
+    ADC A, E
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    BIT 7, C        ; S should be cleared (result is positive/zero)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, C        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, C        ; C should be set (carry from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 + C(1) = 0x47 ---
+    LD A, 0x12
+    LD E, 0x34
+    SCF             ; Set Carry flag
+    ADC A, E
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x47
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    BIT 7, C        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, C        ; N should be cleared
+    JP NZ, ERROR
+    BIT 0, C        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_ADC_A_H:
+    ; --- Case 1: 0x7F + 0x02 + C(1) = 0x82 ---
+    LD A, 0x7F
+    LD H, 0x02
+    SCF             ; Set Carry flag
+    ADC A, H
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify Result
+    CP 0x82
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    BIT 7, C        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set (signed overflow)
+    JP Z, ERROR
+    BIT 1, C        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, C        ; C should be cleared (no carry from MSB)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0xFC + 0x03 + C(1) = 0x00 ---
+    LD A, 0xFC
+    LD H, 0x03
+    SCF             ; Set Carry flag
+    ADC A, H
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    BIT 7, C        ; S should be cleared (result is positive/zero)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, C        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, C        ; C should be set (carry from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 + C(1) = 0x47 ---
+    LD A, 0x12
+    LD H, 0x34
+    SCF             ; Set Carry flag
+    ADC A, H
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x47
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    BIT 7, C        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, C        ; N should be cleared
+    JP NZ, ERROR
+    BIT 0, C        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_ADC_A_L:
+    ; --- Case 1: 0x7F + 0x02 + C(1) = 0x82 ---
+    LD A, 0x7F
+    LD L, 0x02
+    SCF             ; Set Carry flag
+    ADC A, L
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify Result
+    CP 0x82
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    BIT 7, C        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set (signed overflow)
+    JP Z, ERROR
+    BIT 1, C        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, C        ; C should be cleared (no carry from MSB)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0xFC + 0x03 + C(1) = 0x00 ---
+    LD A, 0xFC
+    LD L, 0x03
+    SCF             ; Set Carry flag
+    ADC A, L
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    BIT 7, C        ; S should be cleared (result is positive/zero)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, C        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, C        ; C should be set (carry from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 + C(1) = 0x47 ---
+    LD A, 0x12
+    LD L, 0x34
+    SCF             ; Set Carry flag
+    ADC A, L
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x47
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    BIT 7, C        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, C        ; N should be cleared
+    JP NZ, ERROR
+    BIT 0, C        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_ADC_A_A:
+    ; --- Case 1: 0x7F + 0x7F + C(1) = 0xFF ---
+    LD A, 0x7F
+    SCF             ; Set Carry flag
+    ADC A, A
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0xFF
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    BIT 7, E        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set (signed overflow)
+    JP Z, ERROR
+    BIT 1, E        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, E        ; C should be cleared (no carry from MSB)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x80 + 0x80 + C(0) = 0x00 ---
+    LD A, 0x80
+    AND A           ; Clears Carry flag (and others, but we only need C=0)
+    ADC A, A
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=1, N=0, C=1
+    BIT 7, E        ; S should be cleared (result is positive/zero)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared (no carry from bit 3)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be set (signed overflow)
+    JP Z, ERROR
+    BIT 1, E        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, E        ; C should be set (carry from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x12 + C(1) = 0x25 ---
+    LD A, 0x12
+    SCF             ; Set Carry flag
+    ADC A, A
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x25
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be cleared
+    JP NZ, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_ADC_A_HL:
+    ; --- Case 1: 0x7F + 0x02 + C(1) = 0x82 ---
+    LD HL, TEST_RAM
+    LD (HL), 0x02   ; Load operand into memory
+    LD A, 0x7F
+    SCF             ; Set Carry flag
+    ADC A, (HL)
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0x82
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    BIT 7, E        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set (signed overflow)
+    JP Z, ERROR
+    BIT 1, E        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, E        ; C should be cleared (no carry from MSB)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0xFC + 0x03 + C(1) = 0x00 ---
+    LD HL, TEST_RAM
+    LD (HL), 0x03   
+    LD A, 0xFC
+    SCF             
+    ADC A, (HL)
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    BIT 7, E        ; S should be cleared (result is positive/zero)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, E        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, E        ; C should be set (carry from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 + C(1) = 0x47 ---
+    LD HL, TEST_RAM
+    LD (HL), 0x34   
+    LD A, 0x12
+    SCF             
+    ADC A, (HL)
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x47
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be cleared
+    JP NZ, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_ADC_A_N:
+    ; --- Case 1: 0x7F + 0x02 + C(1) = 0x82 ---
+    LD A, 0x7F
+    SCF             ; Set Carry flag
+    ADC A, 0x02     ; Immediate value
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0x82
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    BIT 7, E        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set (signed overflow)
+    JP Z, ERROR
+    BIT 1, E        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, E        ; C should be cleared (no carry from MSB)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0xFC + 0x03 + C(1) = 0x00 ---
+    LD A, 0xFC
+    SCF             
+    ADC A, 0x03     
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    BIT 7, E        ; S should be cleared (result is positive/zero)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, E        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, E        ; C should be set (carry from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 + C(1) = 0x47 ---
+    LD A, 0x12
+    SCF             
+    ADC A, 0x34     
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x47
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be cleared
+    JP NZ, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_ADC_A_IX_D:
+    ; Ensure IX points to our scratchpad memory
+    LD IX, TEST_RAM 
+
+    ; --- Case 1: 0x7F + 0x02 + C(1) = 0x82 ---
+    LD (IX+0x05), 0x02  ; Load operand at displacement +5
+    LD A, 0x7F
+    SCF                 ; Set Carry flag
+    ADC A, (IX+0x05)
+
+    PUSH AF
+    POP DE              ; E = Flags
+
+    ; Verify Result
+    CP 0x82
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    BIT 7, E        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set (signed overflow)
+    JP Z, ERROR
+    BIT 1, E        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, E        ; C should be cleared (no carry from MSB)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0xFC + 0x03 + C(1) = 0x00 ---
+    LD (IX-0x05), 0x03  
+    LD A, 0xFC
+    SCF             
+    ADC A, (IX-0x05)
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    BIT 7, E        ; S should be cleared (result is positive/zero)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, E        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, E        ; C should be set (carry from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 + C(1) = 0x47 ---
+    LD (IX+0x05), 0x34  
+    LD A, 0x12
+    SCF             
+    ADC A, (IX+0x05)
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x47
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be cleared
+    JP NZ, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_ADC_A_IY_D:
+    ; Ensure IY points to our scratchpad memory
+    LD IY, TEST_RAM 
+
+    ; --- Case 1: 0x7F + 0x02 + C(1) = 0x82 ---
+    LD (IY+0x05), 0x02  ; Load operand at displacement +5
+    LD A, 0x7F
+    SCF                 ; Set Carry flag
+    ADC A, (IY+0x05)
+
+    PUSH AF
+    POP DE              ; E = Flags
+
+    ; Verify Result
+    CP 0x82
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+    BIT 7, E        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set (signed overflow)
+    JP Z, ERROR
+    BIT 1, E        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, E        ; C should be cleared (no carry from MSB)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0xFC + 0x03 + C(1) = 0x00 ---
+    LD (IY-0x05), 0x03  
+    LD A, 0xFC
+    SCF             
+    ADC A, (IY-0x05)
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=1, P/V=0, N=0, C=1
+    BIT 7, E        ; S should be cleared (result is positive/zero)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, E        ; H should be set (carry from bit 3)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be cleared (addition)
+    JP NZ, ERROR
+    BIT 0, E        ; C should be set (carry from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x12 + 0x34 + C(1) = 0x47 ---
+    LD (IY+0x05), 0x34  
+    LD A, 0x12
+    SCF             
+    ADC A, (IY+0x05)
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x47
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=0, C=0
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be cleared
+    JP NZ, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+; 16-bit ADC opcodes
+
