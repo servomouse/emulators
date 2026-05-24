@@ -1798,6 +1798,111 @@ public:
                 regs.set_reg(RegName::A, res);
                 break;
             }
+            case 0x88: {// 0x88     (ADC A, B    - Adds B and the carry flag to A), cycles: 4
+                // C as defined
+                // N reset
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::B);
+                uint16_t carry_in = regs.get_flag(FlagName::C);
+                uint16_t res = a + val + carry_in;
+                regs.update_flag(FlagName::C, res > 0xFF);
+                regs.clear_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
+                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                printf("0x%04X: ADC A, B :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x89: {// 0x89     (ADC A, C    - Adds C and the carry flag to A), cycles: 4
+                // C as defined
+                // N reset
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::C);
+                uint16_t carry_in = regs.get_flag(FlagName::C);
+                uint16_t res = a + val + carry_in;
+                regs.update_flag(FlagName::C, res > 0xFF);
+                regs.clear_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
+                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                printf("0x%04X: ADC A, C :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x8A: {// 0x8A     (ADC A, D    - Adds D and the carry flag to A), cycles: 4
+                // C as defined
+                // N reset
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::D);
+                uint16_t carry_in = regs.get_flag(FlagName::C);
+                uint16_t res = a + val + carry_in;
+                regs.update_flag(FlagName::C, res > 0xFF);
+                regs.clear_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
+                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                printf("0x%04X: ADC A, D :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x8B: {// 0x8B     (ADC A, E    - Adds E and the carry flag to A), cycles: 4
+                // C as defined
+                // N reset
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::E);
+                uint16_t carry_in = regs.get_flag(FlagName::C);
+                uint16_t res = a + val + carry_in;
+                regs.update_flag(FlagName::C, res > 0xFF);
+                regs.clear_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
+                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                printf("0x%04X: ADC A, E :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x8C: {// 0x8C     (ADC A, H    - Adds H and the carry flag to A), cycles: 4
+                // C as defined
+                // N reset
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::H);
+                uint16_t carry_in = regs.get_flag(FlagName::C);
+                uint16_t res = a + val + carry_in;
+                regs.update_flag(FlagName::C, res > 0xFF);
+                regs.clear_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
+                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                printf("0x%04X: ADC A, H :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
             case 0x8D: {// 0x8D     (ADC A, L    - Adds L and the carry flag to A), cycles: 4
                 // C as defined
                 // N reset
@@ -1806,18 +1911,59 @@ public:
                 // Z as defined
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
-                uint16_t l = regs.get_reg(RegName::L);
-                uint16_t res = a + l;
-                if (regs.get_flag(FlagName::C)) {
-                    res += 1;
-                }
+                uint16_t val = regs.get_reg(RegName::L);
+                uint16_t carry_in = regs.get_flag(FlagName::C);
+                uint16_t res = a + val + carry_in;
                 regs.update_flag(FlagName::C, res > 0xFF);
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, l, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, l, 0, false, false));
+                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
                 regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
                 regs.update_flag(FlagName::S, z80_sign_flag(res, false));
-                printf("0x%04X: ADC A, L || 0x%02X F=0x%02X\n", pc, opcode, regs.get_reg(RegName::F));
+                printf("0x%04X: ADC A, L :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x8E: {// 0x8E     (ADC A, (HL)    - Adds (HL) and the carry flag to A), cycles: 7
+                // C as defined
+                // N reset
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t addr = regs.get_reg(RegName::HL);
+                uint16_t val = mem_bus->read(addr);
+                uint16_t carry_in = regs.get_flag(FlagName::C);
+                uint16_t res = a + val + carry_in;
+                regs.update_flag(FlagName::C, res > 0xFF);
+                regs.clear_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
+                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                printf("0x%04X: ADC A, (HL) :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x8F: {// 0x8F     (ADC A, A    - Adds A and the carry flag to A), cycles: 4
+                // C as defined
+                // N reset
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::A);
+                uint16_t carry_in = regs.get_flag(FlagName::C);
+                uint16_t res = a + val + carry_in;
+                regs.update_flag(FlagName::C, res > 0xFF);
+                regs.clear_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
+                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                printf("0x%04X: ADC A, A :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
             }
@@ -2344,6 +2490,28 @@ public:
                 regs.set_reg(RegName::PC, new_pc);
                 return true;
             }
+            case 0xCE: {// 0xCE N   (ADC A, N    - Adds N and the carry flag to A), cycles: 7
+                // C as defined
+                // N reset
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = mem_bus->read(pc+1);
+                uint16_t carry_in = regs.get_flag(FlagName::C);
+                uint16_t res = a + val + carry_in;
+                regs.update_flag(FlagName::C, res > 0xFF);
+                regs.clear_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
+                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
+                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
+                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                printf("0x%04X: ADC A, (HL) :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                num_bytes_read += 1;
+                break;
+            }
             case 0xD0: {// 0xD0     (RET NC - If the carry flag is unset, the top stack entry is popped into PC), cycles: 11/5
                 // Does not affect flags
                 if (!regs.get_flag(FlagName::C)) {
@@ -2554,9 +2722,10 @@ public:
                     regs.set_reg(RegName::IX, res);
                     num_bytes_read += 1;
                 } else if (new_opcode == 0x34) {   // 0xDD 0x34 D   (INC (IX+D) - Adds one to the memory location pointed to by IX plus d), cycles: 23
-                    int8_t offset = mem_bus->read(pc+2);
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
                     uint16_t addr = regs.get_reg(RegName::IX);
-                    uint16_t res_addr = addr + offset;
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
                     uint16_t val = mem_bus->read(res_addr);
                     uint16_t res = (val + 1) & 0xFF;
                     regs.clear_flag(FlagName::N);
@@ -2568,9 +2737,10 @@ public:
                     mem_bus->write(res_addr, res);
                     num_bytes_read += 2;
                 } else if (new_opcode == 0x35) {   // 0xDD 0x35 D   (DEC (IX+D) - Subtracts one from the memory location pointed to by IX plus d), cycles: 23
-                    int8_t offset = mem_bus->read(pc+2);
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
                     uint16_t addr = regs.get_reg(RegName::IX);
-                    uint16_t res_addr = addr + offset;
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
                     uint16_t val = mem_bus->read(res_addr);
                     uint16_t res = (val - 1) & 0xFF;
                     regs.set_flag(FlagName::N);
@@ -2582,9 +2752,10 @@ public:
                     mem_bus->write(res_addr, res);
                     num_bytes_read += 2;
                 } else if (new_opcode == 0x36) {   // 0xDD 0x36 D   (LD (IX+D), N - Stores n to the memory location pointed to by IX plus d), cycles: 19
-                    uint8_t offset = mem_bus->read(pc+2);
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
                     uint16_t addr = regs.get_reg(RegName::IX);
-                    uint16_t res_addr = addr + offset;
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
                     uint16_t val = mem_bus->read(pc+3);
                     printf("0x%04X: LD (IX+0x%02X), 0x%02X :: (0x%04X + 0x%02X -> 0x%04X) || 0x%02X 0x%02X\n", pc, offset, val, addr, offset, res_addr, opcode, new_opcode);
                     mem_bus->write(res_addr, val);
@@ -2610,19 +2781,38 @@ public:
                     regs.set_reg(RegName::B, regs.get_reg(RegName::B));
                     num_bytes_read += 1;
                 } else if (new_opcode == 0x86) {   // 0xDD 0x86 D   (ADD A, (IX+D) - Adds the value pointed to by IX plus d to A), cycles: 19
-                    int8_t offset = mem_bus->read(pc+2);
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
                     uint16_t a = regs.get_reg(RegName::A);
                     uint16_t addr = regs.get_reg(RegName::IX);
-                    uint16_t res_addr = addr + offset;
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
                     uint16_t val = mem_bus->read(res_addr);
                     uint16_t res = a + val;
                     regs.clear_flag(FlagName::N);
                     regs.update_flag(FlagName::C, res > 0xFF);
                     regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, false));
-                    regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, false, false));
+                    regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
                     regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
                     regs.update_flag(FlagName::S, z80_sign_flag(res, false));
-                    printf("0x%04X: ADD A, (IX + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    printf("0x%04X: ADD A, (IX + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X, addr: 0x%04X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, res_addr, opcode, new_opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::A, res);
+                    num_bytes_read += 2;
+                } else if (new_opcode == 0x8E) {   // 0xDD 0x8E D   (ADC A, (IX+D) - Adds the value pointed to by IX plus d and the carry flag to A), cycles: 19
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
+                    uint16_t a = regs.get_reg(RegName::A);
+                    uint16_t addr = regs.get_reg(RegName::IX);
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
+                    uint16_t val = mem_bus->read(res_addr);
+                    uint16_t carry_in = regs.get_flag(FlagName::C);
+                    uint16_t res = a + val + carry_in;
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::C, res > 0xFF);
+                    regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
+                    regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
+                    regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
+                    regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                    printf("0x%04X: ADC A, (IX + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::A, res);
                     num_bytes_read += 2;
                 } else if (new_opcode == 0xE1) {   // 0xDD 0xE1     (POP IX), cycles: 14
@@ -3033,9 +3223,10 @@ public:
                     regs.set_reg(RegName::IY, res);
                     num_bytes_read += 1;
                 } else if (new_opcode == 0x34) {   // 0xFD 0x34 D (INC (IY+D), N - Adds one to the memory location pointed to by IY plus d), cycles: 23
-                    int8_t offset = mem_bus->read(pc+2);
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
                     uint16_t addr = regs.get_reg(RegName::IY);
-                    uint16_t res_addr = addr + offset;
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
                     uint16_t val = mem_bus->read(res_addr);
                     uint16_t res = (val + 1) & 0xFF;
                     regs.clear_flag(FlagName::N);
@@ -3047,9 +3238,10 @@ public:
                     mem_bus->write(res_addr, res);
                     num_bytes_read += 2;
                 } else if (new_opcode == 0x35) {   // 0xFD 0x35 D (DEC (IY+D), N - Subtracts one from the memory location pointed to by IY plus d), cycles: 23
-                    int8_t offset = mem_bus->read(pc+2);
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
                     uint16_t addr = regs.get_reg(RegName::IY);
-                    uint16_t res_addr = addr + offset;
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
                     uint16_t val = mem_bus->read(res_addr);
                     uint16_t res = (val - 1) & 0xFF;
                     regs.set_flag(FlagName::N);
@@ -3061,9 +3253,10 @@ public:
                     mem_bus->write(res_addr, res);
                     num_bytes_read += 2;
                 } else if (new_opcode == 0x36) {   // 0xFD 0x36 D (LD (IY+D), N - Stores n to the memory location pointed to by IY plus d), cycles: 19
-                    uint8_t offset = mem_bus->read(pc+2);
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
                     uint16_t addr = regs.get_reg(RegName::IY);
-                    uint16_t res_addr = addr + offset;
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
                     uint16_t val = mem_bus->read(pc+3);
                     printf("0x%04X: LD (IY+0x%02X), 0x%02X :: (0x%04X + 0x%02X -> 0x%04X) || 0x%02X 0x%02X\n", pc, offset, val, addr, offset, res_addr, opcode, new_opcode);
                     mem_bus->write(res_addr, val);
@@ -3085,19 +3278,38 @@ public:
                     regs.set_reg(RegName::IY, res);
                     num_bytes_read += 1;
                 } else if (new_opcode == 0x86) {   // 0xFD 0x86 D (ADD A, (IY+D) - Adds the value pointed to by IY plus d to A), cycles: 19
-                    int8_t offset = mem_bus->read(pc+2);
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
                     uint16_t a = regs.get_reg(RegName::A);
                     uint16_t addr = regs.get_reg(RegName::IY);
-                    uint16_t res_addr = addr + offset;
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
                     uint16_t val = mem_bus->read(res_addr);
                     uint16_t res = a + val;
                     regs.clear_flag(FlagName::N);
                     regs.update_flag(FlagName::C, res > 0xFF);
                     regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, false));
-                    regs.update_flag(FlagName::P_V, calculate_overflow(val, 1, res, false, false));
+                    regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
                     regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
                     regs.update_flag(FlagName::S, z80_sign_flag(res, false));
                     printf("0x%04X: ADD A, (IY + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::A, res);
+                    num_bytes_read += 2;
+                } else if (new_opcode == 0x8E) {   // 0xFD 0x8E D   (ADC A, (IY+D) - Adds the value pointed to by IY plus d and the carry flag to A), cycles: 19
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
+                    uint16_t a = regs.get_reg(RegName::A);
+                    uint16_t addr = regs.get_reg(RegName::IY);
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
+                    uint16_t val = mem_bus->read(res_addr);
+                    uint16_t carry_in = regs.get_flag(FlagName::C);
+                    uint16_t res = a + val + carry_in;
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::C, res > 0xFF);
+                    regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
+                    regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
+                    regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
+                    regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                    printf("0x%04X: ADC A, (IY + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::A, res);
                     num_bytes_read += 2;
                 } else if (new_opcode == 0xE1) {   // 0xFD 0xE1 (POP IY), cycles: 14
