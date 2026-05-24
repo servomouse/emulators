@@ -62,6 +62,24 @@ int main() {
         alu.get_flag(ALU_Flags::P),
         alu.get_flag(ALU_Flags::O)
     );
+    ops[0] = 0x88;
+    ops[1] = 0x88;
+    alu.set_op1(ops[0]);
+    alu.set_op2(ops[1]);
+    alu.clear_all_flags();
+    alu.perform_operation(ALU_Op:: ADD, 8);
+    res = alu.get_res();
+    printf("0x%04X + 0x%04X = 0x%04X; Carry: %d, Half-Carry: %d, Sign: %d, Zero: %d, Parity: %d, Signed_Overflow: %d\n",
+        ops[0],
+        ops[1],
+        res,
+        alu.get_flag(ALU_Flags::C),
+        alu.get_flag(ALU_Flags::H),
+        alu.get_flag(ALU_Flags::S),
+        alu.get_flag(ALU_Flags::Z),
+        alu.get_flag(ALU_Flags::P),
+        alu.get_flag(ALU_Flags::O)
+    );
 
     return 0;
 }

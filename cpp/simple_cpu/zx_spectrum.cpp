@@ -6,6 +6,7 @@
 #include "cpu.hpp"
 #include "z80_utils.hpp"
 #include "z80_io.hpp"
+#include "4-bit_ALU.hpp"
 
 /** Memory map:
  * 0x0000-0x3FFF ROM
@@ -33,22 +34,6 @@
  * Bit 7 - S (Sign): Copies the MSB (bit 7) of the result. Set (1) if negative, Reset (0) if positive.
  * User manual, page 65
  */
-
-enum class ALU_Op {
-    ADD = 0,
-    ADC,
-    INC,
-    SUB,
-    SBC,
-    DEC,
-    AND,
-    OR,
-    XOR,
-    RL,
-    RLC,
-    RR,
-    RRC
-};
 
 enum class FlagName {
     C = 0,
@@ -261,6 +246,7 @@ public:
 class Z80CPU : public CPU {
     Z80Registers regs;
     bool interrupts_enabled;
+    ALU alu;
 public:
     Z80CPU(AddressDecoder* mem, AddressDecoder* io) 
         : CPU(mem, io) {
@@ -315,52 +301,6 @@ public:
             regs.inc_reg(RegName::SP);
             printf("\tStack operation::: POP 8b 0x%02X, new SP: 0x%04X\n", val, sp);
         }
-    }
-    
-    uint16_t ALU(uint16_t op1, uint16_t op2, ALU_Op op, bool is_16b) {
-        // ADD,
-        // ADC,
-        // INC,
-        // SUB,
-        // SBC,
-        // DEC,
-        // AND,
-        // OR,
-        // XOR,
-        // RL,
-        // RLC,
-        // RR,
-        // RRC
-        
-        // C = 0,
-        // N,
-        // P_V,
-        // F3,
-        // H,
-        // F5,
-        // Z,
-        // S
-        switch(op) {
-            case ALU_Op::ADD:
-            case ALU_Op::ADC:
-            case ALU_Op::INC:
-            {
-                uint16_t carry_in = 0, oveflow = 0, half_carry = 0, z = 0, s = 0, res = 0;
-                if (op == ALU_Op::ADC) {
-                    carry_in = regs.get_flag(FlagName::C);
-                }
-                if (is_16b) {
-                    ;
-                } else {
-                    uint16_t temp1 = op1&0x0F + op2&0x0F + carry_in;
-                    if (temp1 > 0x0F) half_carry = 1;
-                    uint16_t temp2 = op1&0xF0 + op2&0xF0 + (half_carry << 4);
-                    res = temp1 | temp2;
-                }
-            }
-            break;
-        }
-        return 0;
     }
 
     uint16_t z80_add(uint16_t a, uint16_t b, bool use_carry, bool is_16b) {
@@ -540,10 +480,15 @@ public:
                 // S unaffected
                 uint32_t hl = regs.get_reg(RegName::HL);
                 uint32_t val = regs.get_reg(RegName::BC);
-                uint32_t res = hl + val;
-                regs.update_flag(FlagName::C, res > 0xFFFF);
+                
+                alu.set_op1(hl);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: ADD, 16);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::H, calculate_half_carry(hl, val, 0, true, false));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
                 printf("0x%04X: ADD HL, BC :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::HL, res);
                 break;
@@ -2943,9 +2888,8 @@ public:
                 break;
             }
             case 0xED: {// 0xED     (MISC intruction, read one more byte to get the actual opcode)
-                // uint16_t pc = regs.get_reg(RegName::PC);
                 uint16_t new_opcode = mem_bus->read(pc+1);
-                if (new_opcode == 0x43) {   // 0xED 0x43 N N (LD (NN), BC - Load BC into memory pointed by NN), cycles: 20
+                if (new_opcode == 0x43) {          // 0xED 0x43 N N (LD (NN), BC - Load BC into memory pointed by NN), cycles: 20
                     // Does not affect flags
                     uint16_t addr = mem_read_16b(pc+2);
                     printf("0x%04X: LD 0x%04X, BC || 0x%02X 0x%02X\n", pc, addr, opcode, new_opcode);
@@ -3066,7 +3010,7 @@ public:
                     printf("0x%04X: LD SP, 0x%04X : (addr: 0x%04X) || 0x%02X 0x%02X\n", pc, val, addr, opcode, new_opcode);
                     regs.set_reg(RegName::SP, val);
                     num_bytes_read += 3;
-                } else if (new_opcode == 0xB0) {    // 0xED 0xB0 LDIR, cycles 21/16
+                } else if (new_opcode == 0xB0) {   // 0xED 0xB0 LDIR, cycles 21/16
                     // C unaffected
                     // N reset
                     // P/V reset
