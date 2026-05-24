@@ -2956,6 +2956,26 @@ public:
                     printf("0x%04X: LD I, A || 0x%02X 0x%02X\n", pc, opcode, new_opcode);
                     regs.set_reg(RegName::I, regs.get_reg(RegName::A));
                     num_bytes_read ++;
+                } else if (new_opcode == 0x4A) {   // 0xED 0x4A ADC HL, BC (Adds BC and the carry flag to HL), cycles: 15
+                    // C as defined
+                    // N reset
+                    // P/V detects overflow
+                    // H as defined
+                    // Z as defined
+                    // S as defined
+                    uint32_t hl = regs.get_reg(RegName::HL);
+                    uint32_t val = regs.get_reg(RegName::BC);
+                    uint32_t carry_in = regs.get_flag(FlagName::C);
+                    uint32_t res = hl + val + carry_in;
+                    regs.update_flag(FlagName::C, res > 0xFFFF);
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::P_V, calculate_overflow(hl, val, res, false, true));
+                    regs.update_flag(FlagName::H, calculate_half_carry(hl, val, carry_in, true, false));
+                    regs.update_flag(FlagName::Z, z80_zero_flag(res, true));
+                    regs.update_flag(FlagName::S, z80_sign_flag(res, true));
+                    printf("0x%04X: ADC HL, BC :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::HL, res);
+                    num_bytes_read += 1;
                 } else if (new_opcode == 0x52) {   // 0xED 0x52 SBC HL, DE (Subtract DE and Carry from HL), cycles 15
                     printf("0x%04X: SBC HL, DE || 0x%02X 0x%02X 0x%02X\n", pc, opcode, new_opcode, flags_in);
                     uint16_t hl = regs.get_reg(RegName::HL);
@@ -2973,12 +2993,72 @@ public:
                     res==0? regs.set_flag(FlagName::Z): regs.clear_flag(FlagName::Z);
                     (res&0x80)==0x80? regs.set_flag(FlagName::S): regs.clear_flag(FlagName::S);
                     num_bytes_read ++;
+                } else if (new_opcode == 0x5A) {   // 0xED 0x5A ADC HL, DE (Adds DE and the carry flag to HL), cycles: 15
+                    // C as defined
+                    // N reset
+                    // P/V detects overflow
+                    // H as defined
+                    // Z as defined
+                    // S as defined
+                    uint32_t hl = regs.get_reg(RegName::HL);
+                    uint32_t val = regs.get_reg(RegName::DE);
+                    uint32_t carry_in = regs.get_flag(FlagName::C);
+                    uint32_t res = hl + val + carry_in;
+                    regs.update_flag(FlagName::C, res > 0xFFFF);
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::P_V, calculate_overflow(hl, val, res, false, true));
+                    regs.update_flag(FlagName::H, calculate_half_carry(hl, val, carry_in, true, false));
+                    regs.update_flag(FlagName::Z, z80_zero_flag(res, true));
+                    regs.update_flag(FlagName::S, z80_sign_flag(res, true));
+                    printf("0x%04X: ADC HL, DE :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::HL, res);
+                    num_bytes_read += 1;
+                } else if (new_opcode == 0x6A) {   // 0xED 0x6A ADC HL, HL (Adds HL and the carry flag to HL), cycles: 15
+                    // C as defined
+                    // N reset
+                    // P/V detects overflow
+                    // H as defined
+                    // Z as defined
+                    // S as defined
+                    uint32_t hl = regs.get_reg(RegName::HL);
+                    uint32_t val = regs.get_reg(RegName::HL);
+                    uint32_t carry_in = regs.get_flag(FlagName::C);
+                    uint32_t res = hl + val + carry_in;
+                    regs.update_flag(FlagName::C, res > 0xFFFF);
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::P_V, calculate_overflow(hl, val, res, false, true));
+                    regs.update_flag(FlagName::H, calculate_half_carry(hl, val, carry_in, true, false));
+                    regs.update_flag(FlagName::Z, z80_zero_flag(res, true));
+                    regs.update_flag(FlagName::S, z80_sign_flag(res, true));
+                    printf("0x%04X: ADC HL, HL :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::HL, res);
+                    num_bytes_read += 1;
                 } else if (new_opcode == 0x73) {   // 0xED 0x73 N N (LD (NN), SP - Load SP into memory pointed by NN), cycles: 20
                     // Does not affect flags
                     uint16_t addr = mem_read_16b(pc+2);
                     printf("0x%04X: LD (0x%04X), SP || 0x%02X 0x%02X\n", pc, addr, opcode, new_opcode);
                     mem_write_16b(addr, regs.get_reg(RegName::SP));
                     num_bytes_read += 3;
+                } else if (new_opcode == 0x7A) {   // 0xED 0x7A ADC HL, SP (Adds SP and the carry flag to HL), cycles: 15
+                    // C as defined
+                    // N reset
+                    // P/V detects overflow
+                    // H as defined
+                    // Z as defined
+                    // S as defined
+                    uint32_t hl = regs.get_reg(RegName::HL);
+                    uint32_t val = regs.get_reg(RegName::SP);
+                    uint32_t carry_in = regs.get_flag(FlagName::C);
+                    uint32_t res = hl + val + carry_in;
+                    regs.update_flag(FlagName::C, res > 0xFFFF);
+                    regs.clear_flag(FlagName::N);
+                    regs.update_flag(FlagName::P_V, calculate_overflow(hl, val, res, false, true));
+                    regs.update_flag(FlagName::H, calculate_half_carry(hl, val, carry_in, true, false));
+                    regs.update_flag(FlagName::Z, z80_zero_flag(res, true));
+                    regs.update_flag(FlagName::S, z80_sign_flag(res, true));
+                    printf("0x%04X: ADC HL, SP :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::HL, res);
+                    num_bytes_read += 1;
                 } else if (new_opcode == 0x7B) {   // 0xED 0x7B N N (LD SP, (NN) - Loads the value pointed to by nn into SP), cycles: 20
                     // Does not affect flags
                     uint16_t addr = mem_read_16b(pc+2);
