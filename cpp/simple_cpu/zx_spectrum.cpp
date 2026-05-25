@@ -480,7 +480,7 @@ public:
                 // S unaffected
                 uint32_t hl = regs.get_reg(RegName::HL);
                 uint32_t val = regs.get_reg(RegName::BC);
-                
+
                 alu.set_op1(hl);
                 alu.set_op2(val);
                 alu.clear_all_flags();
@@ -705,10 +705,14 @@ public:
                 // S unaffected
                 uint32_t hl = regs.get_reg(RegName::HL);
                 uint32_t val = regs.get_reg(RegName::DE);
-                uint32_t res = hl + val;
-                regs.update_flag(FlagName::C, res > 0xFFFF);
+                alu.set_op1(hl);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: ADD, 16);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::H, calculate_half_carry(hl, val, 0, true, false));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
                 printf("0x%04X: ADD HL, DE :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::HL, res);
                 break;
@@ -941,10 +945,14 @@ public:
                 // S unaffected
                 uint32_t hl = regs.get_reg(RegName::HL);
                 uint32_t val = hl;
-                uint32_t res = hl + val;
-                regs.update_flag(FlagName::C, res > 0xFFFF);
+                alu.set_op1(hl);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: ADD, 16);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::H, calculate_half_carry(hl, val, 0, true, false));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
                 printf("0x%04X: ADD HL, HL :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::HL, res);
                 break;
@@ -1144,10 +1152,14 @@ public:
                 // S unaffected
                 uint32_t hl = regs.get_reg(RegName::HL);
                 uint32_t val = regs.get_reg(RegName::SP);
-                uint32_t res = hl + val;
-                regs.update_flag(FlagName::C, res > 0xFFFF);
+                alu.set_op1(hl);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: ADD, 16);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::H, calculate_half_carry(hl, val, 0, true, false));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
                 printf("0x%04X: ADD HL, SP : (0x%04X + 0x%04X = 0x%04X) | 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::HL, res);
                 break;
@@ -1591,13 +1603,18 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::B);
-                uint16_t res = a + val;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADD A, B :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -1611,13 +1628,18 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::C);
-                uint16_t res = a + val;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADD A, C :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -1631,13 +1653,18 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::D);
-                uint16_t res = a + val;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADD A, D :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -1651,13 +1678,18 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::E);
-                uint16_t res = a + val;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADD A, E :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -1671,13 +1703,18 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::H);
-                uint16_t res = a + val;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADD A, H :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -1691,13 +1728,18 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::L);
-                uint16_t res = a + val;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADD A, L :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -1712,13 +1754,18 @@ public:
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t addr = regs.get_reg(RegName::HL);
                 uint16_t val = mem_bus->read(addr);
-                uint16_t res = a + val;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADD A, (HL) :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -1732,13 +1779,18 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::A);
-                uint16_t res = a + val;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADD A, A :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -1752,14 +1804,21 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::B);
-                uint16_t carry_in = regs.get_flag(FlagName::C);
-                uint16_t res = a + val + carry_in;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                if (regs.get_flag(FlagName::C)) {
+                    alu.set_flag(ALU_Flags::C);
+                }
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADC A, B :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -1773,14 +1832,21 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::C);
-                uint16_t carry_in = regs.get_flag(FlagName::C);
-                uint16_t res = a + val + carry_in;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                if (regs.get_flag(FlagName::C)) {
+                    alu.set_flag(ALU_Flags::C);
+                }
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADC A, C :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -1794,14 +1860,21 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::D);
-                uint16_t carry_in = regs.get_flag(FlagName::C);
-                uint16_t res = a + val + carry_in;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                if (regs.get_flag(FlagName::C)) {
+                    alu.set_flag(ALU_Flags::C);
+                }
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADC A, D :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -1815,14 +1888,21 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::E);
-                uint16_t carry_in = regs.get_flag(FlagName::C);
-                uint16_t res = a + val + carry_in;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                if (regs.get_flag(FlagName::C)) {
+                    alu.set_flag(ALU_Flags::C);
+                }
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADC A, E :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -1836,14 +1916,21 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::H);
-                uint16_t carry_in = regs.get_flag(FlagName::C);
-                uint16_t res = a + val + carry_in;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                if (regs.get_flag(FlagName::C)) {
+                    alu.set_flag(ALU_Flags::C);
+                }
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADC A, H :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -1857,14 +1944,21 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::L);
-                uint16_t carry_in = regs.get_flag(FlagName::C);
-                uint16_t res = a + val + carry_in;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                if (regs.get_flag(FlagName::C)) {
+                    alu.set_flag(ALU_Flags::C);
+                }
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADC A, L :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -1879,14 +1973,21 @@ public:
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t addr = regs.get_reg(RegName::HL);
                 uint16_t val = mem_bus->read(addr);
-                uint16_t carry_in = regs.get_flag(FlagName::C);
-                uint16_t res = a + val + carry_in;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                if (regs.get_flag(FlagName::C)) {
+                    alu.set_flag(ALU_Flags::C);
+                }
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADC A, (HL) :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -1900,14 +2001,21 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::A);
-                uint16_t carry_in = regs.get_flag(FlagName::C);
-                uint16_t res = a + val + carry_in;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                if (regs.get_flag(FlagName::C)) {
+                    alu.set_flag(ALU_Flags::C);
+                }
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADC A, A :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
@@ -2225,7 +2333,7 @@ public:
                 push_reg(RegName::BC);
                 break;
             }
-            case 0xC6: {// 0xC6 N   (ADD A, L    - Adds N to A), cycles: 7
+            case 0xC6: {// 0xC6 N   (ADD A, N    - Adds N to A), cycles: 7
                 // C as defined
                 // N reset
                 // P/V detects overflow
@@ -2234,13 +2342,18 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = mem_bus->read(pc+1);
-                uint16_t res = a + val;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADD A, 0x%02X :: (0x%02X + 0x%02X = 0x%02X) || 0x%02X F=0x%02X\n", pc, val, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 num_bytes_read ++;
@@ -2444,14 +2557,21 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = mem_bus->read(pc+1);
-                uint16_t carry_in = regs.get_flag(FlagName::C);
-                uint16_t res = a + val + carry_in;
-                regs.update_flag(FlagName::C, res > 0xFF);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                if (regs.get_flag(FlagName::C)) {
+                    alu.set_flag(ALU_Flags::C);
+                }
+                alu.perform_operation(ALU_Op:: ADD, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADC A, (HL) :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 num_bytes_read += 1;
@@ -2603,10 +2723,15 @@ public:
                     // S unaffected
                     uint32_t ix = regs.get_reg(RegName::IX);
                     uint32_t val = regs.get_reg(RegName::BC);
-                    uint32_t res = ix + val;
-                    regs.update_flag(FlagName::C, res > 0xFFFF);
+
+                    alu.set_op1(ix);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: ADD, 16);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::H, calculate_half_carry(ix, val, 0, true, false));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
                     printf("0x%04X: ADD IX, BC :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, ix, val, res, opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::IX, res);
                     num_bytes_read += 1;
@@ -2619,10 +2744,15 @@ public:
                     // S unaffected
                     uint32_t ix = regs.get_reg(RegName::IX);
                     uint32_t val = regs.get_reg(RegName::DE);
-                    uint32_t res = ix + val;
-                    regs.update_flag(FlagName::C, res > 0xFFFF);
+
+                    alu.set_op1(ix);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: ADD, 16);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::H, calculate_half_carry(ix, val, 0, true, false));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
                     printf("0x%04X: ADD IX, DE :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, ix, val, res, opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::IX, res);
                     num_bytes_read += 1;
@@ -2652,10 +2782,15 @@ public:
                     // S unaffected
                     uint32_t ix = regs.get_reg(RegName::IX);
                     uint32_t val = regs.get_reg(RegName::IX);
-                    uint32_t res = ix + val;
-                    regs.update_flag(FlagName::C, res > 0xFFFF);
+
+                    alu.set_op1(ix);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: ADD, 16);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::H, calculate_half_carry(ix, val, 0, true, false));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
                     printf("0x%04X: ADD IX, IX :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, ix, val, res, opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::IX, res);
                     num_bytes_read += 1;
@@ -2714,10 +2849,15 @@ public:
                     // S unaffected
                     uint32_t ix = regs.get_reg(RegName::IX);
                     uint32_t val = regs.get_reg(RegName::SP);
-                    uint32_t res = ix + val;
-                    regs.update_flag(FlagName::C, res > 0xFFFF);
+
+                    alu.set_op1(ix);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: ADD, 16);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::H, calculate_half_carry(ix, val, 0, true, false));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
                     printf("0x%04X: ADD IX, SP :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, ix, val, res, opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::IX, res);
                     num_bytes_read += 1;
@@ -2732,13 +2872,18 @@ public:
                     uint16_t addr = regs.get_reg(RegName::IX);
                     uint16_t res_addr = (addr + offset) & 0xFFFF;
                     uint16_t val = mem_bus->read(res_addr);
-                    uint16_t res = a + val;
+
+                    alu.set_op1(a);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: ADD, 8);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::C, res > 0xFF);
-                    regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, false));
-                    regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                    regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                    regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                    regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                    regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                    regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                     printf("0x%04X: ADD A, (IX + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X, addr: 0x%04X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, res_addr, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::A, res);
                     num_bytes_read += 2;
@@ -2749,14 +2894,21 @@ public:
                     uint16_t addr = regs.get_reg(RegName::IX);
                     uint16_t res_addr = (addr + offset) & 0xFFFF;
                     uint16_t val = mem_bus->read(res_addr);
-                    uint16_t carry_in = regs.get_flag(FlagName::C);
-                    uint16_t res = a + val + carry_in;
+
+                    alu.set_op1(a);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    if (regs.get_flag(FlagName::C)) {
+                        alu.set_flag(ALU_Flags::C);
+                    }
+                    alu.perform_operation(ALU_Op:: ADD, 8);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::C, res > 0xFF);
-                    regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
-                    regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                    regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                    regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                    regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                    regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                    regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                     printf("0x%04X: ADC A, (IX + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::A, res);
                     num_bytes_read += 2;
@@ -2895,12 +3047,12 @@ public:
                     printf("0x%04X: LD 0x%04X, BC || 0x%02X 0x%02X\n", pc, addr, opcode, new_opcode);
                     mem_write_16b(addr, regs.get_reg(RegName::BC));
                     num_bytes_read += 3;
-                } else if (new_opcode == 0x47) {   // 0xED 0x47 LD I, A (Load A into I), cycles: 9
+                } else if (new_opcode == 0x47) {   // 0xED 0x47     (LD I, A     - Load A into I), cycles: 9
                     // Does not affect flags
                     printf("0x%04X: LD I, A || 0x%02X 0x%02X\n", pc, opcode, new_opcode);
                     regs.set_reg(RegName::I, regs.get_reg(RegName::A));
                     num_bytes_read ++;
-                } else if (new_opcode == 0x4A) {   // 0xED 0x4A ADC HL, BC (Adds BC and the carry flag to HL), cycles: 15
+                } else if (new_opcode == 0x4A) {   // 0xED 0x4A     (ADC HL, BC  - Adds BC and the carry flag to HL), cycles: 15
                     // C as defined
                     // N reset
                     // P/V detects overflow
@@ -2909,18 +3061,25 @@ public:
                     // S as defined
                     uint32_t hl = regs.get_reg(RegName::HL);
                     uint32_t val = regs.get_reg(RegName::BC);
-                    uint32_t carry_in = regs.get_flag(FlagName::C);
-                    uint32_t res = hl + val + carry_in;
-                    regs.update_flag(FlagName::C, res > 0xFFFF);
+
+                    alu.set_op1(hl);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    if (regs.get_flag(FlagName::C)) {
+                        alu.set_flag(ALU_Flags::C);
+                    }
+                    alu.perform_operation(ALU_Op:: ADD, 16);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::P_V, calculate_overflow(hl, val, res, false, true));
-                    regs.update_flag(FlagName::H, calculate_half_carry(hl, val, carry_in, true, false));
-                    regs.update_flag(FlagName::Z, z80_zero_flag(res, true));
-                    regs.update_flag(FlagName::S, z80_sign_flag(res, true));
+                    regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                    regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                    regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                     printf("0x%04X: ADC HL, BC :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::HL, res);
                     num_bytes_read += 1;
-                } else if (new_opcode == 0x52) {   // 0xED 0x52 SBC HL, DE (Subtract DE and Carry from HL), cycles 15
+                } else if (new_opcode == 0x52) {   // 0xED 0x52     (SBC HL, DE  - Subtract DE and Carry from HL), cycles 15
                     printf("0x%04X: SBC HL, DE || 0x%02X 0x%02X 0x%02X\n", pc, opcode, new_opcode, flags_in);
                     uint16_t hl = regs.get_reg(RegName::HL);
                     uint16_t de = regs.get_reg(RegName::DE);
@@ -2937,7 +3096,7 @@ public:
                     res==0? regs.set_flag(FlagName::Z): regs.clear_flag(FlagName::Z);
                     (res&0x80)==0x80? regs.set_flag(FlagName::S): regs.clear_flag(FlagName::S);
                     num_bytes_read ++;
-                } else if (new_opcode == 0x5A) {   // 0xED 0x5A ADC HL, DE (Adds DE and the carry flag to HL), cycles: 15
+                } else if (new_opcode == 0x5A) {   // 0xED 0x5A     (ADC HL, DE  - Adds DE and the carry flag to HL), cycles: 15
                     // C as defined
                     // N reset
                     // P/V detects overflow
@@ -2946,18 +3105,25 @@ public:
                     // S as defined
                     uint32_t hl = regs.get_reg(RegName::HL);
                     uint32_t val = regs.get_reg(RegName::DE);
-                    uint32_t carry_in = regs.get_flag(FlagName::C);
-                    uint32_t res = hl + val + carry_in;
-                    regs.update_flag(FlagName::C, res > 0xFFFF);
+
+                    alu.set_op1(hl);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    if (regs.get_flag(FlagName::C)) {
+                        alu.set_flag(ALU_Flags::C);
+                    }
+                    alu.perform_operation(ALU_Op:: ADD, 16);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::P_V, calculate_overflow(hl, val, res, false, true));
-                    regs.update_flag(FlagName::H, calculate_half_carry(hl, val, carry_in, true, false));
-                    regs.update_flag(FlagName::Z, z80_zero_flag(res, true));
-                    regs.update_flag(FlagName::S, z80_sign_flag(res, true));
+                    regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                    regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                    regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                     printf("0x%04X: ADC HL, DE :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::HL, res);
                     num_bytes_read += 1;
-                } else if (new_opcode == 0x6A) {   // 0xED 0x6A ADC HL, HL (Adds HL and the carry flag to HL), cycles: 15
+                } else if (new_opcode == 0x6A) {   // 0xED 0x6A     (ADC HL, HL  - Adds HL and the carry flag to HL), cycles: 15
                     // C as defined
                     // N reset
                     // P/V detects overflow
@@ -2966,14 +3132,21 @@ public:
                     // S as defined
                     uint32_t hl = regs.get_reg(RegName::HL);
                     uint32_t val = regs.get_reg(RegName::HL);
-                    uint32_t carry_in = regs.get_flag(FlagName::C);
-                    uint32_t res = hl + val + carry_in;
-                    regs.update_flag(FlagName::C, res > 0xFFFF);
+
+                    alu.set_op1(hl);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    if (regs.get_flag(FlagName::C)) {
+                        alu.set_flag(ALU_Flags::C);
+                    }
+                    alu.perform_operation(ALU_Op:: ADD, 16);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::P_V, calculate_overflow(hl, val, res, false, true));
-                    regs.update_flag(FlagName::H, calculate_half_carry(hl, val, carry_in, true, false));
-                    regs.update_flag(FlagName::Z, z80_zero_flag(res, true));
-                    regs.update_flag(FlagName::S, z80_sign_flag(res, true));
+                    regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                    regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                    regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                     printf("0x%04X: ADC HL, HL :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::HL, res);
                     num_bytes_read += 1;
@@ -2983,7 +3156,7 @@ public:
                     printf("0x%04X: LD (0x%04X), SP || 0x%02X 0x%02X\n", pc, addr, opcode, new_opcode);
                     mem_write_16b(addr, regs.get_reg(RegName::SP));
                     num_bytes_read += 3;
-                } else if (new_opcode == 0x7A) {   // 0xED 0x7A ADC HL, SP (Adds SP and the carry flag to HL), cycles: 15
+                } else if (new_opcode == 0x7A) {   // 0xED 0x7A     (ADC HL, SP  - Adds SP and the carry flag to HL), cycles: 15
                     // C as defined
                     // N reset
                     // P/V detects overflow
@@ -2992,14 +3165,21 @@ public:
                     // S as defined
                     uint32_t hl = regs.get_reg(RegName::HL);
                     uint32_t val = regs.get_reg(RegName::SP);
-                    uint32_t carry_in = regs.get_flag(FlagName::C);
-                    uint32_t res = hl + val + carry_in;
-                    regs.update_flag(FlagName::C, res > 0xFFFF);
+
+                    alu.set_op1(hl);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    if (regs.get_flag(FlagName::C)) {
+                        alu.set_flag(ALU_Flags::C);
+                    }
+                    alu.perform_operation(ALU_Op:: ADD, 16);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::P_V, calculate_overflow(hl, val, res, false, true));
-                    regs.update_flag(FlagName::H, calculate_half_carry(hl, val, carry_in, true, false));
-                    regs.update_flag(FlagName::Z, z80_zero_flag(res, true));
-                    regs.update_flag(FlagName::S, z80_sign_flag(res, true));
+                    regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                    regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                    regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                     printf("0x%04X: ADC HL, SP :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, hl, val, res, opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::HL, res);
                     num_bytes_read += 1;
@@ -3010,7 +3190,7 @@ public:
                     printf("0x%04X: LD SP, 0x%04X : (addr: 0x%04X) || 0x%02X 0x%02X\n", pc, val, addr, opcode, new_opcode);
                     regs.set_reg(RegName::SP, val);
                     num_bytes_read += 3;
-                } else if (new_opcode == 0xB0) {   // 0xED 0xB0 LDIR, cycles 21/16
+                } else if (new_opcode == 0xB0) {   // 0xED 0xB0     (LDIR), cycles 21/16
                     // C unaffected
                     // N reset
                     // P/V reset
@@ -3183,10 +3363,15 @@ public:
                     // S unaffected
                     uint32_t iy = regs.get_reg(RegName::IY);
                     uint32_t val = regs.get_reg(RegName::BC);
-                    uint32_t res = iy + val;
-                    regs.update_flag(FlagName::C, res > 0xFFFF);
+
+                    alu.set_op1(iy);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: ADD, 16);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::H, calculate_half_carry(iy, val, 0, true, false));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
                     printf("0x%04X: ADD IY, BC :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, iy, val, res, opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::IY, res);
                     num_bytes_read += 1;
@@ -3199,10 +3384,15 @@ public:
                     // S unaffected
                     uint32_t iy = regs.get_reg(RegName::IY);
                     uint32_t val = regs.get_reg(RegName::DE);
-                    uint32_t res = iy + val;
-                    regs.update_flag(FlagName::C, res > 0xFFFF);
+
+                    alu.set_op1(iy);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: ADD, 16);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::H, calculate_half_carry(iy, val, 0, true, false));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
                     printf("0x%04X: ADD IY, DE :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, iy, val, res, opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::IY, res);
                     num_bytes_read += 1;
@@ -3232,21 +3422,26 @@ public:
                     // S unaffected
                     uint32_t iy = regs.get_reg(RegName::IY);
                     uint32_t val = regs.get_reg(RegName::IY);
-                    uint32_t res = iy + val;
-                    regs.update_flag(FlagName::C, res > 0xFFFF);
+
+                    alu.set_op1(iy);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: ADD, 16);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::H, calculate_half_carry(iy, val, 0, true, false));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
                     printf("0x%04X: ADD IY, IY :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, iy, val, res, opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::IY, res);
                     num_bytes_read += 1;
-                } else if (new_opcode == 0x2B) {   // 0xFD 0x2B   (DEC IY - Subtracts one from IY), cycles: 10
+                } else if (new_opcode == 0x2B) {   // 0xFD 0x2B     (DEC IY - Subtracts one from IY), cycles: 10
                     // Does not affect flags
                     uint16_t val = regs.get_reg(RegName::IY);
                     uint16_t res = val - 1;
                     printf("0x%04X: DEC IY :: (0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::IY, res);
                     num_bytes_read += 1;
-                } else if (new_opcode == 0x34) {   // 0xFD 0x34 D (INC (IY+D), N - Adds one to the memory location pointed to by IY plus d), cycles: 23
+                } else if (new_opcode == 0x34) {   // 0xFD 0x34 D   (INC (IY+D), N - Adds one to the memory location pointed to by IY plus d), cycles: 23
                     uint16_t offset = mem_bus->read(pc+2);
                     if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
                     uint16_t addr = regs.get_reg(RegName::IY);
@@ -3261,7 +3456,7 @@ public:
                     printf("0x%04X: INC (IY+0x%02X) :: (0x%04X + 0x%02X -> 0x%04X, 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, addr, offset, res_addr, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
                     mem_bus->write(res_addr, res);
                     num_bytes_read += 2;
-                } else if (new_opcode == 0x35) {   // 0xFD 0x35 D (DEC (IY+D), N - Subtracts one from the memory location pointed to by IY plus d), cycles: 23
+                } else if (new_opcode == 0x35) {   // 0xFD 0x35 D   (DEC (IY+D), N - Subtracts one from the memory location pointed to by IY plus d), cycles: 23
                     uint16_t offset = mem_bus->read(pc+2);
                     if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
                     uint16_t addr = regs.get_reg(RegName::IY);
@@ -3276,7 +3471,7 @@ public:
                     printf("0x%04X: DEC (IY+0x%02X) :: (0x%04X + 0x%02X -> 0x%04X, 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, addr, offset, res_addr, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
                     mem_bus->write(res_addr, res);
                     num_bytes_read += 2;
-                } else if (new_opcode == 0x36) {   // 0xFD 0x36 D (LD (IY+D), N - Stores n to the memory location pointed to by IY plus d), cycles: 19
+                } else if (new_opcode == 0x36) {   // 0xFD 0x36 D   (LD (IY+D), N - Stores n to the memory location pointed to by IY plus d), cycles: 19
                     uint16_t offset = mem_bus->read(pc+2);
                     if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
                     uint16_t addr = regs.get_reg(RegName::IY);
@@ -3294,27 +3489,37 @@ public:
                     // S unaffected
                     uint32_t iy = regs.get_reg(RegName::IY);
                     uint32_t val = regs.get_reg(RegName::SP);
-                    uint32_t res = iy + val;
-                    regs.update_flag(FlagName::C, res > 0xFFFF);
+
+                    alu.set_op1(iy);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: ADD, 16);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::H, calculate_half_carry(iy, val, 0, true, false));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
                     printf("0x%04X: ADD IY, SP :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, iy, val, res, opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::IY, res);
                     num_bytes_read += 1;
-                } else if (new_opcode == 0x86) {   // 0xFD 0x86 D (ADD A, (IY+D) - Adds the value pointed to by IY plus d to A), cycles: 19
+                } else if (new_opcode == 0x86) {   // 0xFD 0x86 D   (ADD A, (IY+D) - Adds the value pointed to by IY plus d to A), cycles: 19
                     uint16_t offset = mem_bus->read(pc+2);
                     if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
                     uint16_t a = regs.get_reg(RegName::A);
                     uint16_t addr = regs.get_reg(RegName::IY);
                     uint16_t res_addr = (addr + offset) & 0xFFFF;
                     uint16_t val = mem_bus->read(res_addr);
-                    uint16_t res = a + val;
+
+                    alu.set_op1(a);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: ADD, 8);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::C, res > 0xFF);
-                    regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, false));
-                    regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                    regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                    regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                    regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                    regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                    regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                     printf("0x%04X: ADD A, (IY + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::A, res);
                     num_bytes_read += 2;
@@ -3325,22 +3530,29 @@ public:
                     uint16_t addr = regs.get_reg(RegName::IY);
                     uint16_t res_addr = (addr + offset) & 0xFFFF;
                     uint16_t val = mem_bus->read(res_addr);
-                    uint16_t carry_in = regs.get_flag(FlagName::C);
-                    uint16_t res = a + val + carry_in;
+
+                    alu.set_op1(a);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    if (regs.get_flag(FlagName::C)) {
+                        alu.set_flag(ALU_Flags::C);
+                    }
+                    alu.perform_operation(ALU_Op:: ADD, 8);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                     regs.clear_flag(FlagName::N);
-                    regs.update_flag(FlagName::C, res > 0xFF);
-                    regs.update_flag(FlagName::H, calculate_half_carry(a, val, carry_in, false, false));
-                    regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, false, false));
-                    regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                    regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                    regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                    regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                    regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                     printf("0x%04X: ADC A, (IY + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::A, res);
                     num_bytes_read += 2;
-                } else if (new_opcode == 0xE1) {   // 0xFD 0xE1 (POP IY), cycles: 14
+                } else if (new_opcode == 0xE1) {   // 0xFD 0xE1     (POP IY), cycles: 14
                     printf("0x%04X: POP IY || 0x%02X 0x%02X\n", pc, opcode, new_opcode);
                     pop_reg(RegName::IY);
                     num_bytes_read += 1;
-                } else if (new_opcode == 0xE5) {   // 0xFD 0xE5 (PUSH IY), cycles: 15
+                } else if (new_opcode == 0xE5) {   // 0xFD 0xE5     (PUSH IY), cycles: 15
                     printf("0x%04X: PUSH IY || 0x%02X 0x%02X\n", pc, opcode, new_opcode);
                     push_reg(RegName::IY);
                     num_bytes_read += 1;
