@@ -1,600 +1,1006 @@
 0000                          .ORG   0000h   
 0000   31 00 F0               LD   SP,0xF000   
 0003   CD 10 00               CALL   TEST_SUBS   
-0006   CD 2C 00               CALL   TEST_SBCS   
+0006   CD 32 00               CALL   TEST_SBCS   
 0009   76                     HALT   
 000A   00 00        TEMP_SP_SAVE:   DW   0x0000   
 000C                SP_RESULT_ADDR:   EQU   0xFF02   
 000C                TEST_RAM:   EQU   0xFF00   
-000C                IX_ABS_ADDR:   EQU   0xFF05   
-000C                IY_ABS_ADDR:   EQU   0xFEFB   
+000C                TEST_RAM_PLUS_5:   EQU   0xFF05   
+000C                TEST_RAM_MINUS_5:   EQU   0xFEFB   
 000C                ERROR:    
 000C   F3                     DI   
 000D   76                     HALT   
 000E   18 FC                  JR   ERROR   
 0010                TEST_SUBS:   
 0010                          ; 8-bit operations:
-0010   CD 2D 00               CALL   TEST_SUB_B   
-0013   CD AC 00               CALL   TEST_SUB_C   
-0016   CD 2B 01               CALL   TEST_SUB_D   
-0019   CD AA 01               CALL   TEST_SUB_E   
-001C   CD 29 02               CALL   TEST_SUB_H   
-001F   CD A8 02               CALL   TEST_SUB_L   
-0022   CD 27 03               CALL   TEST_SUB_HL   
-0025   CD AF 03               CALL   TEST_SUB_N   
-0028   CD 2B 04               CALL   TEST_SUB_A   
-002B                          ; 16-bit operations:
-002B   C9                     RET   
-002C                TEST_SBCS:   
-002C                          ; 8-bit operations:
-002C                          ; 16-bit operations:
-002C   C9                     RET   
-002D                TEST_SUB_B:   
-002D                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
-002D   3E 20                  LD   A,0x20   
-002F   06 20                  LD   B,0x20   
-0031   90                     SUB   B   
-0032   F5                     PUSH   AF   
-0033   D1                     POP   DE   ; E = Flags
-0034                          ; Verify Result
-0034   FE 00                  CP   0x00   
-0036   C2 0C 00               JP   NZ,ERROR   
-0039                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
-0039   CB 7B                  BIT   7,E   ; S should be cleared (result is not negative)
-003B   C2 0C 00               JP   NZ,ERROR   
-003E   CB 73                  BIT   6,E   ; Z should be set (result is zero)
-0040   CA 0C 00               JP   Z,ERROR   
-0043   CB 63                  BIT   4,E   ; H should be cleared (no half-borrow)
-0045   C2 0C 00               JP   NZ,ERROR   
-0048   CB 53                  BIT   2,E   ; P/V should be cleared (no overflow)
-004A   C2 0C 00               JP   NZ,ERROR   
-004D   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
-004F   CA 0C 00               JP   Z,ERROR   
-0052   CB 43                  BIT   0,E   ; C should be cleared (no borrow)
-0054   C2 0C 00               JP   NZ,ERROR   
-0057                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
-0057   3E 70                  LD   A,0x70   
-0059   06 81                  LD   B,0x81   
-005B   90                     SUB   B   
-005C   F5                     PUSH   AF   
-005D   D1                     POP   DE   
-005E                          ; Verify Result
-005E   FE EF                  CP   0xEF   
-0060   C2 0C 00               JP   NZ,ERROR   
-0063                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
-0063   CB 7B                  BIT   7,E   ; S should be set (result is negative)
-0065   CA 0C 00               JP   Z,ERROR   
-0068   CB 73                  BIT   6,E   ; Z should be cleared (result is not zero)
-006A   C2 0C 00               JP   NZ,ERROR   
-006D   CB 63                  BIT   4,E   ; H should be set (borrow required for 0x0 - 0x1)
-006F   CA 0C 00               JP   Z,ERROR   
-0072   CB 53                  BIT   2,E   ; P/V should be set (signed overflow occurred)
-0074   CA 0C 00               JP   Z,ERROR   
-0077   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
-0079   CA 0C 00               JP   Z,ERROR   
-007C   CB 43                  BIT   0,E   ; C should be set (borrow required from MSB)
-007E   CA 0C 00               JP   Z,ERROR   
-0081                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
-0081   3E 55                  LD   A,0x55   
-0083   06 22                  LD   B,0x22   
-0085   90                     SUB   B   
-0086   F5                     PUSH   AF   
-0087   D1                     POP   DE   
-0088                          ; Verify Result
-0088   FE 33                  CP   0x33   
-008A   C2 0C 00               JP   NZ,ERROR   
-008D                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
-008D   CB 7B                  BIT   7,E   ; S should be cleared (result is positive)
-008F   C2 0C 00               JP   NZ,ERROR   
-0092   CB 73                  BIT   6,E   ; Z should be cleared (result is not zero)
-0094   C2 0C 00               JP   NZ,ERROR   
-0097   CB 63                  BIT   4,E   ; H should be cleared (no half-borrow)
-0099   C2 0C 00               JP   NZ,ERROR   
-009C   CB 53                  BIT   2,E   ; P/V should be cleared (no overflow)
-009E   C2 0C 00               JP   NZ,ERROR   
-00A1   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
-00A3   CA 0C 00               JP   Z,ERROR   
-00A6   CB 43                  BIT   0,E   ; C should be cleared (no borrow)
-00A8   C2 0C 00               JP   NZ,ERROR   
-00AB   C9                     RET   
-00AC                TEST_SUB_C:   
-00AC                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
-00AC   3E 20                  LD   A,0x20   
-00AE   0E 20                  LD   C,0x20   
-00B0   91                     SUB   C   
-00B1   F5                     PUSH   AF   
-00B2   D1                     POP   DE   ; E = Flags
-00B3                          ; Verify Result
-00B3   FE 00                  CP   0x00   
-00B5   C2 0C 00               JP   NZ,ERROR   
-00B8                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
-00B8   CB 7B                  BIT   7,E   ; S should be cleared (result is not negative)
+0010   CD 3F 00               CALL   TEST_SUB_B   
+0013   CD BE 00               CALL   TEST_SUB_C   
+0016   CD 3D 01               CALL   TEST_SUB_D   
+0019   CD BC 01               CALL   TEST_SUB_E   
+001C   CD 3B 02               CALL   TEST_SUB_H   
+001F   CD BA 02               CALL   TEST_SUB_L   
+0022   CD 39 03               CALL   TEST_SUB_HL   
+0025   CD C1 03               CALL   TEST_SUB_N   
+0028   CD 3D 04               CALL   TEST_SUB_A   
+002B   CD 66 04               CALL   TEST_SUB_IX_D   
+002E   CD F8 04               CALL   TEST_SUB_IY_D   
+0031                          ; 16-bit operations:
+0031   C9                     RET   
+0032                TEST_SBCS:   
+0032                          ; 8-bit operations:
+0032   CD 8A 05               CALL   TEST_SBC_A_B   
+0035   CD 0C 06               CALL   TEST_SBC_A_HL   
+0038   CD 91 06               CALL   TEST_SBC_A_N   
+003B   CD 10 07               CALL   TEST_SBC_A_A   
+003E                          ; 16-bit operations:
+003E   C9                     RET   
+003F                          ; SUB 8-bit opcodes:
+003F                TEST_SUB_B:   
+003F                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+003F   3E 20                  LD   A,0x20   
+0041   06 20                  LD   B,0x20   
+0043   90                     SUB   B   
+0044   F5                     PUSH   AF   
+0045   D1                     POP   DE   ; E = Flags
+0046                          ; Verify Result
+0046   FE 00                  CP   0x00   
+0048   C2 0C 00               JP   NZ,ERROR   
+004B                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+004B   CB 7B                  BIT   7,E   ; S should be cleared (result is not negative)
+004D   C2 0C 00               JP   NZ,ERROR   
+0050   CB 73                  BIT   6,E   ; Z should be set (result is zero)
+0052   CA 0C 00               JP   Z,ERROR   
+0055   CB 63                  BIT   4,E   ; H should be cleared (no half-borrow)
+0057   C2 0C 00               JP   NZ,ERROR   
+005A   CB 53                  BIT   2,E   ; P/V should be cleared (no overflow)
+005C   C2 0C 00               JP   NZ,ERROR   
+005F   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
+0061   CA 0C 00               JP   Z,ERROR   
+0064   CB 43                  BIT   0,E   ; C should be cleared (no borrow)
+0066   C2 0C 00               JP   NZ,ERROR   
+0069                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+0069   3E 70                  LD   A,0x70   
+006B   06 81                  LD   B,0x81   
+006D   90                     SUB   B   
+006E   F5                     PUSH   AF   
+006F   D1                     POP   DE   
+0070                          ; Verify Result
+0070   FE EF                  CP   0xEF   
+0072   C2 0C 00               JP   NZ,ERROR   
+0075                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+0075   CB 7B                  BIT   7,E   ; S should be set (result is negative)
+0077   CA 0C 00               JP   Z,ERROR   
+007A   CB 73                  BIT   6,E   ; Z should be cleared (result is not zero)
+007C   C2 0C 00               JP   NZ,ERROR   
+007F   CB 63                  BIT   4,E   ; H should be set (borrow required for 0x0 - 0x1)
+0081   CA 0C 00               JP   Z,ERROR   
+0084   CB 53                  BIT   2,E   ; P/V should be set (signed overflow occurred)
+0086   CA 0C 00               JP   Z,ERROR   
+0089   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
+008B   CA 0C 00               JP   Z,ERROR   
+008E   CB 43                  BIT   0,E   ; C should be set (borrow required from MSB)
+0090   CA 0C 00               JP   Z,ERROR   
+0093                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+0093   3E 55                  LD   A,0x55   
+0095   06 22                  LD   B,0x22   
+0097   90                     SUB   B   
+0098   F5                     PUSH   AF   
+0099   D1                     POP   DE   
+009A                          ; Verify Result
+009A   FE 33                  CP   0x33   
+009C   C2 0C 00               JP   NZ,ERROR   
+009F                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+009F   CB 7B                  BIT   7,E   ; S should be cleared (result is positive)
+00A1   C2 0C 00               JP   NZ,ERROR   
+00A4   CB 73                  BIT   6,E   ; Z should be cleared (result is not zero)
+00A6   C2 0C 00               JP   NZ,ERROR   
+00A9   CB 63                  BIT   4,E   ; H should be cleared (no half-borrow)
+00AB   C2 0C 00               JP   NZ,ERROR   
+00AE   CB 53                  BIT   2,E   ; P/V should be cleared (no overflow)
+00B0   C2 0C 00               JP   NZ,ERROR   
+00B3   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
+00B5   CA 0C 00               JP   Z,ERROR   
+00B8   CB 43                  BIT   0,E   ; C should be cleared (no borrow)
 00BA   C2 0C 00               JP   NZ,ERROR   
-00BD   CB 73                  BIT   6,E   ; Z should be set (result is zero)
-00BF   CA 0C 00               JP   Z,ERROR   
-00C2   CB 63                  BIT   4,E   ; H should be cleared (no half-borrow)
-00C4   C2 0C 00               JP   NZ,ERROR   
-00C7   CB 53                  BIT   2,E   ; P/V should be cleared (no overflow)
-00C9   C2 0C 00               JP   NZ,ERROR   
-00CC   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
-00CE   CA 0C 00               JP   Z,ERROR   
-00D1   CB 43                  BIT   0,E   ; C should be cleared (no borrow)
-00D3   C2 0C 00               JP   NZ,ERROR   
-00D6                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
-00D6   3E 70                  LD   A,0x70   
-00D8   0E 81                  LD   C,0x81   
-00DA   91                     SUB   C   
-00DB   F5                     PUSH   AF   
-00DC   D1                     POP   DE   
-00DD                          ; Verify Result
-00DD   FE EF                  CP   0xEF   
-00DF   C2 0C 00               JP   NZ,ERROR   
-00E2                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
-00E2   CB 7B                  BIT   7,E   ; S should be set (result is negative)
-00E4   CA 0C 00               JP   Z,ERROR   
-00E7   CB 73                  BIT   6,E   ; Z should be cleared (result is not zero)
-00E9   C2 0C 00               JP   NZ,ERROR   
-00EC   CB 63                  BIT   4,E   ; H should be set (borrow required for 0x0 - 0x1)
-00EE   CA 0C 00               JP   Z,ERROR   
-00F1   CB 53                  BIT   2,E   ; P/V should be set (signed overflow occurred)
-00F3   CA 0C 00               JP   Z,ERROR   
-00F6   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
-00F8   CA 0C 00               JP   Z,ERROR   
-00FB   CB 43                  BIT   0,E   ; C should be set (borrow required from MSB)
-00FD   CA 0C 00               JP   Z,ERROR   
-0100                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
-0100   3E 55                  LD   A,0x55   
-0102   0E 22                  LD   C,0x22   
-0104   91                     SUB   C   
-0105   F5                     PUSH   AF   
-0106   D1                     POP   DE   
-0107                          ; Verify Result
-0107   FE 33                  CP   0x33   
-0109   C2 0C 00               JP   NZ,ERROR   
-010C                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
-010C   CB 7B                  BIT   7,E   ; S should be cleared (result is positive)
-010E   C2 0C 00               JP   NZ,ERROR   
-0111   CB 73                  BIT   6,E   ; Z should be cleared (result is not zero)
-0113   C2 0C 00               JP   NZ,ERROR   
-0116   CB 63                  BIT   4,E   ; H should be cleared (no half-borrow)
-0118   C2 0C 00               JP   NZ,ERROR   
-011B   CB 53                  BIT   2,E   ; P/V should be cleared (no overflow)
-011D   C2 0C 00               JP   NZ,ERROR   
-0120   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
-0122   CA 0C 00               JP   Z,ERROR   
-0125   CB 43                  BIT   0,E   ; C should be cleared (no borrow)
-0127   C2 0C 00               JP   NZ,ERROR   
-012A   C9                     RET   
-012B                TEST_SUB_D:   
-012B                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
-012B   3E 20                  LD   A,0x20   
-012D   16 20                  LD   D,0x20   
-012F   92                     SUB   D   
-0130   F5                     PUSH   AF   
-0131   C1                     POP   BC   ; C = Flags
-0132                          ; Verify Result
-0132   FE 00                  CP   0x00   
-0134   C2 0C 00               JP   NZ,ERROR   
-0137                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
-0137   CB 79                  BIT   7,C   ; S should be cleared (result is not negative)
+00BD   C9                     RET   
+00BE                TEST_SUB_C:   
+00BE                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+00BE   3E 20                  LD   A,0x20   
+00C0   0E 20                  LD   C,0x20   
+00C2   91                     SUB   C   
+00C3   F5                     PUSH   AF   
+00C4   D1                     POP   DE   ; E = Flags
+00C5                          ; Verify Result
+00C5   FE 00                  CP   0x00   
+00C7   C2 0C 00               JP   NZ,ERROR   
+00CA                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+00CA   CB 7B                  BIT   7,E   ; S should be cleared (result is not negative)
+00CC   C2 0C 00               JP   NZ,ERROR   
+00CF   CB 73                  BIT   6,E   ; Z should be set (result is zero)
+00D1   CA 0C 00               JP   Z,ERROR   
+00D4   CB 63                  BIT   4,E   ; H should be cleared (no half-borrow)
+00D6   C2 0C 00               JP   NZ,ERROR   
+00D9   CB 53                  BIT   2,E   ; P/V should be cleared (no overflow)
+00DB   C2 0C 00               JP   NZ,ERROR   
+00DE   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
+00E0   CA 0C 00               JP   Z,ERROR   
+00E3   CB 43                  BIT   0,E   ; C should be cleared (no borrow)
+00E5   C2 0C 00               JP   NZ,ERROR   
+00E8                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+00E8   3E 70                  LD   A,0x70   
+00EA   0E 81                  LD   C,0x81   
+00EC   91                     SUB   C   
+00ED   F5                     PUSH   AF   
+00EE   D1                     POP   DE   
+00EF                          ; Verify Result
+00EF   FE EF                  CP   0xEF   
+00F1   C2 0C 00               JP   NZ,ERROR   
+00F4                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+00F4   CB 7B                  BIT   7,E   ; S should be set (result is negative)
+00F6   CA 0C 00               JP   Z,ERROR   
+00F9   CB 73                  BIT   6,E   ; Z should be cleared (result is not zero)
+00FB   C2 0C 00               JP   NZ,ERROR   
+00FE   CB 63                  BIT   4,E   ; H should be set (borrow required for 0x0 - 0x1)
+0100   CA 0C 00               JP   Z,ERROR   
+0103   CB 53                  BIT   2,E   ; P/V should be set (signed overflow occurred)
+0105   CA 0C 00               JP   Z,ERROR   
+0108   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
+010A   CA 0C 00               JP   Z,ERROR   
+010D   CB 43                  BIT   0,E   ; C should be set (borrow required from MSB)
+010F   CA 0C 00               JP   Z,ERROR   
+0112                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+0112   3E 55                  LD   A,0x55   
+0114   0E 22                  LD   C,0x22   
+0116   91                     SUB   C   
+0117   F5                     PUSH   AF   
+0118   D1                     POP   DE   
+0119                          ; Verify Result
+0119   FE 33                  CP   0x33   
+011B   C2 0C 00               JP   NZ,ERROR   
+011E                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+011E   CB 7B                  BIT   7,E   ; S should be cleared (result is positive)
+0120   C2 0C 00               JP   NZ,ERROR   
+0123   CB 73                  BIT   6,E   ; Z should be cleared (result is not zero)
+0125   C2 0C 00               JP   NZ,ERROR   
+0128   CB 63                  BIT   4,E   ; H should be cleared (no half-borrow)
+012A   C2 0C 00               JP   NZ,ERROR   
+012D   CB 53                  BIT   2,E   ; P/V should be cleared (no overflow)
+012F   C2 0C 00               JP   NZ,ERROR   
+0132   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
+0134   CA 0C 00               JP   Z,ERROR   
+0137   CB 43                  BIT   0,E   ; C should be cleared (no borrow)
 0139   C2 0C 00               JP   NZ,ERROR   
-013C   CB 71                  BIT   6,C   ; Z should be set (result is zero)
-013E   CA 0C 00               JP   Z,ERROR   
-0141   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
-0143   C2 0C 00               JP   NZ,ERROR   
-0146   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
-0148   C2 0C 00               JP   NZ,ERROR   
-014B   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
-014D   CA 0C 00               JP   Z,ERROR   
-0150   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
-0152   C2 0C 00               JP   NZ,ERROR   
-0155                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
-0155   3E 70                  LD   A,0x70   
-0157   16 81                  LD   D,0x81   
-0159   92                     SUB   D   
-015A   F5                     PUSH   AF   
-015B   C1                     POP   BC   
-015C                          ; Verify Result
-015C   FE EF                  CP   0xEF   
-015E   C2 0C 00               JP   NZ,ERROR   
-0161                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
-0161   CB 79                  BIT   7,C   ; S should be set (result is negative)
-0163   CA 0C 00               JP   Z,ERROR   
-0166   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
-0168   C2 0C 00               JP   NZ,ERROR   
-016B   CB 61                  BIT   4,C   ; H should be set (borrow required for 0x0 - 0x1)
-016D   CA 0C 00               JP   Z,ERROR   
-0170   CB 51                  BIT   2,C   ; P/V should be set (signed overflow occurred)
-0172   CA 0C 00               JP   Z,ERROR   
-0175   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
-0177   CA 0C 00               JP   Z,ERROR   
-017A   CB 41                  BIT   0,C   ; C should be set (borrow required from MSB)
-017C   CA 0C 00               JP   Z,ERROR   
-017F                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
-017F   3E 55                  LD   A,0x55   
-0181   16 22                  LD   D,0x22   
-0183   92                     SUB   D   
-0184   F5                     PUSH   AF   
-0185   C1                     POP   BC   
-0186                          ; Verify Result
-0186   FE 33                  CP   0x33   
-0188   C2 0C 00               JP   NZ,ERROR   
-018B                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
-018B   CB 79                  BIT   7,C   ; S should be cleared (result is positive)
-018D   C2 0C 00               JP   NZ,ERROR   
-0190   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
-0192   C2 0C 00               JP   NZ,ERROR   
-0195   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
-0197   C2 0C 00               JP   NZ,ERROR   
-019A   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
-019C   C2 0C 00               JP   NZ,ERROR   
-019F   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
-01A1   CA 0C 00               JP   Z,ERROR   
-01A4   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
-01A6   C2 0C 00               JP   NZ,ERROR   
-01A9   C9                     RET   
-01AA                TEST_SUB_E:   
-01AA                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
-01AA   3E 20                  LD   A,0x20   
-01AC   1E 20                  LD   E,0x20   
-01AE   93                     SUB   E   
-01AF   F5                     PUSH   AF   
-01B0   C1                     POP   BC   ; C = Flags
-01B1                          ; Verify Result
-01B1   FE 00                  CP   0x00   
-01B3   C2 0C 00               JP   NZ,ERROR   
-01B6                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
-01B6   CB 79                  BIT   7,C   ; S should be cleared (result is not negative)
+013C   C9                     RET   
+013D                TEST_SUB_D:   
+013D                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+013D   3E 20                  LD   A,0x20   
+013F   16 20                  LD   D,0x20   
+0141   92                     SUB   D   
+0142   F5                     PUSH   AF   
+0143   C1                     POP   BC   ; C = Flags
+0144                          ; Verify Result
+0144   FE 00                  CP   0x00   
+0146   C2 0C 00               JP   NZ,ERROR   
+0149                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+0149   CB 79                  BIT   7,C   ; S should be cleared (result is not negative)
+014B   C2 0C 00               JP   NZ,ERROR   
+014E   CB 71                  BIT   6,C   ; Z should be set (result is zero)
+0150   CA 0C 00               JP   Z,ERROR   
+0153   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
+0155   C2 0C 00               JP   NZ,ERROR   
+0158   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
+015A   C2 0C 00               JP   NZ,ERROR   
+015D   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
+015F   CA 0C 00               JP   Z,ERROR   
+0162   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
+0164   C2 0C 00               JP   NZ,ERROR   
+0167                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+0167   3E 70                  LD   A,0x70   
+0169   16 81                  LD   D,0x81   
+016B   92                     SUB   D   
+016C   F5                     PUSH   AF   
+016D   C1                     POP   BC   
+016E                          ; Verify Result
+016E   FE EF                  CP   0xEF   
+0170   C2 0C 00               JP   NZ,ERROR   
+0173                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+0173   CB 79                  BIT   7,C   ; S should be set (result is negative)
+0175   CA 0C 00               JP   Z,ERROR   
+0178   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
+017A   C2 0C 00               JP   NZ,ERROR   
+017D   CB 61                  BIT   4,C   ; H should be set (borrow required for 0x0 - 0x1)
+017F   CA 0C 00               JP   Z,ERROR   
+0182   CB 51                  BIT   2,C   ; P/V should be set (signed overflow occurred)
+0184   CA 0C 00               JP   Z,ERROR   
+0187   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
+0189   CA 0C 00               JP   Z,ERROR   
+018C   CB 41                  BIT   0,C   ; C should be set (borrow required from MSB)
+018E   CA 0C 00               JP   Z,ERROR   
+0191                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+0191   3E 55                  LD   A,0x55   
+0193   16 22                  LD   D,0x22   
+0195   92                     SUB   D   
+0196   F5                     PUSH   AF   
+0197   C1                     POP   BC   
+0198                          ; Verify Result
+0198   FE 33                  CP   0x33   
+019A   C2 0C 00               JP   NZ,ERROR   
+019D                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+019D   CB 79                  BIT   7,C   ; S should be cleared (result is positive)
+019F   C2 0C 00               JP   NZ,ERROR   
+01A2   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
+01A4   C2 0C 00               JP   NZ,ERROR   
+01A7   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
+01A9   C2 0C 00               JP   NZ,ERROR   
+01AC   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
+01AE   C2 0C 00               JP   NZ,ERROR   
+01B1   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
+01B3   CA 0C 00               JP   Z,ERROR   
+01B6   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
 01B8   C2 0C 00               JP   NZ,ERROR   
-01BB   CB 71                  BIT   6,C   ; Z should be set (result is zero)
-01BD   CA 0C 00               JP   Z,ERROR   
-01C0   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
-01C2   C2 0C 00               JP   NZ,ERROR   
-01C5   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
-01C7   C2 0C 00               JP   NZ,ERROR   
-01CA   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
-01CC   CA 0C 00               JP   Z,ERROR   
-01CF   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
-01D1   C2 0C 00               JP   NZ,ERROR   
-01D4                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
-01D4   3E 70                  LD   A,0x70   
-01D6   1E 81                  LD   E,0x81   
-01D8   93                     SUB   E   
-01D9   F5                     PUSH   AF   
-01DA   C1                     POP   BC   
-01DB                          ; Verify Result
-01DB   FE EF                  CP   0xEF   
-01DD   C2 0C 00               JP   NZ,ERROR   
-01E0                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
-01E0   CB 79                  BIT   7,C   ; S should be set (result is negative)
-01E2   CA 0C 00               JP   Z,ERROR   
-01E5   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
-01E7   C2 0C 00               JP   NZ,ERROR   
-01EA   CB 61                  BIT   4,C   ; H should be set (borrow required for 0x0 - 0x1)
-01EC   CA 0C 00               JP   Z,ERROR   
-01EF   CB 51                  BIT   2,C   ; P/V should be set (signed overflow occurred)
-01F1   CA 0C 00               JP   Z,ERROR   
-01F4   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
-01F6   CA 0C 00               JP   Z,ERROR   
-01F9   CB 41                  BIT   0,C   ; C should be set (borrow required from MSB)
-01FB   CA 0C 00               JP   Z,ERROR   
-01FE                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
-01FE   3E 55                  LD   A,0x55   
-0200   1E 22                  LD   E,0x22   
-0202   93                     SUB   E   
-0203   F5                     PUSH   AF   
-0204   C1                     POP   BC   
-0205                          ; Verify Result
-0205   FE 33                  CP   0x33   
-0207   C2 0C 00               JP   NZ,ERROR   
-020A                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
-020A   CB 79                  BIT   7,C   ; S should be cleared (result is positive)
-020C   C2 0C 00               JP   NZ,ERROR   
-020F   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
-0211   C2 0C 00               JP   NZ,ERROR   
-0214   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
-0216   C2 0C 00               JP   NZ,ERROR   
-0219   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
-021B   C2 0C 00               JP   NZ,ERROR   
-021E   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
-0220   CA 0C 00               JP   Z,ERROR   
-0223   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
-0225   C2 0C 00               JP   NZ,ERROR   
-0228   C9                     RET   
-0229                TEST_SUB_H:   
-0229                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
-0229   3E 20                  LD   A,0x20   
-022B   26 20                  LD   H,0x20   
-022D   94                     SUB   H   
-022E   F5                     PUSH   AF   
-022F   C1                     POP   BC   ; C = Flags
-0230                          ; Verify Result
-0230   FE 00                  CP   0x00   
-0232   C2 0C 00               JP   NZ,ERROR   
-0235                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
-0235   CB 79                  BIT   7,C   ; S should be cleared (result is not negative)
+01BB   C9                     RET   
+01BC                TEST_SUB_E:   
+01BC                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+01BC   3E 20                  LD   A,0x20   
+01BE   1E 20                  LD   E,0x20   
+01C0   93                     SUB   E   
+01C1   F5                     PUSH   AF   
+01C2   C1                     POP   BC   ; C = Flags
+01C3                          ; Verify Result
+01C3   FE 00                  CP   0x00   
+01C5   C2 0C 00               JP   NZ,ERROR   
+01C8                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+01C8   CB 79                  BIT   7,C   ; S should be cleared (result is not negative)
+01CA   C2 0C 00               JP   NZ,ERROR   
+01CD   CB 71                  BIT   6,C   ; Z should be set (result is zero)
+01CF   CA 0C 00               JP   Z,ERROR   
+01D2   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
+01D4   C2 0C 00               JP   NZ,ERROR   
+01D7   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
+01D9   C2 0C 00               JP   NZ,ERROR   
+01DC   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
+01DE   CA 0C 00               JP   Z,ERROR   
+01E1   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
+01E3   C2 0C 00               JP   NZ,ERROR   
+01E6                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+01E6   3E 70                  LD   A,0x70   
+01E8   1E 81                  LD   E,0x81   
+01EA   93                     SUB   E   
+01EB   F5                     PUSH   AF   
+01EC   C1                     POP   BC   
+01ED                          ; Verify Result
+01ED   FE EF                  CP   0xEF   
+01EF   C2 0C 00               JP   NZ,ERROR   
+01F2                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+01F2   CB 79                  BIT   7,C   ; S should be set (result is negative)
+01F4   CA 0C 00               JP   Z,ERROR   
+01F7   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
+01F9   C2 0C 00               JP   NZ,ERROR   
+01FC   CB 61                  BIT   4,C   ; H should be set (borrow required for 0x0 - 0x1)
+01FE   CA 0C 00               JP   Z,ERROR   
+0201   CB 51                  BIT   2,C   ; P/V should be set (signed overflow occurred)
+0203   CA 0C 00               JP   Z,ERROR   
+0206   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
+0208   CA 0C 00               JP   Z,ERROR   
+020B   CB 41                  BIT   0,C   ; C should be set (borrow required from MSB)
+020D   CA 0C 00               JP   Z,ERROR   
+0210                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+0210   3E 55                  LD   A,0x55   
+0212   1E 22                  LD   E,0x22   
+0214   93                     SUB   E   
+0215   F5                     PUSH   AF   
+0216   C1                     POP   BC   
+0217                          ; Verify Result
+0217   FE 33                  CP   0x33   
+0219   C2 0C 00               JP   NZ,ERROR   
+021C                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+021C   CB 79                  BIT   7,C   ; S should be cleared (result is positive)
+021E   C2 0C 00               JP   NZ,ERROR   
+0221   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
+0223   C2 0C 00               JP   NZ,ERROR   
+0226   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
+0228   C2 0C 00               JP   NZ,ERROR   
+022B   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
+022D   C2 0C 00               JP   NZ,ERROR   
+0230   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
+0232   CA 0C 00               JP   Z,ERROR   
+0235   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
 0237   C2 0C 00               JP   NZ,ERROR   
-023A   CB 71                  BIT   6,C   ; Z should be set (result is zero)
-023C   CA 0C 00               JP   Z,ERROR   
-023F   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
-0241   C2 0C 00               JP   NZ,ERROR   
-0244   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
-0246   C2 0C 00               JP   NZ,ERROR   
-0249   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
-024B   CA 0C 00               JP   Z,ERROR   
-024E   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
-0250   C2 0C 00               JP   NZ,ERROR   
-0253                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
-0253   3E 70                  LD   A,0x70   
-0255   26 81                  LD   H,0x81   
-0257   94                     SUB   H   
-0258   F5                     PUSH   AF   
-0259   C1                     POP   BC   
-025A                          ; Verify Result
-025A   FE EF                  CP   0xEF   
-025C   C2 0C 00               JP   NZ,ERROR   
-025F                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
-025F   CB 79                  BIT   7,C   ; S should be set (result is negative)
-0261   CA 0C 00               JP   Z,ERROR   
-0264   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
-0266   C2 0C 00               JP   NZ,ERROR   
-0269   CB 61                  BIT   4,C   ; H should be set (borrow required for 0x0 - 0x1)
-026B   CA 0C 00               JP   Z,ERROR   
-026E   CB 51                  BIT   2,C   ; P/V should be set (signed overflow occurred)
-0270   CA 0C 00               JP   Z,ERROR   
-0273   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
-0275   CA 0C 00               JP   Z,ERROR   
-0278   CB 41                  BIT   0,C   ; C should be set (borrow required from MSB)
-027A   CA 0C 00               JP   Z,ERROR   
-027D                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
-027D   3E 55                  LD   A,0x55   
-027F   26 22                  LD   H,0x22   
-0281   94                     SUB   H   
-0282   F5                     PUSH   AF   
-0283   C1                     POP   BC   
-0284                          ; Verify Result
-0284   FE 33                  CP   0x33   
-0286   C2 0C 00               JP   NZ,ERROR   
-0289                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
-0289   CB 79                  BIT   7,C   ; S should be cleared (result is positive)
-028B   C2 0C 00               JP   NZ,ERROR   
-028E   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
-0290   C2 0C 00               JP   NZ,ERROR   
-0293   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
-0295   C2 0C 00               JP   NZ,ERROR   
-0298   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
-029A   C2 0C 00               JP   NZ,ERROR   
-029D   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
-029F   CA 0C 00               JP   Z,ERROR   
-02A2   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
-02A4   C2 0C 00               JP   NZ,ERROR   
-02A7   C9                     RET   
-02A8                TEST_SUB_L:   
-02A8                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
-02A8   3E 20                  LD   A,0x20   
-02AA   2E 20                  LD   L,0x20   
-02AC   95                     SUB   L   
-02AD   F5                     PUSH   AF   
-02AE   C1                     POP   BC   ; C = Flags
-02AF                          ; Verify Result
-02AF   FE 00                  CP   0x00   
-02B1   C2 0C 00               JP   NZ,ERROR   
-02B4                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
-02B4   CB 79                  BIT   7,C   ; S should be cleared (result is not negative)
+023A   C9                     RET   
+023B                TEST_SUB_H:   
+023B                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+023B   3E 20                  LD   A,0x20   
+023D   26 20                  LD   H,0x20   
+023F   94                     SUB   H   
+0240   F5                     PUSH   AF   
+0241   C1                     POP   BC   ; C = Flags
+0242                          ; Verify Result
+0242   FE 00                  CP   0x00   
+0244   C2 0C 00               JP   NZ,ERROR   
+0247                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+0247   CB 79                  BIT   7,C   ; S should be cleared (result is not negative)
+0249   C2 0C 00               JP   NZ,ERROR   
+024C   CB 71                  BIT   6,C   ; Z should be set (result is zero)
+024E   CA 0C 00               JP   Z,ERROR   
+0251   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
+0253   C2 0C 00               JP   NZ,ERROR   
+0256   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
+0258   C2 0C 00               JP   NZ,ERROR   
+025B   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
+025D   CA 0C 00               JP   Z,ERROR   
+0260   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
+0262   C2 0C 00               JP   NZ,ERROR   
+0265                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+0265   3E 70                  LD   A,0x70   
+0267   26 81                  LD   H,0x81   
+0269   94                     SUB   H   
+026A   F5                     PUSH   AF   
+026B   C1                     POP   BC   
+026C                          ; Verify Result
+026C   FE EF                  CP   0xEF   
+026E   C2 0C 00               JP   NZ,ERROR   
+0271                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+0271   CB 79                  BIT   7,C   ; S should be set (result is negative)
+0273   CA 0C 00               JP   Z,ERROR   
+0276   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
+0278   C2 0C 00               JP   NZ,ERROR   
+027B   CB 61                  BIT   4,C   ; H should be set (borrow required for 0x0 - 0x1)
+027D   CA 0C 00               JP   Z,ERROR   
+0280   CB 51                  BIT   2,C   ; P/V should be set (signed overflow occurred)
+0282   CA 0C 00               JP   Z,ERROR   
+0285   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
+0287   CA 0C 00               JP   Z,ERROR   
+028A   CB 41                  BIT   0,C   ; C should be set (borrow required from MSB)
+028C   CA 0C 00               JP   Z,ERROR   
+028F                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+028F   3E 55                  LD   A,0x55   
+0291   26 22                  LD   H,0x22   
+0293   94                     SUB   H   
+0294   F5                     PUSH   AF   
+0295   C1                     POP   BC   
+0296                          ; Verify Result
+0296   FE 33                  CP   0x33   
+0298   C2 0C 00               JP   NZ,ERROR   
+029B                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+029B   CB 79                  BIT   7,C   ; S should be cleared (result is positive)
+029D   C2 0C 00               JP   NZ,ERROR   
+02A0   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
+02A2   C2 0C 00               JP   NZ,ERROR   
+02A5   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
+02A7   C2 0C 00               JP   NZ,ERROR   
+02AA   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
+02AC   C2 0C 00               JP   NZ,ERROR   
+02AF   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
+02B1   CA 0C 00               JP   Z,ERROR   
+02B4   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
 02B6   C2 0C 00               JP   NZ,ERROR   
-02B9   CB 71                  BIT   6,C   ; Z should be set (result is zero)
-02BB   CA 0C 00               JP   Z,ERROR   
-02BE   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
-02C0   C2 0C 00               JP   NZ,ERROR   
-02C3   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
-02C5   C2 0C 00               JP   NZ,ERROR   
-02C8   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
-02CA   CA 0C 00               JP   Z,ERROR   
-02CD   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
-02CF   C2 0C 00               JP   NZ,ERROR   
-02D2                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
-02D2   3E 70                  LD   A,0x70   
-02D4   2E 81                  LD   L,0x81   
-02D6   95                     SUB   L   
-02D7   F5                     PUSH   AF   
-02D8   C1                     POP   BC   
-02D9                          ; Verify Result
-02D9   FE EF                  CP   0xEF   
-02DB   C2 0C 00               JP   NZ,ERROR   
-02DE                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
-02DE   CB 79                  BIT   7,C   ; S should be set (result is negative)
-02E0   CA 0C 00               JP   Z,ERROR   
-02E3   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
-02E5   C2 0C 00               JP   NZ,ERROR   
-02E8   CB 61                  BIT   4,C   ; H should be set (borrow required for 0x0 - 0x1)
-02EA   CA 0C 00               JP   Z,ERROR   
-02ED   CB 51                  BIT   2,C   ; P/V should be set (signed overflow occurred)
-02EF   CA 0C 00               JP   Z,ERROR   
-02F2   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
-02F4   CA 0C 00               JP   Z,ERROR   
-02F7   CB 41                  BIT   0,C   ; C should be set (borrow required from MSB)
-02F9   CA 0C 00               JP   Z,ERROR   
-02FC                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
-02FC   3E 55                  LD   A,0x55   
-02FE   2E 22                  LD   L,0x22   
-0300   95                     SUB   L   
-0301   F5                     PUSH   AF   
-0302   C1                     POP   BC   
-0303                          ; Verify Result
-0303   FE 33                  CP   0x33   
-0305   C2 0C 00               JP   NZ,ERROR   
-0308                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
-0308   CB 79                  BIT   7,C   ; S should be cleared (result is positive)
-030A   C2 0C 00               JP   NZ,ERROR   
-030D   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
-030F   C2 0C 00               JP   NZ,ERROR   
-0312   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
-0314   C2 0C 00               JP   NZ,ERROR   
-0317   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
-0319   C2 0C 00               JP   NZ,ERROR   
-031C   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
-031E   CA 0C 00               JP   Z,ERROR   
-0321   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
-0323   C2 0C 00               JP   NZ,ERROR   
-0326   C9                     RET   
-0327                TEST_SUB_HL:   
-0327                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
-0327   21 00 FF               LD   HL,TEST_RAM   
-032A   36 20                  LD   (HL),0x20   ; Load operand into memory
-032C   3E 20                  LD   A,0x20   
-032E   96                     SUB   (HL)   
-032F   F5                     PUSH   AF   
-0330   D1                     POP   DE   ; E = Flags
-0331                          ; Verify Result
-0331   FE 00                  CP   0x00   
-0333   C2 0C 00               JP   NZ,ERROR   
-0336                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
-0336   CB 7B                  BIT   7,E   ; S should be cleared
-0338   C2 0C 00               JP   NZ,ERROR   
-033B   CB 73                  BIT   6,E   ; Z should be set
-033D   CA 0C 00               JP   Z,ERROR   
-0340   CB 63                  BIT   4,E   ; H should be cleared
-0342   C2 0C 00               JP   NZ,ERROR   
-0345   CB 53                  BIT   2,E   ; P/V should be cleared
-0347   C2 0C 00               JP   NZ,ERROR   
-034A   CB 4B                  BIT   1,E   ; N should be set
-034C   CA 0C 00               JP   Z,ERROR   
-034F   CB 43                  BIT   0,E   ; C should be cleared
-0351   C2 0C 00               JP   NZ,ERROR   
-0354                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
-0354   21 00 FF               LD   HL,TEST_RAM   
-0357   36 81                  LD   (HL),0x81   
-0359   3E 70                  LD   A,0x70   
-035B   96                     SUB   (HL)   
-035C   F5                     PUSH   AF   
-035D   D1                     POP   DE   
-035E                          ; Verify Result
-035E   FE EF                  CP   0xEF   
-0360   C2 0C 00               JP   NZ,ERROR   
-0363                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
-0363   CB 7B                  BIT   7,E   ; S should be set (result is negative)
-0365   CA 0C 00               JP   Z,ERROR   
-0368   CB 73                  BIT   6,E   ; Z should be cleared (result is not zero)
-036A   C2 0C 00               JP   NZ,ERROR   
-036D   CB 63                  BIT   4,E   ; H should be set (borrow required for 0x0 - 0x1)
-036F   CA 0C 00               JP   Z,ERROR   
-0372   CB 53                  BIT   2,E   ; P/V should be set (signed overflow)
-0374   CA 0C 00               JP   Z,ERROR   
-0377   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
-0379   CA 0C 00               JP   Z,ERROR   
-037C   CB 43                  BIT   0,E   ; C should be set (borrow required from MSB)
-037E   CA 0C 00               JP   Z,ERROR   
-0381                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
-0381   21 00 FF               LD   HL,TEST_RAM   
-0384   36 22                  LD   (HL),0x22   
-0386   3E 55                  LD   A,0x55   
-0388   96                     SUB   (HL)   
-0389   F5                     PUSH   AF   
-038A   D1                     POP   DE   
-038B                          ; Verify Result
-038B   FE 33                  CP   0x33   
-038D   C2 0C 00               JP   NZ,ERROR   
-0390                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
-0390   CB 7B                  BIT   7,E   ; S should be cleared
-0392   C2 0C 00               JP   NZ,ERROR   
-0395   CB 73                  BIT   6,E   ; Z should be cleared
-0397   C2 0C 00               JP   NZ,ERROR   
-039A   CB 63                  BIT   4,E   ; H should be cleared
-039C   C2 0C 00               JP   NZ,ERROR   
-039F   CB 53                  BIT   2,E   ; P/V should be cleared
-03A1   C2 0C 00               JP   NZ,ERROR   
-03A4   CB 4B                  BIT   1,E   ; N should be set
-03A6   CA 0C 00               JP   Z,ERROR   
-03A9   CB 43                  BIT   0,E   ; C should be cleared
-03AB   C2 0C 00               JP   NZ,ERROR   
-03AE   C9                     RET   
-03AF                TEST_SUB_N:   
-03AF                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
-03AF   3E 20                  LD   A,0x20   
-03B1   D6 20                  SUB   0x20   ; Immediate operand
-03B3   F5                     PUSH   AF   
-03B4   D1                     POP   DE   ; E = Flags
-03B5                          ; Verify Result
-03B5   FE 00                  CP   0x00   
-03B7   C2 0C 00               JP   NZ,ERROR   
-03BA                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
-03BA   CB 7B                  BIT   7,E   ; S should be cleared
-03BC   C2 0C 00               JP   NZ,ERROR   
-03BF   CB 73                  BIT   6,E   ; Z should be set
-03C1   CA 0C 00               JP   Z,ERROR   
-03C4   CB 63                  BIT   4,E   ; H should be cleared
-03C6   C2 0C 00               JP   NZ,ERROR   
-03C9   CB 53                  BIT   2,E   ; P/V should be cleared
-03CB   C2 0C 00               JP   NZ,ERROR   
-03CE   CB 4B                  BIT   1,E   ; N should be set
-03D0   CA 0C 00               JP   Z,ERROR   
-03D3   CB 43                  BIT   0,E   ; C should be cleared
-03D5   C2 0C 00               JP   NZ,ERROR   
-03D8                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
-03D8   3E 70                  LD   A,0x70   
-03DA   D6 81                  SUB   0x81   
-03DC   F5                     PUSH   AF   
-03DD   D1                     POP   DE   
-03DE                          ; Verify Result
-03DE   FE EF                  CP   0xEF   
-03E0   C2 0C 00               JP   NZ,ERROR   
-03E3                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
-03E3   CB 7B                  BIT   7,E   ; S should be set (result is negative)
-03E5   CA 0C 00               JP   Z,ERROR   
-03E8   CB 73                  BIT   6,E   ; Z should be cleared (result is not zero)
-03EA   C2 0C 00               JP   NZ,ERROR   
-03ED   CB 63                  BIT   4,E   ; H should be set (borrow required for 0x0 - 0x1)
-03EF   CA 0C 00               JP   Z,ERROR   
-03F2   CB 53                  BIT   2,E   ; P/V should be set (signed overflow)
-03F4   CA 0C 00               JP   Z,ERROR   
-03F7   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
-03F9   CA 0C 00               JP   Z,ERROR   
-03FC   CB 43                  BIT   0,E   ; C should be set (borrow required from MSB)
-03FE   CA 0C 00               JP   Z,ERROR   
-0401                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
-0401   3E 55                  LD   A,0x55   
-0403   D6 22                  SUB   0x22   
-0405   F5                     PUSH   AF   
-0406   D1                     POP   DE   
-0407                          ; Verify Result
-0407   FE 33                  CP   0x33   
-0409   C2 0C 00               JP   NZ,ERROR   
-040C                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
-040C   CB 7B                  BIT   7,E   ; S should be cleared
-040E   C2 0C 00               JP   NZ,ERROR   
-0411   CB 73                  BIT   6,E   ; Z should be cleared
-0413   C2 0C 00               JP   NZ,ERROR   
-0416   CB 63                  BIT   4,E   ; H should be cleared
-0418   C2 0C 00               JP   NZ,ERROR   
-041B   CB 53                  BIT   2,E   ; P/V should be cleared
-041D   C2 0C 00               JP   NZ,ERROR   
-0420   CB 4B                  BIT   1,E   ; N should be set
-0422   CA 0C 00               JP   Z,ERROR   
-0425   CB 43                  BIT   0,E   ; C should be cleared
-0427   C2 0C 00               JP   NZ,ERROR   
-042A   C9                     RET   
-042B                TEST_SUB_A:   
-042B                          ; --- Case: 0xEF - 0xEF = 0x00 (Clean Zero Guarantee) ---
-042B                          ; Subtracting A from A always yields 0x00. We load a random 'dirty'
-042B                          ; number to ensure the instruction properly clears the register and flags.
-042B   3E EF                  LD   A,0xEF   
-042D   97                     SUB   A   
-042E   F5                     PUSH   AF   
-042F   D1                     POP   DE   ; E = Flags
-0430                          ; Verify Result
-0430   FE 00                  CP   0x00   
-0432   C2 0C 00               JP   NZ,ERROR   
-0435                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
-0435   CB 7B                  BIT   7,E   ; S should be cleared (result is 0x00, not negative)
-0437   C2 0C 00               JP   NZ,ERROR   
-043A   CB 73                  BIT   6,E   ; Z should be set (result is exactly zero)
-043C   CA 0C 00               JP   Z,ERROR   
-043F   CB 63                  BIT   4,E   ; H should be cleared (no half-borrow)
-0441   C2 0C 00               JP   NZ,ERROR   
-0444   CB 53                  BIT   2,E   ; P/V should be cleared (no overflow)
-0446   C2 0C 00               JP   NZ,ERROR   
-0449   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
-044B   CA 0C 00               JP   Z,ERROR   
-044E   CB 43                  BIT   0,E   ; C should be cleared (no borrow)
-0450   C2 0C 00               JP   NZ,ERROR   
-0453   C9                     RET 
+02B9   C9                     RET   
+02BA                TEST_SUB_L:   
+02BA                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+02BA   3E 20                  LD   A,0x20   
+02BC   2E 20                  LD   L,0x20   
+02BE   95                     SUB   L   
+02BF   F5                     PUSH   AF   
+02C0   C1                     POP   BC   ; C = Flags
+02C1                          ; Verify Result
+02C1   FE 00                  CP   0x00   
+02C3   C2 0C 00               JP   NZ,ERROR   
+02C6                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+02C6   CB 79                  BIT   7,C   ; S should be cleared (result is not negative)
+02C8   C2 0C 00               JP   NZ,ERROR   
+02CB   CB 71                  BIT   6,C   ; Z should be set (result is zero)
+02CD   CA 0C 00               JP   Z,ERROR   
+02D0   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
+02D2   C2 0C 00               JP   NZ,ERROR   
+02D5   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
+02D7   C2 0C 00               JP   NZ,ERROR   
+02DA   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
+02DC   CA 0C 00               JP   Z,ERROR   
+02DF   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
+02E1   C2 0C 00               JP   NZ,ERROR   
+02E4                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+02E4   3E 70                  LD   A,0x70   
+02E6   2E 81                  LD   L,0x81   
+02E8   95                     SUB   L   
+02E9   F5                     PUSH   AF   
+02EA   C1                     POP   BC   
+02EB                          ; Verify Result
+02EB   FE EF                  CP   0xEF   
+02ED   C2 0C 00               JP   NZ,ERROR   
+02F0                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+02F0   CB 79                  BIT   7,C   ; S should be set (result is negative)
+02F2   CA 0C 00               JP   Z,ERROR   
+02F5   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
+02F7   C2 0C 00               JP   NZ,ERROR   
+02FA   CB 61                  BIT   4,C   ; H should be set (borrow required for 0x0 - 0x1)
+02FC   CA 0C 00               JP   Z,ERROR   
+02FF   CB 51                  BIT   2,C   ; P/V should be set (signed overflow occurred)
+0301   CA 0C 00               JP   Z,ERROR   
+0304   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
+0306   CA 0C 00               JP   Z,ERROR   
+0309   CB 41                  BIT   0,C   ; C should be set (borrow required from MSB)
+030B   CA 0C 00               JP   Z,ERROR   
+030E                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+030E   3E 55                  LD   A,0x55   
+0310   2E 22                  LD   L,0x22   
+0312   95                     SUB   L   
+0313   F5                     PUSH   AF   
+0314   C1                     POP   BC   
+0315                          ; Verify Result
+0315   FE 33                  CP   0x33   
+0317   C2 0C 00               JP   NZ,ERROR   
+031A                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+031A   CB 79                  BIT   7,C   ; S should be cleared (result is positive)
+031C   C2 0C 00               JP   NZ,ERROR   
+031F   CB 71                  BIT   6,C   ; Z should be cleared (result is not zero)
+0321   C2 0C 00               JP   NZ,ERROR   
+0324   CB 61                  BIT   4,C   ; H should be cleared (no half-borrow)
+0326   C2 0C 00               JP   NZ,ERROR   
+0329   CB 51                  BIT   2,C   ; P/V should be cleared (no overflow)
+032B   C2 0C 00               JP   NZ,ERROR   
+032E   CB 49                  BIT   1,C   ; N should be set (subtraction operation)
+0330   CA 0C 00               JP   Z,ERROR   
+0333   CB 41                  BIT   0,C   ; C should be cleared (no borrow)
+0335   C2 0C 00               JP   NZ,ERROR   
+0338   C9                     RET   
+0339                TEST_SUB_HL:   
+0339                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+0339   21 00 FF               LD   HL,TEST_RAM   
+033C   36 20                  LD   (HL),0x20   ; Load operand into memory
+033E   3E 20                  LD   A,0x20   
+0340   96                     SUB   (HL)   
+0341   F5                     PUSH   AF   
+0342   D1                     POP   DE   ; E = Flags
+0343                          ; Verify Result
+0343   FE 00                  CP   0x00   
+0345   C2 0C 00               JP   NZ,ERROR   
+0348                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+0348   CB 7B                  BIT   7,E   ; S should be cleared
+034A   C2 0C 00               JP   NZ,ERROR   
+034D   CB 73                  BIT   6,E   ; Z should be set
+034F   CA 0C 00               JP   Z,ERROR   
+0352   CB 63                  BIT   4,E   ; H should be cleared
+0354   C2 0C 00               JP   NZ,ERROR   
+0357   CB 53                  BIT   2,E   ; P/V should be cleared
+0359   C2 0C 00               JP   NZ,ERROR   
+035C   CB 4B                  BIT   1,E   ; N should be set
+035E   CA 0C 00               JP   Z,ERROR   
+0361   CB 43                  BIT   0,E   ; C should be cleared
+0363   C2 0C 00               JP   NZ,ERROR   
+0366                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+0366   21 00 FF               LD   HL,TEST_RAM   
+0369   36 81                  LD   (HL),0x81   
+036B   3E 70                  LD   A,0x70   
+036D   96                     SUB   (HL)   
+036E   F5                     PUSH   AF   
+036F   D1                     POP   DE   
+0370                          ; Verify Result
+0370   FE EF                  CP   0xEF   
+0372   C2 0C 00               JP   NZ,ERROR   
+0375                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+0375   CB 7B                  BIT   7,E   ; S should be set (result is negative)
+0377   CA 0C 00               JP   Z,ERROR   
+037A   CB 73                  BIT   6,E   ; Z should be cleared (result is not zero)
+037C   C2 0C 00               JP   NZ,ERROR   
+037F   CB 63                  BIT   4,E   ; H should be set (borrow required for 0x0 - 0x1)
+0381   CA 0C 00               JP   Z,ERROR   
+0384   CB 53                  BIT   2,E   ; P/V should be set (signed overflow)
+0386   CA 0C 00               JP   Z,ERROR   
+0389   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
+038B   CA 0C 00               JP   Z,ERROR   
+038E   CB 43                  BIT   0,E   ; C should be set (borrow required from MSB)
+0390   CA 0C 00               JP   Z,ERROR   
+0393                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+0393   21 00 FF               LD   HL,TEST_RAM   
+0396   36 22                  LD   (HL),0x22   
+0398   3E 55                  LD   A,0x55   
+039A   96                     SUB   (HL)   
+039B   F5                     PUSH   AF   
+039C   D1                     POP   DE   
+039D                          ; Verify Result
+039D   FE 33                  CP   0x33   
+039F   C2 0C 00               JP   NZ,ERROR   
+03A2                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+03A2   CB 7B                  BIT   7,E   ; S should be cleared
+03A4   C2 0C 00               JP   NZ,ERROR   
+03A7   CB 73                  BIT   6,E   ; Z should be cleared
+03A9   C2 0C 00               JP   NZ,ERROR   
+03AC   CB 63                  BIT   4,E   ; H should be cleared
+03AE   C2 0C 00               JP   NZ,ERROR   
+03B1   CB 53                  BIT   2,E   ; P/V should be cleared
+03B3   C2 0C 00               JP   NZ,ERROR   
+03B6   CB 4B                  BIT   1,E   ; N should be set
+03B8   CA 0C 00               JP   Z,ERROR   
+03BB   CB 43                  BIT   0,E   ; C should be cleared
+03BD   C2 0C 00               JP   NZ,ERROR   
+03C0   C9                     RET   
+03C1                TEST_SUB_N:   
+03C1                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+03C1   3E 20                  LD   A,0x20   
+03C3   D6 20                  SUB   0x20   ; Immediate operand
+03C5   F5                     PUSH   AF   
+03C6   D1                     POP   DE   ; E = Flags
+03C7                          ; Verify Result
+03C7   FE 00                  CP   0x00   
+03C9   C2 0C 00               JP   NZ,ERROR   
+03CC                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+03CC   CB 7B                  BIT   7,E   ; S should be cleared
+03CE   C2 0C 00               JP   NZ,ERROR   
+03D1   CB 73                  BIT   6,E   ; Z should be set
+03D3   CA 0C 00               JP   Z,ERROR   
+03D6   CB 63                  BIT   4,E   ; H should be cleared
+03D8   C2 0C 00               JP   NZ,ERROR   
+03DB   CB 53                  BIT   2,E   ; P/V should be cleared
+03DD   C2 0C 00               JP   NZ,ERROR   
+03E0   CB 4B                  BIT   1,E   ; N should be set
+03E2   CA 0C 00               JP   Z,ERROR   
+03E5   CB 43                  BIT   0,E   ; C should be cleared
+03E7   C2 0C 00               JP   NZ,ERROR   
+03EA                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+03EA   3E 70                  LD   A,0x70   
+03EC   D6 81                  SUB   0x81   
+03EE   F5                     PUSH   AF   
+03EF   D1                     POP   DE   
+03F0                          ; Verify Result
+03F0   FE EF                  CP   0xEF   
+03F2   C2 0C 00               JP   NZ,ERROR   
+03F5                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+03F5   CB 7B                  BIT   7,E   ; S should be set (result is negative)
+03F7   CA 0C 00               JP   Z,ERROR   
+03FA   CB 73                  BIT   6,E   ; Z should be cleared (result is not zero)
+03FC   C2 0C 00               JP   NZ,ERROR   
+03FF   CB 63                  BIT   4,E   ; H should be set (borrow required for 0x0 - 0x1)
+0401   CA 0C 00               JP   Z,ERROR   
+0404   CB 53                  BIT   2,E   ; P/V should be set (signed overflow)
+0406   CA 0C 00               JP   Z,ERROR   
+0409   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
+040B   CA 0C 00               JP   Z,ERROR   
+040E   CB 43                  BIT   0,E   ; C should be set (borrow required from MSB)
+0410   CA 0C 00               JP   Z,ERROR   
+0413                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+0413   3E 55                  LD   A,0x55   
+0415   D6 22                  SUB   0x22   
+0417   F5                     PUSH   AF   
+0418   D1                     POP   DE   
+0419                          ; Verify Result
+0419   FE 33                  CP   0x33   
+041B   C2 0C 00               JP   NZ,ERROR   
+041E                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+041E   CB 7B                  BIT   7,E   ; S should be cleared
+0420   C2 0C 00               JP   NZ,ERROR   
+0423   CB 73                  BIT   6,E   ; Z should be cleared
+0425   C2 0C 00               JP   NZ,ERROR   
+0428   CB 63                  BIT   4,E   ; H should be cleared
+042A   C2 0C 00               JP   NZ,ERROR   
+042D   CB 53                  BIT   2,E   ; P/V should be cleared
+042F   C2 0C 00               JP   NZ,ERROR   
+0432   CB 4B                  BIT   1,E   ; N should be set
+0434   CA 0C 00               JP   Z,ERROR   
+0437   CB 43                  BIT   0,E   ; C should be cleared
+0439   C2 0C 00               JP   NZ,ERROR   
+043C   C9                     RET   
+043D                TEST_SUB_A:   
+043D                          ; --- Case: 0xEF - 0xEF = 0x00 (Clean Zero Guarantee) ---
+043D                          ; Subtracting A from A always yields 0x00. We load a random 'dirty'
+043D                          ; number to ensure the instruction properly clears the register and flags.
+043D   3E EF                  LD   A,0xEF   
+043F   97                     SUB   A   
+0440   F5                     PUSH   AF   
+0441   D1                     POP   DE   ; E = Flags
+0442                          ; Verify Result
+0442   FE 00                  CP   0x00   
+0444   C2 0C 00               JP   NZ,ERROR   
+0447                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+0447   CB 7B                  BIT   7,E   ; S should be cleared (result is 0x00, not negative)
+0449   C2 0C 00               JP   NZ,ERROR   
+044C   CB 73                  BIT   6,E   ; Z should be set (result is exactly zero)
+044E   CA 0C 00               JP   Z,ERROR   
+0451   CB 63                  BIT   4,E   ; H should be cleared (no half-borrow)
+0453   C2 0C 00               JP   NZ,ERROR   
+0456   CB 53                  BIT   2,E   ; P/V should be cleared (no overflow)
+0458   C2 0C 00               JP   NZ,ERROR   
+045B   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
+045D   CA 0C 00               JP   Z,ERROR   
+0460   CB 43                  BIT   0,E   ; C should be cleared (no borrow)
+0462   C2 0C 00               JP   NZ,ERROR   
+0465   C9                     RET   
+0466                TEST_SUB_IX_D:   
+0466   DD 21 00 FF            LD   IX,TEST_RAM   
+046A                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+046A   3E 20                  LD   A,0x20   
+046C   32 05 FF               LD   (TEST_RAM_PLUS_5),A   ; Load operand at TEST_RAM + 5
+046F   3E 20                  LD   A,0x20   
+0471   DD 96 05               SUB   (IX+5)   
+0474   F5                     PUSH   AF   
+0475   D1                     POP   DE   ; E = Flags
+0476                          ; Verify Result
+0476   FE 00                  CP   0x00   
+0478   C2 0C 00               JP   NZ,ERROR   
+047B                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+047B   CB 7B                  BIT   7,E   ; S should be cleared (result is not negative)
+047D   C2 0C 00               JP   NZ,ERROR   
+0480   CB 73                  BIT   6,E   ; Z should be set (result is zero)
+0482   CA 0C 00               JP   Z,ERROR   
+0485   CB 63                  BIT   4,E   ; H should be cleared (no half-borrow)
+0487   C2 0C 00               JP   NZ,ERROR   
+048A   CB 53                  BIT   2,E   ; P/V should be cleared (no overflow)
+048C   C2 0C 00               JP   NZ,ERROR   
+048F   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
+0491   CA 0C 00               JP   Z,ERROR   
+0494   CB 43                  BIT   0,E   ; C should be cleared (no borrow)
+0496   C2 0C 00               JP   NZ,ERROR   
+0499                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+0499   3E 81                  LD   A,0x81   
+049B   32 FB FE               LD   (TEST_RAM_MINUS_5),A   
+049E   3E 70                  LD   A,0x70   
+04A0   DD 96 FB               SUB   (IX-5)   
+04A3   F5                     PUSH   AF   
+04A4   D1                     POP   DE   
+04A5                          ; Verify Result
+04A5   FE EF                  CP   0xEF   
+04A7   C2 0C 00               JP   NZ,ERROR   
+04AA                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+04AA   CB 7B                  BIT   7,E   ; S should be set (result is negative)
+04AC   CA 0C 00               JP   Z,ERROR   
+04AF   CB 73                  BIT   6,E   ; Z should be cleared (result is not zero)
+04B1   C2 0C 00               JP   NZ,ERROR   
+04B4   CB 63                  BIT   4,E   ; H should be set (borrow required for 0x0 - 0x1)
+04B6   CA 0C 00               JP   Z,ERROR   
+04B9   CB 53                  BIT   2,E   ; P/V should be set (signed overflow)
+04BB   CA 0C 00               JP   Z,ERROR   
+04BE   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
+04C0   CA 0C 00               JP   Z,ERROR   
+04C3   CB 43                  BIT   0,E   ; C should be set (borrow required from MSB)
+04C5   CA 0C 00               JP   Z,ERROR   
+04C8                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+04C8   3E 22                  LD   A,0x22   
+04CA   32 05 FF               LD   (TEST_RAM_PLUS_5),A   
+04CD   3E 55                  LD   A,0x55   
+04CF   DD 96 05               SUB   (IX+5)   
+04D2   F5                     PUSH   AF   
+04D3   D1                     POP   DE   
+04D4                          ; Verify Result
+04D4   FE 33                  CP   0x33   
+04D6   C2 0C 00               JP   NZ,ERROR   
+04D9                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+04D9   CB 7B                  BIT   7,E   ; S should be cleared (result is positive)
+04DB   C2 0C 00               JP   NZ,ERROR   
+04DE   CB 73                  BIT   6,E   ; Z should be cleared (result is not zero)
+04E0   C2 0C 00               JP   NZ,ERROR   
+04E3   CB 63                  BIT   4,E   ; H should be cleared (no half-borrow)
+04E5   C2 0C 00               JP   NZ,ERROR   
+04E8   CB 53                  BIT   2,E   ; P/V should be cleared (no overflow)
+04EA   C2 0C 00               JP   NZ,ERROR   
+04ED   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
+04EF   CA 0C 00               JP   Z,ERROR   
+04F2   CB 43                  BIT   0,E   ; C should be cleared (no borrow)
+04F4   C2 0C 00               JP   NZ,ERROR   
+04F7   C9                     RET   
+04F8                TEST_SUB_IY_D:   
+04F8   FD 21 00 FF            LD   IY,TEST_RAM   
+04FC                          ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+04FC                          ; -5 compiles as 0xFB. Tests correct signed address addition.
+04FC   3E 20                  LD   A,0x20   ; Load operand at TEST_RAM - 5
+04FE   32 FB FE               LD   (TEST_RAM_MINUS_5),A   ; Load operand at TEST_RAM - 5
+0501   3E 20                  LD   A,0x20   
+0503   FD 96 FB               SUB   (IY-5)   
+0506   F5                     PUSH   AF   
+0507   D1                     POP   DE   ; E = Flags
+0508                          ; Verify Result
+0508   FE 00                  CP   0x00   
+050A   C2 0C 00               JP   NZ,ERROR   
+050D                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+050D   CB 7B                  BIT   7,E   ; S should be cleared
+050F   C2 0C 00               JP   NZ,ERROR   
+0512   CB 73                  BIT   6,E   ; Z should be set
+0514   CA 0C 00               JP   Z,ERROR   
+0517   CB 63                  BIT   4,E   ; H should be cleared
+0519   C2 0C 00               JP   NZ,ERROR   
+051C   CB 53                  BIT   2,E   ; P/V should be cleared
+051E   C2 0C 00               JP   NZ,ERROR   
+0521   CB 4B                  BIT   1,E   ; N should be set
+0523   CA 0C 00               JP   Z,ERROR   
+0526   CB 43                  BIT   0,E   ; C should be cleared
+0528   C2 0C 00               JP   NZ,ERROR   
+052B                          ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+052B   3E 81                  LD   A,0x81   
+052D   32 05 FF               LD   (TEST_RAM_PLUS_5),A   
+0530   3E 70                  LD   A,0x70   
+0532   FD 96 05               SUB   (IY+5)   
+0535   F5                     PUSH   AF   
+0536   D1                     POP   DE   
+0537                          ; Verify Result
+0537   FE EF                  CP   0xEF   
+0539   C2 0C 00               JP   NZ,ERROR   
+053C                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+053C   CB 7B                  BIT   7,E   ; S should be set (result is negative)
+053E   CA 0C 00               JP   Z,ERROR   
+0541   CB 73                  BIT   6,E   ; Z should be cleared (result is not zero)
+0543   C2 0C 00               JP   NZ,ERROR   
+0546   CB 63                  BIT   4,E   ; H should be set (borrow required for 0x0 - 0x1)
+0548   CA 0C 00               JP   Z,ERROR   
+054B   CB 53                  BIT   2,E   ; P/V should be set (signed overflow)
+054D   CA 0C 00               JP   Z,ERROR   
+0550   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
+0552   CA 0C 00               JP   Z,ERROR   
+0555   CB 43                  BIT   0,E   ; C should be set (borrow required from MSB)
+0557   CA 0C 00               JP   Z,ERROR   
+055A                          ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+055A   3E 22                  LD   A,0x22   
+055C   32 FB FE               LD   (TEST_RAM_MINUS_5),A   
+055F   3E 55                  LD   A,0x55   
+0561   FD 96 FB               SUB   (IY-5)   
+0564   F5                     PUSH   AF   
+0565   D1                     POP   DE   
+0566                          ; Verify Result
+0566   FE 33                  CP   0x33   
+0568   C2 0C 00               JP   NZ,ERROR   
+056B                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+056B   CB 7B                  BIT   7,E   ; S should be cleared
+056D   C2 0C 00               JP   NZ,ERROR   
+0570   CB 73                  BIT   6,E   ; Z should be cleared
+0572   C2 0C 00               JP   NZ,ERROR   
+0575   CB 63                  BIT   4,E   ; H should be cleared
+0577   C2 0C 00               JP   NZ,ERROR   
+057A   CB 53                  BIT   2,E   ; P/V should be cleared
+057C   C2 0C 00               JP   NZ,ERROR   
+057F   CB 4B                  BIT   1,E   ; N should be set
+0581   CA 0C 00               JP   Z,ERROR   
+0584   CB 43                  BIT   0,E   ; C should be cleared
+0586   C2 0C 00               JP   NZ,ERROR   
+0589   C9                     RET   
+058A                          ; SBC 8-bit opcodes:
+058A                TEST_SBC_A_B:   
+058A                          ; --- Case 1: 0x22 - 0x21 - C(1) = 0x00 (Clean Zero) ---
+058A   3E 22                  LD   A,0x22   
+058C   06 21                  LD   B,0x21   
+058E   37                     SCF   ; Set Carry flag
+058F   98                     SBC   A,B   
+0590   F5                     PUSH   AF   
+0591   D1                     POP   DE   ; E = Flags
+0592                          ; Verify Result
+0592   FE 00                  CP   0x00   
+0594   C2 0C 00               JP   NZ,ERROR   
+0597                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+0597   CB 7B                  BIT   7,E   ; S should be cleared
+0599   C2 0C 00               JP   NZ,ERROR   
+059C   CB 73                  BIT   6,E   ; Z should be set
+059E   CA 0C 00               JP   Z,ERROR   
+05A1   CB 63                  BIT   4,E   ; H should be cleared
+05A3   C2 0C 00               JP   NZ,ERROR   
+05A6   CB 53                  BIT   2,E   ; P/V should be cleared
+05A8   C2 0C 00               JP   NZ,ERROR   
+05AB   CB 4B                  BIT   1,E   ; N should be set
+05AD   CA 0C 00               JP   Z,ERROR   
+05B0   CB 43                  BIT   0,E   ; C should be cleared
+05B2   C2 0C 00               JP   NZ,ERROR   
+05B5                          ; --- Case 2: 0x70 - 0x81 - C(1) = 0xEE (Everything Edge Case) ---
+05B5   3E 70                  LD   A,0x70   
+05B7   06 81                  LD   B,0x81   
+05B9   37                     SCF   ; Set Carry flag
+05BA   98                     SBC   A,B   
+05BB   F5                     PUSH   AF   
+05BC   D1                     POP   DE   
+05BD                          ; Verify Result
+05BD   FE EE                  CP   0xEE   
+05BF   C2 0C 00               JP   NZ,ERROR   
+05C2                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+05C2   CB 7B                  BIT   7,E   ; S should be set
+05C4   CA 0C 00               JP   Z,ERROR   
+05C7   CB 73                  BIT   6,E   ; Z should be cleared
+05C9   C2 0C 00               JP   NZ,ERROR   
+05CC   CB 63                  BIT   4,E   ; H should be set
+05CE   CA 0C 00               JP   Z,ERROR   
+05D1   CB 53                  BIT   2,E   ; P/V should be set
+05D3   CA 0C 00               JP   Z,ERROR   
+05D6   CB 4B                  BIT   1,E   ; N should be set
+05D8   CA 0C 00               JP   Z,ERROR   
+05DB   CB 43                  BIT   0,E   ; C should be set
+05DD   CA 0C 00               JP   Z,ERROR   
+05E0                          ; --- Case 3: 0x55 - 0x22 - C(0) = 0x33 (Standard Positive) ---
+05E0   3E 55                  LD   A,0x55   
+05E2   06 22                  LD   B,0x22   
+05E4   A7                     AND   A   ; Clear Carry flag safely
+05E5   98                     SBC   A,B   
+05E6   F5                     PUSH   AF   
+05E7   D1                     POP   DE   
+05E8                          ; Verify Result
+05E8   FE 33                  CP   0x33   
+05EA   C2 0C 00               JP   NZ,ERROR   
+05ED                          ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+05ED   CB 7B                  BIT   7,E   ; S should be cleared
+05EF   C2 0C 00               JP   NZ,ERROR   
+05F2   CB 73                  BIT   6,E   ; Z should be cleared
+05F4   C2 0C 00               JP   NZ,ERROR   
+05F7   CB 63                  BIT   4,E   ; H should be cleared
+05F9   C2 0C 00               JP   NZ,ERROR   
+05FC   CB 53                  BIT   2,E   ; P/V should be cleared
+05FE   C2 0C 00               JP   NZ,ERROR   
+0601   CB 4B                  BIT   1,E   ; N should be set
+0603   CA 0C 00               JP   Z,ERROR   
+0606   CB 43                  BIT   0,E   ; C should be cleared
+0608   C2 0C 00               JP   NZ,ERROR   
+060B   C9                     RET   
+060C                TEST_SBC_A_HL:   
+060C   21 00 FF               LD   HL,TEST_RAM   
+060F                          ; --- Case 1: 0x22 - 0x21 - C(1) = 0x00 ---
+060F   36 21                  LD   (HL),0x21   
+0611   3E 22                  LD   A,0x22   
+0613   37                     SCF   
+0614   9E                     SBC   A,(HL)   
+0615   F5                     PUSH   AF   
+0616   D1                     POP   DE   
+0617   FE 00                  CP   0x00   
+0619   C2 0C 00               JP   NZ,ERROR   
+061C                          ; Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+061C   CB 7B                  BIT   7,E   
+061E   C2 0C 00               JP   NZ,ERROR   
+0621   CB 73                  BIT   6,E   
+0623   CA 0C 00               JP   Z,ERROR   
+0626   CB 63                  BIT   4,E   
+0628   C2 0C 00               JP   NZ,ERROR   
+062B   CB 53                  BIT   2,E   
+062D   C2 0C 00               JP   NZ,ERROR   
+0630   CB 4B                  BIT   1,E   
+0632   CA 0C 00               JP   Z,ERROR   
+0635   CB 43                  BIT   0,E   
+0637   C2 0C 00               JP   NZ,ERROR   
+063A                          ; --- Case 2: 0x70 - 0x81 - C(1) = 0xEE ---
+063A   36 81                  LD   (HL),0x81   
+063C   3E 70                  LD   A,0x70   
+063E   37                     SCF   
+063F   9E                     SBC   A,(HL)   
+0640   F5                     PUSH   AF   
+0641   D1                     POP   DE   
+0642   FE EE                  CP   0xEE   
+0644   C2 0C 00               JP   NZ,ERROR   
+0647                          ; Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+0647   CB 7B                  BIT   7,E   
+0649   CA 0C 00               JP   Z,ERROR   
+064C   CB 73                  BIT   6,E   
+064E   C2 0C 00               JP   NZ,ERROR   
+0651   CB 63                  BIT   4,E   
+0653   CA 0C 00               JP   Z,ERROR   
+0656   CB 53                  BIT   2,E   
+0658   CA 0C 00               JP   Z,ERROR   
+065B   CB 4B                  BIT   1,E   
+065D   CA 0C 00               JP   Z,ERROR   
+0660   CB 43                  BIT   0,E   
+0662   CA 0C 00               JP   Z,ERROR   
+0665                          ; --- Case 3: 0x55 - 0x22 - C(0) = 0x33 ---
+0665   36 22                  LD   (HL),0x22   
+0667   3E 55                  LD   A,0x55   
+0669   A7                     AND   A   
+066A   9E                     SBC   A,(HL)   
+066B   F5                     PUSH   AF   
+066C   D1                     POP   DE   
+066D   FE 33                  CP   0x33   
+066F   C2 0C 00               JP   NZ,ERROR   
+0672                          ; Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+0672   CB 7B                  BIT   7,E   
+0674   C2 0C 00               JP   NZ,ERROR   
+0677   CB 73                  BIT   6,E   
+0679   C2 0C 00               JP   NZ,ERROR   
+067C   CB 63                  BIT   4,E   
+067E   C2 0C 00               JP   NZ,ERROR   
+0681   CB 53                  BIT   2,E   
+0683   C2 0C 00               JP   NZ,ERROR   
+0686   CB 4B                  BIT   1,E   
+0688   CA 0C 00               JP   Z,ERROR   
+068B   CB 43                  BIT   0,E   
+068D   C2 0C 00               JP   NZ,ERROR   
+0690   C9                     RET   
+0691                TEST_SBC_A_N:   
+0691                          ; --- Case 1: 0x22 - 0x21 - C(1) = 0x00 ---
+0691   3E 22                  LD   A,0x22   
+0693   37                     SCF   
+0694   DE 21                  SBC   A,0x21   
+0696   F5                     PUSH   AF   
+0697   D1                     POP   DE   
+0698   FE 00                  CP   0x00   
+069A   C2 0C 00               JP   NZ,ERROR   
+069D                          ; Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+069D   CB 7B                  BIT   7,E   
+069F   C2 0C 00               JP   NZ,ERROR   
+06A2   CB 73                  BIT   6,E   
+06A4   CA 0C 00               JP   Z,ERROR   
+06A7   CB 63                  BIT   4,E   
+06A9   C2 0C 00               JP   NZ,ERROR   
+06AC   CB 53                  BIT   2,E   
+06AE   C2 0C 00               JP   NZ,ERROR   
+06B1   CB 4B                  BIT   1,E   
+06B3   CA 0C 00               JP   Z,ERROR   
+06B6   CB 43                  BIT   0,E   
+06B8   C2 0C 00               JP   NZ,ERROR   
+06BB                          ; --- Case 2: 0x70 - 0x81 - C(1) = 0xEE ---
+06BB   3E 70                  LD   A,0x70   
+06BD   37                     SCF   
+06BE   DE 81                  SBC   A,0x81   
+06C0   F5                     PUSH   AF   
+06C1   D1                     POP   DE   
+06C2   FE EE                  CP   0xEE   
+06C4   C2 0C 00               JP   NZ,ERROR   
+06C7                          ; Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+06C7   CB 7B                  BIT   7,E   
+06C9   CA 0C 00               JP   Z,ERROR   
+06CC   CB 73                  BIT   6,E   
+06CE   C2 0C 00               JP   NZ,ERROR   
+06D1   CB 63                  BIT   4,E   
+06D3   CA 0C 00               JP   Z,ERROR   
+06D6   CB 53                  BIT   2,E   
+06D8   CA 0C 00               JP   Z,ERROR   
+06DB   CB 4B                  BIT   1,E   
+06DD   CA 0C 00               JP   Z,ERROR   
+06E0   CB 43                  BIT   0,E   
+06E2   CA 0C 00               JP   Z,ERROR   
+06E5                          ; --- Case 3: 0x55 - 0x22 - C(0) = 0x33 ---
+06E5   3E 55                  LD   A,0x55   
+06E7   A7                     AND   A   
+06E8   DE 22                  SBC   A,0x22   
+06EA   F5                     PUSH   AF   
+06EB   D1                     POP   DE   
+06EC   FE 33                  CP   0x33   
+06EE   C2 0C 00               JP   NZ,ERROR   
+06F1                          ; Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+06F1   CB 7B                  BIT   7,E   
+06F3   C2 0C 00               JP   NZ,ERROR   
+06F6   CB 73                  BIT   6,E   
+06F8   C2 0C 00               JP   NZ,ERROR   
+06FB   CB 63                  BIT   4,E   
+06FD   C2 0C 00               JP   NZ,ERROR   
+0700   CB 53                  BIT   2,E   
+0702   C2 0C 00               JP   NZ,ERROR   
+0705   CB 4B                  BIT   1,E   
+0707   CA 0C 00               JP   Z,ERROR   
+070A   CB 43                  BIT   0,E   
+070C   C2 0C 00               JP   NZ,ERROR   
+070F   C9                     RET   
+0710                TEST_SBC_A_A:   
+0710                          ; --- Case 1: 0x44 - 0x44 - C(1) = 0xFF (Carry Mask Generation) ---
+0710                          ; Subtraction of A from A with Carry set always yields 0xFF (-1).
+0710   3E 44                  LD   A,0x44   
+0712   37                     SCF   ; Set Carry flag
+0713   9F                     SBC   A,A   
+0714   F5                     PUSH   AF   
+0715   D1                     POP   DE   ; E = Flags
+0716                          ; Verify Result
+0716   FE FF                  CP   0xFF   
+0718   C2 0C 00               JP   NZ,ERROR   
+071B                          ; Verify Flags: S=1, Z=0, H=1, P/V=0, N=1, C=1
+071B   CB 7B                  BIT   7,E   ; S should be set (0xFF is negative)
+071D   CA 0C 00               JP   Z,ERROR   
+0720   CB 73                  BIT   6,E   ; Z should be cleared
+0722   C2 0C 00               JP   NZ,ERROR   
+0725   CB 63                  BIT   4,E   ; H should be set (borrow required 0x4 - 0x4 - 1)
+0727   CA 0C 00               JP   Z,ERROR   
+072A   CB 53                  BIT   2,E   ; P/V should be cleared (no signed overflow)
+072C   C2 0C 00               JP   NZ,ERROR   
+072F   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
+0731   CA 0C 00               JP   Z,ERROR   
+0734   CB 43                  BIT   0,E   ; C should be set (borrow required from MSB)
+0736   CA 0C 00               JP   Z,ERROR   
+0739                          ; --- Case 2: 0xAA - 0xAA - C(0) = 0x00 (Clean Zero) ---
+0739                          ; Subtraction of A from A with Carry cleared always yields 0x00.
+0739   3E AA                  LD   A,0xAA   
+073B   A7                     AND   A   ; Clear Carry flag safely
+073C   9F                     SBC   A,A   
+073D   F5                     PUSH   AF   
+073E   D1                     POP   DE   
+073F                          ; Verify Result
+073F   FE 00                  CP   0x00   
+0741   C2 0C 00               JP   NZ,ERROR   
+0744                          ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+0744   CB 7B                  BIT   7,E   ; S should be cleared (result is not negative)
+0746   C2 0C 00               JP   NZ,ERROR   
+0749   CB 73                  BIT   6,E   ; Z should be set (result is zero)
+074B   CA 0C 00               JP   Z,ERROR   
+074E   CB 63                  BIT   4,E   ; H should be cleared (no half-borrow)
+0750   C2 0C 00               JP   NZ,ERROR   
+0753   CB 53                  BIT   2,E   ; P/V should be cleared (no signed overflow)
+0755   C2 0C 00               JP   NZ,ERROR   
+0758   CB 4B                  BIT   1,E   ; N should be set (subtraction operation)
+075A   CA 0C 00               JP   Z,ERROR   
+075D   CB 43                  BIT   0,E   ; C should be cleared (no borrow)
+075F   C2 0C 00               JP   NZ,ERROR   
+0762   C9                     RET
