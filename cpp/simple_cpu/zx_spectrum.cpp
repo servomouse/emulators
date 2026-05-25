@@ -2221,6 +2221,91 @@ public:
                 regs.set_reg(RegName::A, res);
                 break;
             }
+            case 0x98: {// 0x98     (SBC A, B    - Subtracts B and the carry flag from A), cycles: 4
+                // C as defined
+                // N set
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::B);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                if (regs.get_flag(FlagName::C)) {
+                    alu.set_flag(ALU_Flags::C);
+                }
+                alu.perform_operation(ALU_Op::SUB, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
+                regs.set_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: SBC A, B :: (0x%02X-0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x9E: {// 0x9E     (SBC A, (HL) - Subtracts (HL) and the carry flag from A), cycles: 7
+                // C as defined
+                // N set
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t addr = regs.get_reg(RegName::HL);
+                uint16_t val = mem_bus->read(addr);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                if (regs.get_flag(FlagName::C)) {
+                    alu.set_flag(ALU_Flags::C);
+                }
+                alu.perform_operation(ALU_Op:: SUB, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
+                regs.set_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: SBC A, (HL) :: (0x%02X-0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x9F: {// 0x9F     (SBC A, A    - Subtracts A and the carry flag from A), cycles: 4
+                // C as defined
+                // N set
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = a;
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                if (regs.get_flag(FlagName::C)) {
+                    alu.set_flag(ALU_Flags::C);
+                }
+                alu.perform_operation(ALU_Op:: SUB, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
+                regs.set_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: SBC A, A :: (0x%02X-0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
             case 0xA0: {// 0xA0     (AND A, B    - Bitwise AND on A with B), cycles: 4
                 // C reset
                 // N reset
@@ -3118,6 +3203,34 @@ public:
                     printf("0x%04X: ADC A, (IX + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::A, res);
                     num_bytes_read += 2;
+                } else if (new_opcode == 0x96) {   // 0xDD 0x96 D   (SUB A, (IX+D) - Subtracts the value pointed to by IX plus d from A), cycles: 19
+                    // C as defined
+                    // N set
+                    // P/V detects overflow
+                    // H as defined
+                    // Z as defined
+                    // S as defined
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
+                    uint16_t a = regs.get_reg(RegName::A);
+                    uint16_t addr = regs.get_reg(RegName::IX);
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
+                    uint16_t val = mem_bus->read(res_addr);
+
+                    alu.set_op1(a);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: SUB, 8);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
+                    regs.set_flag(FlagName::N);
+                    regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                    regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                    regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                    printf("0x%04X: SUB A, (IX + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X, addr: 0x%04X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, res_addr, opcode, new_opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::A, res);
+                    num_bytes_read += 2;
                 } else if (new_opcode == 0xE1) {   // 0xDD 0xE1     (POP IX), cycles: 14
                     printf("0x%04X: POP IY || 0x%02X 0x%02X\n", pc, opcode, new_opcode);
                     pop_reg(RegName::IX);
@@ -3131,6 +3244,35 @@ public:
                     printf("Unknown IX opcode: 0xDD 0x%X\n", new_opcode);
                     return false;
                 }
+                break;
+            }
+            case 0xDE: {// 0xDE N   (SBC A, N - Subtracts N and the carry flag from A), cycles: 7
+                // C as defined
+                // N set
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = mem_bus->read(pc+1);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                if (regs.get_flag(FlagName::C)) {
+                    alu.set_flag(ALU_Flags::C);
+                }
+                alu.perform_operation(ALU_Op:: SUB, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
+                regs.set_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: SBC A, 0x%02X :: (0x%02X-0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, val, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                num_bytes_read += 1;
                 break;
             }
             case 0xE0: {// 0xE0     (RET PO      - If the parity/overflow flag is unset, the top stack entry is popped into PC), cycles: 11/5
@@ -3752,6 +3894,34 @@ public:
                     regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
                     regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                     printf("0x%04X: ADC A, (IY + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::A, res);
+                    num_bytes_read += 2;
+                } else if (new_opcode == 0x96) {   // 0xFD 0x96 D   (SUB A, (IY+D) - Subtracts the value pointed to by IX plus d from A), cycles: 19
+                    // C as defined
+                    // N set
+                    // P/V detects overflow
+                    // H as defined
+                    // Z as defined
+                    // S as defined
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
+                    uint16_t a = regs.get_reg(RegName::A);
+                    uint16_t addr = regs.get_reg(RegName::IY);
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
+                    uint16_t val = mem_bus->read(res_addr);
+
+                    alu.set_op1(a);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: SUB, 8);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
+                    regs.set_flag(FlagName::N);
+                    regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                    regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                    regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                    printf("0x%04X: SUB A, (IY + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X, addr: 0x%04X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, res_addr, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::A, res);
                     num_bytes_read += 2;
                 } else if (new_opcode == 0xE1) {   // 0xFD 0xE1     (POP IY), cycles: 14
