@@ -45,10 +45,11 @@ private:
 
     // --- ALU operations ---
     void op_add(void) {
+        // Does ADD and ADC: set Carry prior the execution if needed
         uint8_t num_nibbles = _num_bits >> 2;
         uint8_t last_nibble = num_nibbles - 1;
         uint16_t final_res = 0;
-        uint16_t carry = 0;
+        uint16_t carry = flags[get_flag_index(ALU_Flags::C)]? 1: 0;
         uint16_t half_carry = 0;
         uint16_t res = 0;
         uint16_t sb1 = (_op1 >> (_num_bits-1)) & 1;
