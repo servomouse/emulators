@@ -824,7 +824,7 @@ public:
                 num_bytes_read += 2;
                 break;
             }
-            case 0x22: {// 0x22 N N (LD (NN), HL  - Stores HL into the memory at address (NN)), cycles: 16
+            case 0x22: {// 0x22 N N (LD (NN), HL - Stores HL into the memory at address (NN)), cycles: 16
                 // Does not affect flags
                 uint16_t addr = mem_read_16b(pc+1);
                 printf("0x%04X: LD 0x%04X, HL || 0x%02X\n", pc, addr, opcode);
@@ -832,7 +832,7 @@ public:
                 num_bytes_read += 2;
                 break;
             }
-            case 0x23: {// 0x23     (INC HL), cycles: 6
+            case 0x23: {// 0x23     (INC HL      - Add 1 to HL), cycles: 6
                 // Does not affect flags
                 uint16_t val = regs.get_reg(RegName::HL);
                 printf("0x%04X: INC HL || 0x%02X 0x%02X\n", pc, opcode, regs.get_reg(RegName::F));
@@ -966,7 +966,7 @@ public:
                 num_bytes_read += 2;
                 break;
             }
-            case 0x2B: {// 0x2B     (DEC HL), cycles: 6
+            case 0x2B: {// 0x2B     (DEC HL      - Subtracts one from HL), cycles: 6
                 // Does not affect flags
                 printf("0x%04X: DEC HL || 0x%02X 0x%02X\n", pc, opcode, flags_in);
                 regs.dec_reg(RegName::HL);
@@ -1018,7 +1018,7 @@ public:
                 num_bytes_read += 1;
                 break;
             }
-            case 0x2F: {// 0x2F     (CPL     - The contents of A are inverted), cycles: 4
+            case 0x2F: {// 0x2F     (CPL         - The contents of A are inverted), cycles: 4
                 // C unaffected
                 // N set
                 // P/V unaffected
@@ -1173,7 +1173,7 @@ public:
                 num_bytes_read += 2;
                 break;
             }
-            case 0x3B: {// 0x3B     (DEC (SP), cycles: 6
+            case 0x3B: {// 0x3B     (DEC SP      - Subtracts one from SP), cycles: 6
                 // Does not affect flags
                 printf("0x%04X: DEC SP || 0x%02X 0x%02X\n", pc, opcode, regs.get_reg(RegName::F));
                 regs.dec_reg(RegName::SP);
@@ -1963,7 +1963,7 @@ public:
                 regs.set_reg(RegName::A, res);
                 break;
             }
-            case 0x8E: {// 0x8E     (ADC A, (HL)    - Adds (HL) and the carry flag to A), cycles: 7
+            case 0x8E: {// 0x8E     (ADC A, (HL) - Adds (HL) and the carry flag to A), cycles: 7
                 // C as defined
                 // N reset
                 // P/V detects overflow
@@ -2017,6 +2017,207 @@ public:
                 regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
                 regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: ADC A, A :: (0x%02X+0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x90: {// 0x90     (SUB A, B    - Subtracts B from A), cycles: 4
+                // C as defined
+                // N set
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::B);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::SUB, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
+                regs.set_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: SUB A, B :: (0x%02X-0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x91: {// 0x91     (SUB A, C    - Subtracts C from A), cycles: 4
+                // C as defined
+                // N set
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::C);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::SUB, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
+                regs.set_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: SUB A, C :: (0x%02X-0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x92: {// 0x92     (SUB A, D    - Subtracts D from A), cycles: 4
+                // C as defined
+                // N set
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::D);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::SUB, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
+                regs.set_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: SUB A, D :: (0x%02X-0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x93: {// 0x93     (SUB A, E    - Subtracts E from A), cycles: 4
+                // C as defined
+                // N set
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::E);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::SUB, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
+                regs.set_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: SUB A, E :: (0x%02X-0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x94: {// 0x94     (SUB A, H    - Subtracts H from A), cycles: 4
+                // C as defined
+                // N set
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::H);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::SUB, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
+                regs.set_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: SUB A, H :: (0x%02X-0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x95: {// 0x95     (SUB A, L    - Subtracts L from A), cycles: 4
+                // C as defined
+                // N set
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::L);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::SUB, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
+                regs.set_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: SUB A, L :: (0x%02X-0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x96: {// 0x96     (SUB A, (HL) - Subtracts (HL) from A), cycles: 7
+                // C as defined
+                // N set
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t addr = regs.get_reg(RegName::HL);
+                uint16_t val = mem_bus->read(addr);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: SUB, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
+                regs.set_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: SUB A, B :: (0x%02X-0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0x97: {// 0x97     (SUB A, A    - Subtracts A from A), cycles: 4
+                // C as defined
+                // N set
+                // P/V detects overflow
+                // H as defined
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = a;
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: SUB, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
+                regs.set_flag(FlagName::N);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: SUB A, B :: (0x%02X-0x%02X=0x%02X) || 0x%02X F=0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 break;
             }
@@ -2238,19 +2439,19 @@ public:
                 printf("0x%04X: XOR A, A :: (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 break;
             }
-            case 0xB0: {// 0xB0     (OR A, B), cycles: 4
+            case 0xB0: {// 0xB0     (OR A, B     - Bitwise OR on A with B), cycles: 4
                 int pc_inc = or_operation(pc, opcode);
                 if (pc_inc == -1) return false;
                 num_bytes_read += pc_inc;
                 break;
             }
-            case 0xB6: {// 0xB6     (OR A, (HL)), cycles: 7
+            case 0xB6: {// 0xB6     (OR A, (HL)  - Bitwise OR on A with (HL)), cycles: 7
                 int pc_inc = or_operation(pc, opcode);
                 if (pc_inc == -1) return false;
                 num_bytes_read += pc_inc;
                 break;
             }
-            case 0xB7: {// 0xB7     (OR A, A), cycles: 7
+            case 0xB7: {// 0xB7     (OR A, A     - Bitwise OR on A with B), cycles: 7
                 int pc_inc = or_operation(pc, opcode);
                 if (pc_inc == -1) return false;
                 num_bytes_read += pc_inc;
@@ -2275,7 +2476,7 @@ public:
                 printf("0x%04X: CP A, H : (0x%04X - 0x%04X = 0x%04X) | 0x%02X 0x%02X\n", pc, a, h, res, opcode, regs.get_reg(RegName::F));
                 break;
             }
-            case 0xC0: {// 0xC0     (RET NZ - If the zero flag is unset, the top stack entry is popped into PC), cycles: 11/5
+            case 0xC0: {// 0xC0     (RET NZ      - If the zero flag is unset, the top stack entry is popped into PC), cycles: 11/5
                 // Does not affect flags
                 if (!regs.get_flag(FlagName::Z)) {
                     printf("0x%04X: RET NZ :: (Z=0, condition met) || 0x%02X\n", pc, opcode);
@@ -2285,7 +2486,7 @@ public:
                 printf("0x%04X: RET NZ :: (Z=1, condition not met) || 0x%02X\n", pc, opcode);
                 break;
             }
-            case 0xC1: {// 0xC1     (POP BC), cycles: 10
+            case 0xC1: {// 0xC1     (POP BC      - Pop value from stack and put it into BC), cycles: 10
                 // Does not affect flags
                 printf("0x%04X: POP BC || 0x%02X\n", pc, opcode);
                 pop_reg(RegName::BC);
@@ -2327,7 +2528,7 @@ public:
                 }
                 break;
             }
-            case 0xC5: {// 0xC5     (PUSH BC), cycles: 11
+            case 0xC5: {// 0xC5     (PUSH BC     - Push BC onto stack), cycles: 11
                 // Does not affect flags
                 printf("0x%04X: PUSH BC || 0x%02X 0x%02X, SP: 0x%04X\n", pc, opcode, flags_in, regs.get_reg(RegName::SP));
                 push_reg(RegName::BC);
@@ -2359,7 +2560,7 @@ public:
                 num_bytes_read ++;
                 break;
             }
-            case 0xC8: {// 0xC8     (RET Z - If the zero flag is set, the top stack entry is popped into PC), cycles: 11/5
+            case 0xC8: {// 0xC8     (RET Z       - If the zero flag is set, the top stack entry is popped into PC), cycles: 11/5
                 // Does not affect flags
                 if (regs.get_flag(FlagName::Z)) {
                     printf("0x%04X: RET Z :: (Z=1, condition met) || 0x%02X\n", pc, opcode);
@@ -2369,7 +2570,7 @@ public:
                 printf("0x%04X: RET Z :: (Z=0, condition not met) || 0x%02X\n", pc, opcode);
                 break;
             }
-            case 0xC9: {// 0xC9     (RET), cycles: 10
+            case 0xC9: {// 0xC9     (RET         - The top stack entry is popped into PC), cycles: 10
                 // Does not affect flags
                 printf("0x%04X: RET || 0x%02X\n", pc, opcode);
                 pop_reg(RegName::PC);
@@ -2577,7 +2778,7 @@ public:
                 num_bytes_read += 1;
                 break;
             }
-            case 0xD0: {// 0xD0     (RET NC - If the carry flag is unset, the top stack entry is popped into PC), cycles: 11/5
+            case 0xD0: {// 0xD0     (RET NC      - If the carry flag is unset, the top stack entry is popped into PC), cycles: 11/5
                 // Does not affect flags
                 if (!regs.get_flag(FlagName::C)) {
                     printf("0x%04X: RET NC :: (C=0, condition met) || 0x%02X\n", pc, opcode);
@@ -2587,7 +2788,7 @@ public:
                 printf("0x%04X: RET NC :: (C=1, condition not met) || 0x%02X\n", pc, opcode);
                 break;
             }
-            case 0xD1: {// 0xD1     (POP DE), cycles: 10
+            case 0xD1: {// 0xD1     (POP DE      - Pop value from stack and put it into DE), cycles: 10
                 // Does not affect flags
                 printf("0x%04X: POP DE || 0x%02X\n", pc, opcode);
                 pop_reg(RegName::DE);
@@ -2606,7 +2807,7 @@ public:
                 }
                 break;
             }
-            case 0xD3: {// 0xD3 N   (OUT A:port, A), cycles: 11
+            case 0xD3: {// 0xD3 N   (OUT A, N    - Write the value of A into port N), cycles: 11
                 // Does not affect flags
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t port = (a << 8) || mem_bus->read(pc+1);
@@ -2615,7 +2816,7 @@ public:
                 num_bytes_read ++;
                 break;
             }
-            case 0xD4: {// 0xD4     (CALL NC NN   - If the carry flag is unset, the current PC value plus three is pushed onto the stack, then is loaded with nn), cycles: 17/10
+            case 0xD4: {// 0xD4     (CALL NC NN  - If the carry flag is unset, the current PC value plus three is pushed onto the stack, then is loaded with nn), cycles: 17/10
                 // Does not affect flags
                 uint16_t new_pc = mem_read_16b(pc+1);
                 if (!regs.get_flag(FlagName::C)) {
@@ -2630,13 +2831,13 @@ public:
                 }
                 break;
             }
-            case 0xD5: {// 0xD5     (PUSH DE), cycles: 11
+            case 0xD5: {// 0xD5     (PUSH DE     - Push DE onto stack), cycles: 11
                 // Does not affect flags
                 printf("0x%04X: PUSH DE || 0x%02X, SP:  0x%04X\n", pc, opcode, regs.get_reg(RegName::SP));
                 push_reg(RegName::DE);
                 break;
             }
-            case 0xD6: {// 0xD6 N   (SUB A, N     - Subtracts N from A), cycles: 7
+            case 0xD6: {// 0xD6 N   (SUB A, N    - Subtracts N from A), cycles: 7
                 // C as defined
                 // N set
                 // P/V detects overflow
@@ -2645,19 +2846,24 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = mem_bus->read(pc+1);
-                uint16_t res = a - val;
-                regs.update_flag(FlagName::C, val > a);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op:: SUB, 8);
+                uint16_t res = alu.get_res();
+                regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
                 regs.set_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, calculate_overflow(a, val, res, true, false));
-                regs.update_flag(FlagName::H, calculate_half_carry(a, val, 0, false, true));
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: SUB A, 0x%02X :: (0x%04X - 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, val, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
                 num_bytes_read ++;
                 break;
             }
-            case 0xD8: {// 0xD8     (RET C - If the carry flag is set, the top stack entry is popped into PC), cycles: 11/5
+            case 0xD8: {// 0xD8     (RET C       - If the carry flag is set, the top stack entry is popped into PC), cycles: 11/5
                 // Does not affect flags
                 if (regs.get_flag(FlagName::C)) {
                     printf("0x%04X: RET C :: (C=1, condition met) || 0x%02X\n", pc, opcode);
@@ -2667,7 +2873,7 @@ public:
                 printf("0x%04X: RET C :: (C=0, condition not met) || 0x%02X\n", pc, opcode);
                 break;
             }
-            case 0xD9: {// 0xD9     (EXX  - Exchanges the 16-bit contents of BC, DE, and HL with BC', DE', and HL'), cycles 4
+            case 0xD9: {// 0xD9     (EXX         - Exchanges the 16-bit contents of BC, DE, and HL with BC', DE', and HL'), cycles 4
                 // Does not affect flags
                 uint16_t bc  = regs.get_reg(RegName::BC);
                 uint16_t _bc = regs.get_reg(RegName::_BC);
@@ -2684,7 +2890,7 @@ public:
                 regs.set_reg(RegName::_HL, hl);
                 break;
             }
-            case 0xDA: {// 0xDA N N (JP C, N N  - If the carry flag is set, NN is copied to PC), cycles: 10
+            case 0xDA: {// 0xDA N N (JP C, N N   - If the carry flag is set, NN is copied to PC), cycles: 10
                 // Does not affect flags
                 uint16_t new_pc = mem_read_16b(pc+1);
                 uint16_t cf = regs.get_flag(FlagName::C);
@@ -2927,7 +3133,7 @@ public:
                 }
                 break;
             }
-            case 0xE0: {// 0xE0     (RET PO - If the parity/overflow flag is unset, the top stack entry is popped into PC), cycles: 11/5
+            case 0xE0: {// 0xE0     (RET PO      - If the parity/overflow flag is unset, the top stack entry is popped into PC), cycles: 11/5
                 // Does not affect flags
                 if (!regs.get_flag(FlagName::P_V)) {
                     printf("0x%04X: RET PO :: (P_V=0, condition met) || 0x%02X\n", pc, opcode);
@@ -2937,7 +3143,7 @@ public:
                 printf("0x%04X: RET PO :: (P_V=1, condition not met) || 0x%02X\n", pc, opcode);
                 break;
             }
-            case 0xE1: {// 0xE1     (POP HL), cycles: 10
+            case 0xE1: {// 0xE1     (POP HL      - Pop value from stack and put it into HL), cycles: 10
                 // Does not affect flags
                 printf("0x%04X: POP HL || 0x%02X\n", pc, opcode);
                 pop_reg(RegName::HL);
@@ -2956,7 +3162,7 @@ public:
                 }
                 break;
             }
-            case 0xE4: {// 0xE4     (CALL PO NN   - If the parity/overflow flag is unset, the current PC value plus three is pushed onto the stack, then is loaded with nn), cycles: 17/10
+            case 0xE4: {// 0xE4     (CALL PO NN  - If the parity/overflow flag is unset, the current PC value plus three is pushed onto the stack, then is loaded with nn), cycles: 17/10
                 // Does not affect flags
                 uint16_t new_pc = mem_read_16b(pc+1);
                 if (!regs.get_flag(FlagName::P_V)) {
@@ -3354,7 +3560,7 @@ public:
             }
             case 0xFD: {// 0xFD     (IY Instructions, read one more byte to get the actual opcode)
                 uint16_t new_opcode = mem_bus->read(pc+1);
-                if (new_opcode == 0x09) {          // 0xFD 0x19     (ADD IY, BC  - Add BC to IY), cycles: 15
+                if (new_opcode == 0x09) {          // 0xFD 0x19     (ADD IY, BC    - Add BC to IY), cycles: 15
                     // C as defined
                     // N reset
                     // P/V unaffected
@@ -3375,7 +3581,7 @@ public:
                     printf("0x%04X: ADD IY, BC :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, iy, val, res, opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::IY, res);
                     num_bytes_read += 1;
-                } else if (new_opcode == 0x19) {   // 0xFD 0x19     (ADD IY, DE  - Add DE to IY), cycles: 15
+                } else if (new_opcode == 0x19) {   // 0xFD 0x19     (ADD IY, DE    - Add DE to IY), cycles: 15
                     // C as defined
                     // N reset
                     // P/V unaffected
@@ -3396,24 +3602,24 @@ public:
                     printf("0x%04X: ADD IY, DE :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, iy, val, res, opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::IY, res);
                     num_bytes_read += 1;
-                } else if (new_opcode == 0x21) {   // 0xFD 0x21 N N (LD IY, NN - Loads nn into register IY), cycles: 14
+                } else if (new_opcode == 0x21) {   // 0xFD 0x21 N N (LD IY, NN     - Loads nn into register IY), cycles: 14
                     uint16_t value = mem_read_16b(pc+2);
                     printf("0x%04X: LD IY, 0x%04X || 0x%02X 0x%02X\n", pc, value, opcode, new_opcode);
                     regs.set_reg(RegName::IY, value);
                     num_bytes_read += 3;
-                } else if (new_opcode == 0x22) {   // 0xFD 0x22 N N (LD (NN), IY - Stores IY into the memory location pointed to by nn), cycles: 20
+                } else if (new_opcode == 0x22) {   // 0xFD 0x22 N N (LD (NN), IY   - Stores IY into the memory location pointed to by nn), cycles: 20
                     uint16_t addr = mem_read_16b(pc+2);
                     printf("0x%04X: LD 0x%04X, IY || 0x%02X 0x%02X\n", pc, addr, opcode, new_opcode);
                     mem_write_16b(addr, regs.get_reg(RegName::IY));
                     num_bytes_read += 3;
-                } else if (new_opcode == 0x23) {   // 0xFD 0x23     (INC IY - Adds one to IY), cycles: 10
+                } else if (new_opcode == 0x23) {   // 0xFD 0x23     (INC IY        - Adds one to IY), cycles: 10
                     // Does not affect flags
                     uint16_t val = regs.get_reg(RegName::IY);
                     uint16_t res = val + 1;
                     printf("0x%04X: INC IY :: (0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::IY, res);
                     num_bytes_read += 1;
-                } else if (new_opcode == 0x29) {   // 0xFD 0x29     (ADD IY, IY  - Add IY to IY), cycles: 15
+                } else if (new_opcode == 0x29) {   // 0xFD 0x29     (ADD IY, IY    - Add IY to IY), cycles: 15
                     // C as defined
                     // N reset
                     // P/V unaffected
@@ -3434,7 +3640,7 @@ public:
                     printf("0x%04X: ADD IY, IY :: (0x%04X + 0x%04X = 0x%04X) || 0x%02X 0x%02X\n", pc, iy, val, res, opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::IY, res);
                     num_bytes_read += 1;
-                } else if (new_opcode == 0x2B) {   // 0xFD 0x2B     (DEC IY - Subtracts one from IY), cycles: 10
+                } else if (new_opcode == 0x2B) {   // 0xFD 0x2B     (DEC IY        - Subtracts one from IY), cycles: 10
                     // Does not affect flags
                     uint16_t val = regs.get_reg(RegName::IY);
                     uint16_t res = val - 1;
@@ -3471,7 +3677,7 @@ public:
                     printf("0x%04X: DEC (IY+0x%02X) :: (0x%04X + 0x%02X -> 0x%04X, 0x%02X -> 0x%02X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, addr, offset, res_addr, val, res, opcode, new_opcode, regs.get_reg(RegName::F));
                     mem_bus->write(res_addr, res);
                     num_bytes_read += 2;
-                } else if (new_opcode == 0x36) {   // 0xFD 0x36 D   (LD (IY+D), N - Stores n to the memory location pointed to by IY plus d), cycles: 19
+                } else if (new_opcode == 0x36) {   // 0xFD 0x36 D   (LD (IY+D), N  - Stores n to the memory location pointed to by IY plus d), cycles: 19
                     uint16_t offset = mem_bus->read(pc+2);
                     if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
                     uint16_t addr = regs.get_reg(RegName::IY);
@@ -3480,7 +3686,7 @@ public:
                     printf("0x%04X: LD (IY+0x%02X), 0x%02X :: (0x%04X + 0x%02X -> 0x%04X) || 0x%02X 0x%02X\n", pc, offset, val, addr, offset, res_addr, opcode, new_opcode);
                     mem_bus->write(res_addr, val);
                     num_bytes_read += 3;
-                } else if (new_opcode == 0x39) {   // 0xFD 0x39     (ADD IY, SP  - Add SP to IY), cycles: 15
+                } else if (new_opcode == 0x39) {   // 0xFD 0x39     (ADD IY, SP    - Add SP to IY), cycles: 15
                     // C as defined
                     // N reset
                     // P/V unaffected

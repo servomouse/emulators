@@ -1,0 +1,714 @@
+ORG 0000h
+    LD SP, 0xF000
+    CALL TEST_SUBS
+    CALL TEST_SBCS
+    HALT
+
+TEMP_SP_SAVE: DW 0x0000
+SP_RESULT_ADDR EQU 0xFF02
+TEST_RAM EQU 0xFF00
+IX_ABS_ADDR EQU 0xFF05  ; TEST_RAM + 0x05 (Positive offset)
+IY_ABS_ADDR EQU 0xFEFB  ; TEST_RAM - 0x05 (Negative offset: 0xFB)
+
+ERROR:
+    DI
+    HALT
+    JR ERROR
+
+TEST_SUBS:
+    ; 8-bit operations:
+    CALL TEST_SUB_B
+    CALL TEST_SUB_C
+    CALL TEST_SUB_D
+    CALL TEST_SUB_E
+    CALL TEST_SUB_H
+    CALL TEST_SUB_L
+    CALL TEST_SUB_HL
+    CALL TEST_SUB_N
+    CALL TEST_SUB_A
+    ; 16-bit operations:
+    RET
+
+TEST_SBCS:
+    ; 8-bit operations:
+    ; 16-bit operations:
+    RET
+
+TEST_SUB_B:
+    ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+    LD A, 0x20
+    LD B, 0x20
+    SUB B
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, E        ; S should be cleared (result is not negative)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared (no half-borrow)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared (no overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared (no borrow)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+    LD A, 0x70
+    LD B, 0x81
+    SUB B
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0xEF
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+    BIT 7, E        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (borrow required for 0x0 - 0x1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set (signed overflow occurred)
+    JP Z, ERROR
+    BIT 1, E        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, E        ; C should be set (borrow required from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+    LD A, 0x55
+    LD B, 0x22
+    SUB B
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+    BIT 7, E        ; S should be cleared (result is positive)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared (no half-borrow)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared (no overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared (no borrow)
+    JP NZ, ERROR
+
+    RET
+
+TEST_SUB_C:
+    ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+    LD A, 0x20
+    LD C, 0x20
+    SUB C
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, E        ; S should be cleared (result is not negative)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared (no half-borrow)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared (no overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared (no borrow)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+    LD A, 0x70
+    LD C, 0x81
+    SUB C
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0xEF
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+    BIT 7, E        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (borrow required for 0x0 - 0x1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set (signed overflow occurred)
+    JP Z, ERROR
+    BIT 1, E        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, E        ; C should be set (borrow required from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+    LD A, 0x55
+    LD C, 0x22
+    SUB C
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+    BIT 7, E        ; S should be cleared (result is positive)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared (no half-borrow)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared (no overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared (no borrow)
+    JP NZ, ERROR
+
+    RET
+
+TEST_SUB_D:
+    ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+    LD A, 0x20
+    LD D, 0x20
+    SUB D
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared (result is not negative)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, C        ; H should be cleared (no half-borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no borrow)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+    LD A, 0x70
+    LD D, 0x81
+    SUB D
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0xEF
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+    BIT 7, C        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set (borrow required for 0x0 - 0x1)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set (signed overflow occurred)
+    JP Z, ERROR
+    BIT 1, C        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, C        ; C should be set (borrow required from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+    LD A, 0x55
+    LD D, 0x22
+    SUB D
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared (result is positive)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared (no half-borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no borrow)
+    JP NZ, ERROR
+
+    RET
+
+TEST_SUB_E:
+    ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+    LD A, 0x20
+    LD E, 0x20
+    SUB E
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared (result is not negative)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, C        ; H should be cleared (no half-borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no borrow)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+    LD A, 0x70
+    LD E, 0x81
+    SUB E
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0xEF
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+    BIT 7, C        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set (borrow required for 0x0 - 0x1)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set (signed overflow occurred)
+    JP Z, ERROR
+    BIT 1, C        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, C        ; C should be set (borrow required from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+    LD A, 0x55
+    LD E, 0x22
+    SUB E
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared (result is positive)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared (no half-borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no borrow)
+    JP NZ, ERROR
+
+    RET
+
+TEST_SUB_H:
+    ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+    LD A, 0x20
+    LD H, 0x20
+    SUB H
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared (result is not negative)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, C        ; H should be cleared (no half-borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no borrow)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+    LD A, 0x70
+    LD H, 0x81
+    SUB H
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0xEF
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+    BIT 7, C        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set (borrow required for 0x0 - 0x1)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set (signed overflow occurred)
+    JP Z, ERROR
+    BIT 1, C        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, C        ; C should be set (borrow required from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+    LD A, 0x55
+    LD H, 0x22
+    SUB H
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared (result is positive)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared (no half-borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no borrow)
+    JP NZ, ERROR
+
+    RET
+
+TEST_SUB_L:
+    ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+    LD A, 0x20
+    LD L, 0x20
+    SUB L
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared (result is not negative)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set (result is zero)
+    JP Z, ERROR
+    BIT 4, C        ; H should be cleared (no half-borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no borrow)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+    LD A, 0x70
+    LD L, 0x81
+    SUB L
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0xEF
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+    BIT 7, C        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set (borrow required for 0x0 - 0x1)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set (signed overflow occurred)
+    JP Z, ERROR
+    BIT 1, C        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, C        ; C should be set (borrow required from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+    LD A, 0x55
+    LD L, 0x22
+    SUB L
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared (result is positive)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared (no half-borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no borrow)
+    JP NZ, ERROR
+
+    RET
+
+TEST_SUB_HL:
+    ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+    LD HL, TEST_RAM
+    LD (HL), 0x20   ; Load operand into memory
+    LD A, 0x20
+    SUB (HL)
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+    LD HL, TEST_RAM
+    LD (HL), 0x81   
+    LD A, 0x70
+    SUB (HL)
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0xEF
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+    BIT 7, E        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (borrow required for 0x0 - 0x1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set (signed overflow)
+    JP Z, ERROR
+    BIT 1, E        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, E        ; C should be set (borrow required from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+    LD HL, TEST_RAM
+    LD (HL), 0x22   
+    LD A, 0x55
+    SUB (HL)
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_SUB_N:
+    ; --- Case 1: 0x20 - 0x20 = 0x00 (Clean Zero) ---
+    LD A, 0x20
+    SUB 0x20        ; Immediate operand
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x70 - 0x81 = 0xEF (Everything Edge Case) ---
+    LD A, 0x70
+    SUB 0x81        
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0xEF
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+    BIT 7, E        ; S should be set (result is negative)
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared (result is not zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (borrow required for 0x0 - 0x1)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set (signed overflow)
+    JP Z, ERROR
+    BIT 1, E        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, E        ; C should be set (borrow required from MSB)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x55 - 0x22 = 0x33 (Clean Slate) ---
+    LD A, 0x55
+    SUB 0x22        
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_SUB_A:
+    ; --- Case: 0xEF - 0xEF = 0x00 (Clean Zero Guarantee) ---
+    ; Subtracting A from A always yields 0x00. We load a random 'dirty' 
+    ; number to ensure the instruction properly clears the register and flags.
+    LD A, 0xEF
+    SUB A
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, E        ; S should be cleared (result is 0x00, not negative)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set (result is exactly zero)
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared (no half-borrow)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared (no overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared (no borrow)
+    JP NZ, ERROR
+
+    RET
+
