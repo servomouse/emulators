@@ -16,6 +16,7 @@ enum class ALU_Flags {
 
 enum class ALU_Op {
     ADD,
+    SUB,
     COUNT
 };
 
@@ -66,8 +67,6 @@ private:
 
             res |= temp_res << nibble_offset;
 
-            uint16_t chunk_res = n1 + n2 + carry;
-            carry = (chunk_res > 0x0F) ? 1 : 0;
             if (i < last_nibble) {
                 half_carry = carry;
             }
@@ -89,6 +88,49 @@ private:
         flags[get_flag_index(ALU_Flags::P)] = parity_flag == 0; // 0 if even, 1 if odd
         flags[get_flag_index(ALU_Flags::O)] = get_signed_overflow_flag(sb1, sb2, sbr, false);
     }
+    void op_sub(void) {
+        // Does SUB and SBC: set Carry prior the execution if needed
+        uint8_t num_nibbles = _num_bits >> 2;
+        uint8_t last_nibble = num_nibbles - 1;
+        uint16_t final_res = 0;
+        uint16_t borrow = flags[get_flag_index(ALU_Flags::C)]? 1: 0;
+        uint16_t half_borrow = 0;
+        uint16_t res = 0;
+        uint16_t sb1 = (_op1 >> (_num_bits-1)) & 1;
+        uint16_t sb2 = (_op2 >> (_num_bits-1)) & 1;
+
+        for (int i = 0; i < num_nibbles; i++) {
+            uint16_t nibble_offset = i * 4;
+            uint16_t n1 = (_op1 >> nibble_offset) & 0x0F;
+            uint16_t n2 = (_op2 >> nibble_offset) & 0x0F;
+
+            uint16_t temp_res = n1 - (n2 + borrow);
+            borrow = ((n2 + borrow) > n1) ? 1 : 0;
+            temp_res &= 0x0F;
+
+            res |= temp_res << nibble_offset;
+
+            if (i < last_nibble) {
+                half_borrow = borrow;
+            }
+        }
+        _res = res;
+        // Update flags
+        bool zero_flag = res == 0;
+        
+        int parity_flag = 0;
+        for (int i=0; i<16; i++) {
+            parity_flag ^= (res >> i) & 1;
+        }
+        uint16_t sbr = (res >> (_num_bits-1)) & 1;
+
+        flags[get_flag_index(ALU_Flags::C)] = borrow == 1;
+        flags[get_flag_index(ALU_Flags::H)] = half_borrow == 1;
+        flags[get_flag_index(ALU_Flags::S)] = sbr;
+        flags[get_flag_index(ALU_Flags::Z)] = zero_flag;
+        flags[get_flag_index(ALU_Flags::P)] = parity_flag == 0; // 0 if even, 1 if odd
+        flags[get_flag_index(ALU_Flags::O)] = get_signed_overflow_flag(sb1, sb2, sbr, true);
+    }
     // --- !ALU operations ---
 
     // --- The Function Pointer Type & Lookup Table ---
@@ -99,7 +141,8 @@ private:
     // Compile-time array mapping ALU_Op constants to actual methods
     // The syntax 'this->*alu_operations[...]' is required to call non-static member functions
     static constexpr std::array<AluMethodPtr, static_cast<size_t>(ALU_Op::COUNT)> alu_operations = {
-        &ALU::op_add
+        &ALU::op_add,
+        &ALU::op_sub
         // When you add new operations (e.g., SUB, AND), just add their method pointers here!
     };
 
