@@ -34,12 +34,21 @@ TEST_SUBS:
 TEST_SBCS:
     ; 8-bit operations:
     CALL TEST_SBC_A_B
+    CALL TEST_SBC_A_C
+    CALL TEST_SBC_A_D
+    CALL TEST_SBC_A_E
+    CALL TEST_SBC_A_H
+    CALL TEST_SBC_A_L
     CALL TEST_SBC_A_HL
     CALL TEST_SBC_A_N
     CALL TEST_SBC_A_A
     CALL TEST_SBC_A_IX_D
     CALL TEST_SBC_A_IY_D
     ; 16-bit operations:
+    CALL TEST_SBC_HL_BC
+    CALL TEST_SBC_HL_DE
+    CALL TEST_SBC_HL_HL
+    CALL TEST_SBC_HL_SP
     RET
 
 ; SUB 8-bit opcodes:
@@ -953,7 +962,6 @@ TEST_SBC_A_B:
     ; --- Case 3: 0x55 - 0x22 - C(0) = 0x33 (Standard Positive) ---
     LD A, 0x55
     LD B, 0x22
-    AND A           ; Clear Carry flag safely
     SBC A, B
 
     PUSH AF
@@ -975,6 +983,421 @@ TEST_SBC_A_B:
     BIT 1, E        ; N should be set
     JP Z, ERROR
     BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_SBC_A_C:
+    ; --- Case 1: 0x22 - 0x21 - C(1) = 0x00 (Clean Zero) ---
+    LD A, 0x22
+    LD C, 0x21
+    SCF             ; Set Carry flag
+    SBC A, C
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x70 - 0x81 - C(1) = 0xEE (Everything Edge Case) ---
+    LD A, 0x70
+    LD C, 0x81
+    SCF             ; Set Carry flag
+    SBC A, C
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0xEE
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+    BIT 7, E        ; S should be set
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set
+    JP Z, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be set
+    JP Z, ERROR
+
+    ; --- Case 3: 0x55 - 0x22 - C(0) = 0x33 (Standard Positive) ---
+    LD A, 0x55
+    LD C, 0x22
+    SBC A, C
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_SBC_A_D:
+    ; --- Case 1: 0x22 - 0x21 - C(1) = 0x00 (Clean Zero) ---
+    LD A, 0x22
+    LD D, 0x21
+    SCF             ; Set Carry flag
+    SBC A, D
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set
+    JP Z, ERROR
+    BIT 4, C        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x70 - 0x81 - C(1) = 0xEE (Everything Edge Case) ---
+    LD A, 0x70
+    LD D, 0x81
+    SCF             ; Set Carry flag
+    SBC A, D
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0xEE
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+    BIT 7, C        ; S should be set
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set
+    JP Z, ERROR
+    BIT 1, C        ; N should be set
+    JP Z, ERROR
+    BIT 0, C        ; C should be set
+    JP Z, ERROR
+
+    ; --- Case 3: 0x55 - 0x22 - C(0) = 0x33 (Standard Positive) ---
+    LD A, 0x55
+    LD D, 0x22
+    SBC A, D
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_SBC_A_E:
+    ; --- Case 1: 0x22 - 0x21 - C(1) = 0x00 (Clean Zero) ---
+    LD A, 0x22
+    LD E, 0x21
+    SCF             ; Set Carry flag
+    SBC A, E
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set
+    JP Z, ERROR
+    BIT 4, C        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x70 - 0x81 - C(1) = 0xEE (Everything Edge Case) ---
+    LD A, 0x70
+    LD E, 0x81
+    SCF             ; Set Carry flag
+    SBC A, E
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0xEE
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+    BIT 7, C        ; S should be set
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set
+    JP Z, ERROR
+    BIT 1, C        ; N should be set
+    JP Z, ERROR
+    BIT 0, C        ; C should be set
+    JP Z, ERROR
+
+    ; --- Case 3: 0x55 - 0x22 - C(0) = 0x33 (Standard Positive) ---
+    LD A, 0x55
+    LD E, 0x22
+    SBC A, E
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_SBC_A_H:
+    ; --- Case 1: 0x22 - 0x21 - C(1) = 0x00 (Clean Zero) ---
+    LD A, 0x22
+    LD H, 0x21
+    SCF             ; Set Carry flag
+    SBC A, H
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set
+    JP Z, ERROR
+    BIT 4, C        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x70 - 0x81 - C(1) = 0xEE (Everything Edge Case) ---
+    LD A, 0x70
+    LD H, 0x81
+    SCF             ; Set Carry flag
+    SBC A, H
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0xEE
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+    BIT 7, C        ; S should be set
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set
+    JP Z, ERROR
+    BIT 1, C        ; N should be set
+    JP Z, ERROR
+    BIT 0, C        ; C should be set
+    JP Z, ERROR
+
+    ; --- Case 3: 0x55 - 0x22 - C(0) = 0x33 (Standard Positive) ---
+    LD A, 0x55
+    LD H, 0x22
+    SBC A, H
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_SBC_A_L:
+    ; --- Case 1: 0x22 - 0x21 - C(1) = 0x00 (Clean Zero) ---
+    LD A, 0x22
+    LD L, 0x21
+    SCF             ; Set Carry flag
+    SBC A, L
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify Result
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set
+    JP Z, ERROR
+    BIT 4, C        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x70 - 0x81 - C(1) = 0xEE (Everything Edge Case) ---
+    LD A, 0x70
+    LD L, 0x81
+    SCF             ; Set Carry flag
+    SBC A, L
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0xEE
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+    BIT 7, C        ; S should be set
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set
+    JP Z, ERROR
+    BIT 1, C        ; N should be set
+    JP Z, ERROR
+    BIT 0, C        ; C should be set
+    JP Z, ERROR
+
+    ; --- Case 3: 0x55 - 0x22 - C(0) = 0x33 (Standard Positive) ---
+    LD A, 0x55
+    LD L, 0x22
+    SBC A, L
+
+    PUSH AF
+    POP BC          
+
+    ; Verify Result
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+    BIT 7, C        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared
     JP NZ, ERROR
 
     RET
@@ -1171,7 +1594,6 @@ TEST_SBC_A_A:
     ; --- Case 2: 0xAA - 0xAA - C(0) = 0x00 (Clean Zero) ---
     ; Subtraction of A from A with Carry cleared always yields 0x00.
     LD A, 0xAA
-    AND A           ; Clear Carry flag safely
     SBC A, A
 
     PUSH AF
@@ -1260,7 +1682,6 @@ TEST_SBC_A_IX_D:
     LD A, 0x22
     LD (TEST_RAM_PLUS_5), A  
     LD A, 0x55
-    AND A                    ; Clear Carry flag safely
     SBC A, (IX+5)
 
     PUSH AF
@@ -1349,7 +1770,6 @@ TEST_SBC_A_IY_D:
     LD A, 0x22
     LD (TEST_RAM_MINUS_5), A 
     LD A, 0x55
-    AND A                    ; Clear Carry flag safely
     SBC A, (IY-5)   ; -5 displacement (0xFB)
 
     PUSH AF
@@ -1374,3 +1794,362 @@ TEST_SBC_A_IY_D:
     JP NZ, ERROR
 
     RET
+
+; SBC 16-bit opcodes:
+TEST_SBC_HL_BC:
+    ; --- Case 1: 0x2022 - 0x2021 - C(1) = 0x0000 (Clean Zero) ---
+    LD HL, 0x2022
+    LD BC, 0x2021
+    SCF
+    SBC HL, BC
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result (Check H and L independently to preserve flags)
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, E        ; S should be cleared (bit 15 is 0)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set (result is 0x0000)
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared (no borrow from bit 11)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared (no overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set (subtraction operation)
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared (no borrow from bit 15)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x7000 - 0x8100 - C(1) = 0xEEFF (Everything Edge Case) ---
+    LD HL, 0x7000
+    LD BC, 0x8100
+    SCF
+    SBC HL, BC
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    LD A, H
+    CP 0xEE
+    JP NZ, ERROR
+    LD A, L
+    CP 0xFF
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+    BIT 7, E        ; S should be set (bit 15 is 1)
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (borrow required from bit 11)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set (signed 16-bit overflow)
+    JP Z, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be set (borrow required from bit 15)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x5555 - 0x2222 - C(0) = 0x3333 (Standard Positive) ---
+    LD HL, 0x5555
+    LD BC, 0x2222
+    AND A           ; Clear carry safely
+    SBC HL, BC
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    LD A, H
+    CP 0x33
+    JP NZ, ERROR
+    LD A, L
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP NZ, ERROR
+    BIT 4, E        
+    JP NZ, ERROR
+    BIT 2, E        
+    JP NZ, ERROR
+    BIT 1, E        
+    JP Z, ERROR
+    BIT 0, E        
+    JP NZ, ERROR
+
+    RET
+
+TEST_SBC_HL_DE:
+    ; --- Case 1: 0x2022 - 0x2021 - C(1) = 0x0000 ---
+    LD HL, 0x2022
+    LD DE, 0x2021
+    SCF
+    SBC HL, DE
+
+    PUSH AF
+    POP DE          
+    
+    ; Verify Result (Can't use DE here since we popped flags into it, so we swap to BC)
+    PUSH DE
+    POP BC          ; C = Flags
+    
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, C        
+    JP NZ, ERROR
+    BIT 6, C        
+    JP Z, ERROR
+    BIT 4, C        
+    JP NZ, ERROR
+    BIT 2, C        
+    JP NZ, ERROR
+    BIT 1, C        
+    JP Z, ERROR
+    BIT 0, C        
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x7000 - 0x8100 - C(1) = 0xEEFF ---
+    LD HL, 0x7000
+    LD DE, 0x8100
+    SCF
+    SBC HL, DE
+
+    PUSH AF
+    POP BC          ; B = H-reg equivalent, C = Flags
+
+    LD A, H
+    CP 0xEE
+    JP NZ, ERROR
+    LD A, L
+    CP 0xFF
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, C        
+    JP Z, ERROR
+    BIT 6, C        
+    JP NZ, ERROR
+    BIT 4, C        
+    JP Z, ERROR
+    BIT 2, C        
+    JP Z, ERROR
+    BIT 1, C        
+    JP Z, ERROR
+    BIT 0, C        
+    JP Z, ERROR
+
+    ; --- Case 3: 0x5555 - 0x2222 - C(0) = 0x3333 ---
+    LD HL, 0x5555
+    LD DE, 0x2222
+    AND A           
+    SBC HL, DE
+
+    PUSH AF
+    POP BC          
+
+    LD A, H
+    CP 0x33
+    JP NZ, ERROR
+    LD A, L
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, C        
+    JP NZ, ERROR
+    BIT 6, C        
+    JP NZ, ERROR
+    BIT 4, C        
+    JP NZ, ERROR
+    BIT 2, C        
+    JP NZ, ERROR
+    BIT 1, C        
+    JP Z, ERROR
+    BIT 0, C        
+    JP NZ, ERROR
+
+    RET
+
+TEST_SBC_HL_HL:
+    ; --- Case 1: 0x4444 - 0x4444 - C(1) = 0xFFFF (Carry Mask Generation) ---
+    LD HL, 0x4444
+    SCF             ; Set Carry flag
+    SBC HL, HL
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify Result
+    LD A, H
+    CP 0xFF
+    JP NZ, ERROR
+    LD A, L
+    CP 0xFF
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=0, N=1, C=1
+    BIT 7, E        ; S should be set (0xFFFF bit 15 is 1)
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (borrow required from bit 11)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be cleared (No signed overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be set (borrow required from bit 15)
+    JP Z, ERROR
+
+    ; --- Case 2: 0xAAAA - 0xAAAA - C(0) = 0x0000 (Clean Zero) ---
+    LD HL, 0xAAAA
+    SBC HL, HL
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_SBC_HL_SP:
+    ; --- Case 1: 0x2022 - 0x2021 - C(1) = 0x0000 ---
+    LD HL, 0x2022
+    LD (TEMP_SP_SAVE), SP   ; 1. Save the real stack pointer
+    LD SP, 0x2021           ; 2. Load the test operand into SP
+    SCF
+    SBC HL, SP              ; 3. Execute the test
+    LD SP, (TEMP_SP_SAVE)   ; 4. IMMEDIATELY restore the real stack pointer
+
+    PUSH AF                 ; Now safe to use stack operations!
+    POP DE          
+
+    ; Verify Result
+    LD A, H
+    CP 0x00
+    JP NZ, ERROR
+    LD A, L
+    CP 0x00
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=1, H=0, P/V=0, N=1, C=0
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x7000 - 0x8100 - C(1) = 0xEEFF ---
+    LD HL, 0x7000
+    LD (TEMP_SP_SAVE), SP   ; Save real stack
+    LD SP, 0x8100           ; Load test operand
+    SCF
+    SBC HL, SP              ; Execute test
+    LD SP, (TEMP_SP_SAVE)   ; Restore real stack
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    LD A, H
+    CP 0xEE
+    JP NZ, ERROR
+    LD A, L
+    CP 0xFF
+    JP NZ, ERROR
+
+    ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=1, C=1
+    BIT 7, E        ; S should be set
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (borrow from bit 11)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set (signed 16-bit overflow)
+    JP Z, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be set (borrow from bit 15)
+    JP Z, ERROR
+
+    ; --- Case 3: 0x5555 - 0x2222 - C(0) = 0x3333 ---
+    LD HL, 0x5555
+    LD (TEMP_SP_SAVE), SP   ; Save real stack
+    LD SP, 0x2222           ; Load test operand
+    AND A                   ; Clear carry safely
+    SBC HL, SP              ; Execute test
+    LD SP, (TEMP_SP_SAVE)   ; Restore real stack
+
+    PUSH AF
+    POP DE          
+
+    ; Verify Result
+    LD A, H
+    CP 0x33
+    JP NZ, ERROR
+    LD A, L
+    CP 0x33
+    JP NZ, ERROR
+
+    ; Verify Flags: S=0, Z=0, H=0, P/V=0, N=1, C=0
+    BIT 7, E        
+    JP NZ, ERROR
+    BIT 6, E        
+    JP NZ, ERROR
+    BIT 4, E        
+    JP NZ, ERROR
+    BIT 2, E        
+    JP NZ, ERROR
+    BIT 1, E        
+    JP Z, ERROR
+    BIT 0, E        
+    JP NZ, ERROR
+
+    RET
+
