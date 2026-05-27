@@ -1,0 +1,359 @@
+0000                          .ORG   0000h   
+0000   31 00 F0               LD   SP,0xF000   
+0003   CD 0D 00               CALL   TEST_ANDS   
+0006   76                     HALT   
+0007   00 00        TEMP_SP_SAVE:   DW   0x0000   
+0009                SP_RESULT_ADDR:   EQU   0xFF02   
+0009                TEST_RAM:   EQU   0xFF00   
+0009                TEST_RAM_PLUS_5:   EQU   0xFF05   
+0009                TEST_RAM_MINUS_5:   EQU   0xFEFB   
+0009                ERROR:    
+0009   F3                     DI   
+000A   76                     HALT   
+000B   18 FC                  JR   ERROR   
+000D                TEST_ANDS:   
+000D   CD 1D 00               CALL   TEST_AND_B   
+0010   CD 9C 00               CALL   TEST_AND_HL   
+0013   CD 21 01               CALL   TEST_AND_N   
+0016   CD 9D 01               CALL   TEST_AND_A   
+0019   CD 16 02               CALL   TEST_AND_IX_D   
+001C   C9                     RET   
+001D                TEST_AND_B:   
+001D                          ; --- Case 1: 0x5A AND 0xA5 = 0x00 (Zero, Even Parity, Cleared Sign) ---
+001D   3E 5A                  LD   A,0x5A   
+001F   06 A5                  LD   B,0xA5   
+0021   A0                     AND   B   
+0022   F5                     PUSH   AF   
+0023   D1                     POP   DE   ; E = Flags
+0024                          ; Verify Result
+0024   FE 00                  CP   0x00   
+0026   C2 09 00               JP   NZ,ERROR   
+0029                          ; Verify Flags: S=0, Z=1, H=1, P/V=1, N=0, C=0
+0029                          ; Note: 0x00 has 0 bits set, which is even parity -> P/V = 1
+0029   CB 7B                  BIT   7,E   ; S should be cleared (result bit 7 is 0)
+002B   C2 09 00               JP   NZ,ERROR   
+002E   CB 73                  BIT   6,E   ; Z should be set (result is zero)
+0030   CA 09 00               JP   Z,ERROR   
+0033   CB 63                  BIT   4,E   ; H should be set (unconditionally set on Z80 AND)
+0035   CA 09 00               JP   Z,ERROR   
+0038   CB 53                  BIT   2,E   ; P/V should be set (even parity for 0x00)
+003A   CA 09 00               JP   Z,ERROR   
+003D   CB 4B                  BIT   1,E   ; N should be cleared (unconditionally cleared on logic ops)
+003F   C2 09 00               JP   NZ,ERROR   
+0042   CB 43                  BIT   0,E   ; C should be cleared (unconditionally cleared on logic ops)
+0044   C2 09 00               JP   NZ,ERROR   
+0047                          ; --- Case 2: 0xF0 AND 0x8A = 0x80 (Negative, Odd Parity, Non-Zero) ---
+0047   3E F0                  LD   A,0xF0   
+0049   06 8A                  LD   B,0x8A   
+004B   A0                     AND   B   
+004C   F5                     PUSH   AF   
+004D   D1                     POP   DE   
+004E                          ; Verify Result
+004E   FE 80                  CP   0x80   
+0050   C2 09 00               JP   NZ,ERROR   
+0053                          ; Verify Flags: S=1, Z=0, H=1, P/V=0, N=0, C=0
+0053                          ; Note: 0x80 has 1 bit set, which is odd parity -> P/V = 0
+0053   CB 7B                  BIT   7,E   ; S should be set (result bit 7 is 1)
+0055   CA 09 00               JP   Z,ERROR   
+0058   CB 73                  BIT   6,E   ; Z should be cleared (result is non-zero)
+005A   C2 09 00               JP   NZ,ERROR   
+005D   CB 63                  BIT   4,E   ; H should be set (unconditionally set on Z80 AND)
+005F   CA 09 00               JP   Z,ERROR   
+0062   CB 53                  BIT   2,E   ; P/V should be cleared (odd parity for 0x80)
+0064   C2 09 00               JP   NZ,ERROR   
+0067   CB 4B                  BIT   1,E   ; N should be cleared (unconditionally cleared on logic ops)
+0069   C2 09 00               JP   NZ,ERROR   
+006C   CB 43                  BIT   0,E   ; C should be cleared (unconditionally cleared on logic ops)
+006E   C2 09 00               JP   NZ,ERROR   
+0071                          ; --- Case 3: 0x1E AND 0xE7 = 0x06 (Positive, Even Parity, Non-Zero) ---
+0071   3E 1E                  LD   A,0x1E   
+0073   06 E7                  LD   B,0xE7   
+0075   A0                     AND   B   
+0076   F5                     PUSH   AF   
+0077   D1                     POP   DE   
+0078                          ; Verify Result
+0078   FE 06                  CP   0x06   
+007A   C2 09 00               JP   NZ,ERROR   
+007D                          ; Verify Flags: S=0, Z=0, H=1, P/V=1, N=0, C=0
+007D                          ; Note: 0x06 (00000110b) has 2 bits set -> even parity -> P/V = 1
+007D   CB 7B                  BIT   7,E   ; S should be cleared (result bit 7 is 0)
+007F   C2 09 00               JP   NZ,ERROR   
+0082   CB 73                  BIT   6,E   ; Z should be cleared (result is non-zero)
+0084   C2 09 00               JP   NZ,ERROR   
+0087   CB 63                  BIT   4,E   ; H should be set (unconditionally set on Z80 AND)
+0089   CA 09 00               JP   Z,ERROR   
+008C   CB 53                  BIT   2,E   ; P/V should be set (even parity for 0x06)
+008E   CA 09 00               JP   Z,ERROR   
+0091   CB 4B                  BIT   1,E   ; N should be cleared (unconditionally cleared on logic ops)
+0093   C2 09 00               JP   NZ,ERROR   
+0096   CB 43                  BIT   0,E   ; C should be cleared (unconditionally cleared on logic ops)
+0098   C2 09 00               JP   NZ,ERROR   
+009B   C9                     RET   
+009C                TEST_AND_HL:   
+009C                          ; Setup memory location
+009C   21 00 FF               LD   HL,TEST_RAM   
+009F                          ; --- Case 1: 0x5A AND (HL)[0xA5] = 0x00 ---
+009F   3E A5                  LD   A,0xA5   
+00A1   77                     LD   (HL),A   
+00A2   3E 5A                  LD   A,0x5A   
+00A4   A6                     AND   (HL)   
+00A5   F5                     PUSH   AF   
+00A6   D1                     POP   DE   
+00A7   FE 00                  CP   0x00   
+00A9   C2 09 00               JP   NZ,ERROR   
+00AC   CB 7B                  BIT   7,E   ; S should be cleared
+00AE   C2 09 00               JP   NZ,ERROR   
+00B1   CB 73                  BIT   6,E   ; Z should be set
+00B3   CA 09 00               JP   Z,ERROR   
+00B6   CB 63                  BIT   4,E   ; H should be set
+00B8   CA 09 00               JP   Z,ERROR   
+00BB   CB 53                  BIT   2,E   ; P/V should be set (even parity)
+00BD   CA 09 00               JP   Z,ERROR   
+00C0   CB 4B                  BIT   1,E   ; N should be cleared
+00C2   C2 09 00               JP   NZ,ERROR   
+00C5   CB 43                  BIT   0,E   ; C should be cleared
+00C7   C2 09 00               JP   NZ,ERROR   
+00CA                          ; --- Case 2: 0xF0 AND (HL)[0x8A] = 0x80 ---
+00CA   3E 8A                  LD   A,0x8A   
+00CC   77                     LD   (HL),A   
+00CD   3E F0                  LD   A,0xF0   
+00CF   A6                     AND   (HL)   
+00D0   F5                     PUSH   AF   
+00D1   D1                     POP   DE   
+00D2   FE 80                  CP   0x80   
+00D4   C2 09 00               JP   NZ,ERROR   
+00D7   CB 7B                  BIT   7,E   ; S should be set
+00D9   CA 09 00               JP   Z,ERROR   
+00DC   CB 73                  BIT   6,E   ; Z should be cleared
+00DE   C2 09 00               JP   NZ,ERROR   
+00E1   CB 63                  BIT   4,E   ; H should be set
+00E3   CA 09 00               JP   Z,ERROR   
+00E6   CB 53                  BIT   2,E   ; P/V should be cleared (odd parity)
+00E8   C2 09 00               JP   NZ,ERROR   
+00EB   CB 4B                  BIT   1,E   ; N should be cleared
+00ED   C2 09 00               JP   NZ,ERROR   
+00F0   CB 43                  BIT   0,E   ; C should be cleared
+00F2   C2 09 00               JP   NZ,ERROR   
+00F5                          ; --- Case 3: 0x1E AND (HL)[0xE7] = 0x06 ---
+00F5   3E E7                  LD   A,0xE7   
+00F7   77                     LD   (HL),A   
+00F8   3E 1E                  LD   A,0x1E   
+00FA   A6                     AND   (HL)   
+00FB   F5                     PUSH   AF   
+00FC   D1                     POP   DE   
+00FD   FE 06                  CP   0x06   
+00FF   C2 09 00               JP   NZ,ERROR   
+0102   CB 7B                  BIT   7,E   ; S should be cleared
+0104   C2 09 00               JP   NZ,ERROR   
+0107   CB 73                  BIT   6,E   ; Z should be cleared
+0109   C2 09 00               JP   NZ,ERROR   
+010C   CB 63                  BIT   4,E   ; H should be set
+010E   CA 09 00               JP   Z,ERROR   
+0111   CB 53                  BIT   2,E   ; P/V should be set (even parity)
+0113   CA 09 00               JP   Z,ERROR   
+0116   CB 4B                  BIT   1,E   ; N should be cleared
+0118   C2 09 00               JP   NZ,ERROR   
+011B   CB 43                  BIT   0,E   ; C should be cleared
+011D   C2 09 00               JP   NZ,ERROR   
+0120   C9                     RET   
+0121                TEST_AND_N:   
+0121                          ; --- Case 1: 0x5A AND 0xA5 = 0x00 ---
+0121   3E 5A                  LD   A,0x5A   
+0123   E6 A5                  AND   0xA5   
+0125   F5                     PUSH   AF   
+0126   D1                     POP   DE   
+0127   FE 00                  CP   0x00   
+0129   C2 09 00               JP   NZ,ERROR   
+012C   CB 7B                  BIT   7,E   ; S should be cleared
+012E   C2 09 00               JP   NZ,ERROR   
+0131   CB 73                  BIT   6,E   ; Z should be set
+0133   CA 09 00               JP   Z,ERROR   
+0136   CB 63                  BIT   4,E   ; H should be set
+0138   CA 09 00               JP   Z,ERROR   
+013B   CB 53                  BIT   2,E   ; P/V should be set (even parity)
+013D   CA 09 00               JP   Z,ERROR   
+0140   CB 4B                  BIT   1,E   ; N should be cleared
+0142   C2 09 00               JP   NZ,ERROR   
+0145   CB 43                  BIT   0,E   ; C should be cleared
+0147   C2 09 00               JP   NZ,ERROR   
+014A                          ; --- Case 2: 0xF0 AND 0x8A = 0x80 ---
+014A   3E F0                  LD   A,0xF0   
+014C   E6 8A                  AND   0x8A   
+014E   F5                     PUSH   AF   
+014F   D1                     POP   DE   
+0150   FE 80                  CP   0x80   
+0152   C2 09 00               JP   NZ,ERROR   
+0155   CB 7B                  BIT   7,E   ; S should be set
+0157   CA 09 00               JP   Z,ERROR   
+015A   CB 73                  BIT   6,E   ; Z should be cleared
+015C   C2 09 00               JP   NZ,ERROR   
+015F   CB 63                  BIT   4,E   ; H should be set
+0161   CA 09 00               JP   Z,ERROR   
+0164   CB 53                  BIT   2,E   ; P/V should be cleared (odd parity)
+0166   C2 09 00               JP   NZ,ERROR   
+0169   CB 4B                  BIT   1,E   ; N should be cleared
+016B   C2 09 00               JP   NZ,ERROR   
+016E   CB 43                  BIT   0,E   ; C should be cleared
+0170   C2 09 00               JP   NZ,ERROR   
+0173                          ; --- Case 3: 0x1E AND 0xE7 = 0x06 ---
+0173   3E 1E                  LD   A,0x1E   
+0175   E6 E7                  AND   0xE7   
+0177   F5                     PUSH   AF   
+0178   D1                     POP   DE   
+0179   FE 06                  CP   0x06   
+017B   C2 09 00               JP   NZ,ERROR   
+017E   CB 7B                  BIT   7,E   ; S should be cleared
+0180   C2 09 00               JP   NZ,ERROR   
+0183   CB 73                  BIT   6,E   ; Z should be cleared
+0185   C2 09 00               JP   NZ,ERROR   
+0188   CB 63                  BIT   4,E   ; H should be set
+018A   CA 09 00               JP   Z,ERROR   
+018D   CB 53                  BIT   2,E   ; P/V should be set (even parity)
+018F   CA 09 00               JP   Z,ERROR   
+0192   CB 4B                  BIT   1,E   ; N should be cleared
+0194   C2 09 00               JP   NZ,ERROR   
+0197   CB 43                  BIT   0,E   ; C should be cleared
+0199   C2 09 00               JP   NZ,ERROR   
+019C   C9                     RET   
+019D                TEST_AND_A:   
+019D                          ; --- Case 1: 0x5A AND 0x5A = 0x5A (Positive, Even Parity, Non-Zero) ---
+019D   3E 5A                  LD   A,0x5A   
+019F   A7                     AND   A   
+01A0   F5                     PUSH   AF   
+01A1   D1                     POP   DE   ; E = Flags
+01A2                          ; Verify Result
+01A2   FE 5A                  CP   0x5A   
+01A4   C2 09 00               JP   NZ,ERROR   
+01A7                          ; Verify Flags: S=0, Z=0, H=1, P/V=1, N=0, C=0
+01A7                          ; Note: 0x5A (01011010b) has 4 bits set -> even parity -> P/V = 1
+01A7   CB 7B                  BIT   7,E   ; S should be cleared (result bit 7 is 0)
+01A9   C2 09 00               JP   NZ,ERROR   
+01AC   CB 73                  BIT   6,E   ; Z should be cleared (result is non-zero)
+01AE   C2 09 00               JP   NZ,ERROR   
+01B1   CB 63                  BIT   4,E   ; H should be set (unconditionally set on Z80 AND)
+01B3   CA 09 00               JP   Z,ERROR   
+01B6   CB 53                  BIT   2,E   ; P/V should be set (even parity for 0x5A)
+01B8   CA 09 00               JP   Z,ERROR   
+01BB   CB 4B                  BIT   1,E   ; N should be cleared (unconditionally cleared on logic ops)
+01BD   C2 09 00               JP   NZ,ERROR   
+01C0   CB 43                  BIT   0,E   ; C should be cleared (unconditionally cleared on logic ops)
+01C2   C2 09 00               JP   NZ,ERROR   
+01C5                          ; --- Case 2: 0x87 AND 0x87 = 0x87 (Negative, Even Parity, Non-Zero) ---
+01C5   3E 87                  LD   A,0x87   
+01C7   A7                     AND   A   
+01C8   F5                     PUSH   AF   
+01C9   D1                     POP   DE   
+01CA                          ; Verify Result
+01CA   FE 87                  CP   0x87   
+01CC   C2 09 00               JP   NZ,ERROR   
+01CF                          ; Verify Flags: S=1, Z=0, H=1, P/V=1, N=0, C=0
+01CF                          ; Note: 0x87 (10000111b) has 4 bits set -> even parity -> P/V = 1
+01CF   CB 7B                  BIT   7,E   ; S should be set (result bit 7 is 1)
+01D1   CA 09 00               JP   Z,ERROR   
+01D4   CB 73                  BIT   6,E   ; Z should be cleared (result is non-zero)
+01D6   C2 09 00               JP   NZ,ERROR   
+01D9   CB 63                  BIT   4,E   ; H should be set (unconditionally set on Z80 AND)
+01DB   CA 09 00               JP   Z,ERROR   
+01DE   CB 53                  BIT   2,E   ; P/V should be set (even parity for 0x87)
+01E0   CA 09 00               JP   Z,ERROR   
+01E3   CB 4B                  BIT   1,E   ; N should be cleared (unconditionally cleared on logic ops)
+01E5   C2 09 00               JP   NZ,ERROR   
+01E8   CB 43                  BIT   0,E   ; C should be cleared (unconditionally cleared on logic ops)
+01EA   C2 09 00               JP   NZ,ERROR   
+01ED                          ; --- Case 3: 0x00 AND 0x00 = 0x00 (Zero, Even Parity, Cleared Sign) ---
+01ED   3E 00                  LD   A,0x00   
+01EF   A7                     AND   A   
+01F0   F5                     PUSH   AF   
+01F1   D1                     POP   DE   
+01F2                          ; Verify Result
+01F2   FE 00                  CP   0x00   
+01F4   C2 09 00               JP   NZ,ERROR   
+01F7                          ; Verify Flags: S=0, Z=1, H=1, P/V=1, N=0, C=0
+01F7                          ; Note: 0x00 has 0 bits set -> even parity -> P/V = 1
+01F7   CB 7B                  BIT   7,E   ; S should be cleared (result bit 7 is 0)
+01F9   C2 09 00               JP   NZ,ERROR   
+01FC   CB 73                  BIT   6,E   ; Z should be set (result is zero)
+01FE   CA 09 00               JP   Z,ERROR   
+0201   CB 63                  BIT   4,E   ; H should be set (unconditionally set on Z80 AND)
+0203   CA 09 00               JP   Z,ERROR   
+0206   CB 53                  BIT   2,E   ; P/V should be set (even parity for 0x00)
+0208   CA 09 00               JP   Z,ERROR   
+020B   CB 4B                  BIT   1,E   ; N should be cleared (unconditionally cleared on logic ops)
+020D   C2 09 00               JP   NZ,ERROR   
+0210   CB 43                  BIT   0,E   ; C should be cleared (unconditionally cleared on logic ops)
+0212   C2 09 00               JP   NZ,ERROR   
+0215   C9                     RET   
+0216                TEST_AND_IX_D:   
+0216                          ; --- Case 1: Zero Offset d=0x00 -> Target: TEST_RAM (0x5A AND 0xA5 = 0x00) ---
+0216                          ; Setup target data in RAM
+0216   21 00 FF               LD   HL,TEST_RAM   
+0219   36 A5                  LD   (HL),0xA5   
+021B                          ; Points IX directly to TEST_RAM
+021B   DD 21 00 FF            LD   IX,TEST_RAM   
+021F   3E 5A                  LD   A,0x5A   
+0221   DD A6 00               AND   (IX+0)   ; d = 0x00
+0224   F5                     PUSH   AF   
+0225   D1                     POP   DE   
+0226   FE 00                  CP   0x00   
+0228   C2 09 00               JP   NZ,ERROR   
+022B   CB 7B                  BIT   7,E   ; S should be cleared
+022D   C2 09 00               JP   NZ,ERROR   
+0230   CB 73                  BIT   6,E   ; Z should be set
+0232   CA 09 00               JP   Z,ERROR   
+0235   CB 63                  BIT   4,E   ; H should be set
+0237   CA 09 00               JP   Z,ERROR   
+023A   CB 53                  BIT   2,E   ; P/V should be set (even parity)
+023C   CA 09 00               JP   Z,ERROR   
+023F   CB 4B                  BIT   1,E   ; N should be cleared
+0241   C2 09 00               JP   NZ,ERROR   
+0244   CB 43                  BIT   0,E   ; C should be cleared
+0246   C2 09 00               JP   NZ,ERROR   
+0249                          ; --- Case 2: Positive Offset d=0x05 -> Target: TEST_RAM_PLUS_5 (0xF0 AND 0x8A = 0x80) ---
+0249                          ; Setup target data in RAM
+0249   21 05 FF               LD   HL,TEST_RAM_PLUS_5   
+024C   36 8A                  LD   (HL),0x8A   
+024E                          ; Base IX points to TEST_RAM, offset (+5) must land on TEST_RAM_PLUS_5
+024E   DD 21 00 FF            LD   IX,TEST_RAM   
+0252   3E F0                  LD   A,0xF0   
+0254   DD A6 05               AND   (IX+5)   ; d = +5 (Signed 8-bit math)
+0257   F5                     PUSH   AF   
+0258   D1                     POP   DE   
+0259   FE 80                  CP   0x80   
+025B   C2 09 00               JP   NZ,ERROR   
+025E   CB 7B                  BIT   7,E   ; S should be set
+0260   CA 09 00               JP   Z,ERROR   
+0263   CB 73                  BIT   6,E   ; Z should be cleared
+0265   C2 09 00               JP   NZ,ERROR   
+0268   CB 63                  BIT   4,E   ; H should be set
+026A   CA 09 00               JP   Z,ERROR   
+026D   CB 53                  BIT   2,E   ; P/V should be cleared (odd parity)
+026F   C2 09 00               JP   NZ,ERROR   
+0272   CB 4B                  BIT   1,E   ; N should be cleared
+0274   C2 09 00               JP   NZ,ERROR   
+0277   CB 43                  BIT   0,E   ; C should be cleared
+0279   C2 09 00               JP   NZ,ERROR   
+027C                          ; --- Case 3: Negative Offset d=-5 (0xFB) -> Target: TEST_RAM_MINUS_5 (0x1E AND 0xE7 = 0x06) ---
+027C                          ; Setup target data in RAM
+027C   21 FB FE               LD   HL,TEST_RAM_MINUS_5   
+027F   36 E7                  LD   (HL),0xE7   
+0281                          ; Base IX points to TEST_RAM, offset (-5) must land on TEST_RAM_MINUS_5
+0281   DD 21 00 FF            LD   IX,TEST_RAM   
+0285   3E 1E                  LD   A,0x1E   
+0287   DD A6 FB               AND   (IX-5)   ; d = -5 (Assembler translates to 0xFB)
+028A   F5                     PUSH   AF   
+028B   D1                     POP   DE   
+028C   FE 06                  CP   0x06   
+028E   C2 09 00               JP   NZ,ERROR   
+0291   CB 7B                  BIT   7,E   ; S should be cleared
+0293   C2 09 00               JP   NZ,ERROR   
+0296   CB 73                  BIT   6,E   ; Z should be cleared
+0298   C2 09 00               JP   NZ,ERROR   
+029B   CB 63                  BIT   4,E   ; H should be set
+029D   CA 09 00               JP   Z,ERROR   
+02A0   CB 53                  BIT   2,E   ; P/V should be set (even parity)
+02A2   CA 09 00               JP   Z,ERROR   
+02A5   CB 4B                  BIT   1,E   ; N should be cleared
+02A7   C2 09 00               JP   NZ,ERROR   
+02AA   CB 43                  BIT   0,E   ; C should be cleared
+02AC   C2 09 00               JP   NZ,ERROR   
+02AF   C9                     RET
