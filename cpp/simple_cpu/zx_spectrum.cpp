@@ -2496,6 +2496,106 @@ public:
                 regs.set_reg(RegName::A, res);
                 break;
             }
+            case 0xA2: {// 0xA2     (AND A, D    - Bitwise AND on A with D), cycles: 4
+                // C reset
+                // N reset
+                // P/V detects parity
+                // H set
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::D);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::AND, 8);
+                uint16_t res = alu.get_res();
+                regs.clear_flag(FlagName::C);
+                regs.clear_flag(FlagName::N);
+                regs.set_flag(FlagName::H);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::P)); 
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: AND A, D :: (0x%02X & 0x%02X = 0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0xA3: {// 0xA3     (AND A, E    - Bitwise AND on A with E), cycles: 4
+                // C reset
+                // N reset
+                // P/V detects parity
+                // H set
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::E);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::AND, 8);
+                uint16_t res = alu.get_res();
+                regs.clear_flag(FlagName::C);
+                regs.clear_flag(FlagName::N);
+                regs.set_flag(FlagName::H);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::P)); 
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: AND A, E :: (0x%02X & 0x%02X = 0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0xA4: {// 0xA4     (AND A, H    - Bitwise AND on A with H), cycles: 4
+                // C reset
+                // N reset
+                // P/V detects parity
+                // H set
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::H);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::AND, 8);
+                uint16_t res = alu.get_res();
+                regs.clear_flag(FlagName::C);
+                regs.clear_flag(FlagName::N);
+                regs.set_flag(FlagName::H);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::P)); 
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: AND A, H :: (0x%02X & 0x%02X = 0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
+            case 0xA5: {// 0xA5     (AND A, L    - Bitwise AND on A with L), cycles: 4
+                // C reset
+                // N reset
+                // P/V detects parity
+                // H set
+                // Z as defined
+                // S as defined
+                uint16_t a = regs.get_reg(RegName::A);
+                uint16_t val = regs.get_reg(RegName::L);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::AND, 8);
+                uint16_t res = alu.get_res();
+                regs.clear_flag(FlagName::C);
+                regs.clear_flag(FlagName::N);
+                regs.set_flag(FlagName::H);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::P)); 
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: AND A, L :: (0x%02X & 0x%02X = 0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
+                break;
+            }
             case 0xA6: {// 0xA6     (AND A, (HL) - Bitwise AND on A with (HL)), cycles: 7
                 // C reset
                 // N reset
@@ -4287,6 +4387,34 @@ public:
                     regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
                     regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                     printf("0x%04X: SBC A, (IY + 0x%02X) :: (0x%02X + 0x%02X -> 0x%02X, addr: 0x%04X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, res_addr, opcode, new_opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::A, res);
+                    num_bytes_read += 2;
+                } else if (new_opcode == 0xA6) {   // 0xFD 0xA6 D   (AND A, (IY+D) - Bitwise AND on A with the value pointed to by IY plus d), cycles: 19
+                    // C as defined
+                    // N set
+                    // P/V detects overflow
+                    // H as defined
+                    // Z as defined
+                    // S as defined
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
+                    uint16_t a = regs.get_reg(RegName::A);
+                    uint16_t addr = regs.get_reg(RegName::IY);
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
+                    uint16_t val = mem_bus->read(res_addr);
+
+                    alu.set_op1(a);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: AND, 8);
+                    uint16_t res = alu.get_res();
+                    regs.clear_flag(FlagName::C);
+                    regs.clear_flag(FlagName::N);
+                    regs.set_flag(FlagName::H);
+                    regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::P));
+                    regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                    regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                    printf("0x%04X: AND A, (IY + 0x%02X) :: (0x%02X & 0x%02X -> 0x%02X, addr: 0x%04X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, res_addr, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::A, res);
                     num_bytes_read += 2;
                 } else if (new_opcode == 0xE1) {   // 0xFD 0xE1     (POP IY), cycles: 14
