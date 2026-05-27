@@ -19,6 +19,7 @@ enum class ALU_Op {
     SUB,
     AND,
     XOR,
+    OR,
     COUNT
 };
 
@@ -195,6 +196,37 @@ private:
         flags[get_flag_index(ALU_Flags::Z)] = zero_flag;
         flags[get_flag_index(ALU_Flags::P)] = parity_flag == 0; // 0 if even, 1 if odd
     }
+    void op_or(void) {
+        // Does OR
+        uint8_t num_nibbles = _num_bits >> 2;
+        uint8_t last_nibble = num_nibbles - 1;
+        uint16_t final_res = 0;
+        uint16_t res = 0;
+
+        for (int i = 0; i < num_nibbles; i++) {
+            uint16_t nibble_offset = i * 4;
+            uint16_t n1 = (_op1 >> nibble_offset) & 0x0F;
+            uint16_t n2 = (_op2 >> nibble_offset) & 0x0F;
+
+            uint16_t temp_res = n1 | n2;
+            temp_res &= 0x0F;
+
+            res |= temp_res << nibble_offset;
+        }
+        _res = res;
+        // Update flags
+        bool zero_flag = res == 0;
+        
+        int parity_flag = 0;
+        for (int i=0; i<16; i++) {
+            parity_flag ^= (res >> i) & 1;
+        }
+        uint16_t sbr = (res >> (_num_bits-1)) & 1;
+
+        flags[get_flag_index(ALU_Flags::S)] = sbr;
+        flags[get_flag_index(ALU_Flags::Z)] = zero_flag;
+        flags[get_flag_index(ALU_Flags::P)] = parity_flag == 0; // 0 if even, 1 if odd
+    }
     // --- !ALU operations ---
 
     // --- The Function Pointer Type & Lookup Table ---
@@ -208,7 +240,8 @@ private:
         &ALU::op_add,
         &ALU::op_sub,
         &ALU::op_and,
-        &ALU::op_xor
+        &ALU::op_xor,
+        &ALU::op_or
         // When you add new operations (e.g., SUB, AND), just add their method pointers here!
     };
 
