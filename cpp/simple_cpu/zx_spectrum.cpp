@@ -2655,16 +2655,21 @@ public:
                 // Z as defined
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
-                uint16_t b = regs.get_reg(RegName::B);
-                uint16_t res = a ^ b;
+                uint16_t val = regs.get_reg(RegName::B);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::XOR, 8);
+                uint16_t res = alu.get_res();
                 regs.clear_flag(FlagName::C);
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, z80_parity_flag(res));
                 regs.clear_flag(FlagName::H);
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::P)); 
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: XOR A, B :: (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
-                printf("0x%04X: XOR A, B :: (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, b, res, opcode, regs.get_reg(RegName::F));
                 break;
             }
             case 0xA9: {// 0xA9     (XOR A, C    - Bitwise XOR on A with C), cycles: 4
@@ -2675,16 +2680,21 @@ public:
                 // Z as defined
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
-                uint16_t c = regs.get_reg(RegName::C);
-                uint16_t res = a ^ c;
+                uint16_t val = regs.get_reg(RegName::C);
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::XOR, 8);
+                uint16_t res = alu.get_res();
                 regs.clear_flag(FlagName::C);
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, z80_parity_flag(res));
                 regs.clear_flag(FlagName::H);
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::P)); 
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: XOR A, C :: (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
-                printf("0x%04X: XOR A, C :: (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, c, res, opcode, regs.get_reg(RegName::F));
                 break;
             }
             case 0xAA: {// 0xAA     (XOR A, D    - Bitwise XOR on A with D), cycles: 4
@@ -2696,15 +2706,20 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::D);
-                uint16_t res = a ^ val;
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::XOR, 8);
+                uint16_t res = alu.get_res();
                 regs.clear_flag(FlagName::C);
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, z80_parity_flag(res));
                 regs.clear_flag(FlagName::H);
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
-                regs.set_reg(RegName::A, res);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::P)); 
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: XOR A, D :: (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
                 break;
             }
             case 0xAB: {// 0xAB     (XOR A, E    - Bitwise XOR on A with E), cycles: 4
@@ -2716,15 +2731,20 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::E);
-                uint16_t res = a ^ val;
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::XOR, 8);
+                uint16_t res = alu.get_res();
                 regs.clear_flag(FlagName::C);
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, z80_parity_flag(res));
                 regs.clear_flag(FlagName::H);
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
-                regs.set_reg(RegName::A, res);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::P)); 
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: XOR A, E :: (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
                 break;
             }
             case 0xAC: {// 0xAC     (XOR A, H    - Bitwise XOR on A with H), cycles: 4
@@ -2736,15 +2756,20 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::H);
-                uint16_t res = a ^ val;
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::XOR, 8);
+                uint16_t res = alu.get_res();
                 regs.clear_flag(FlagName::C);
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, z80_parity_flag(res));
                 regs.clear_flag(FlagName::H);
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
-                regs.set_reg(RegName::A, res);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::P)); 
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: XOR A, H :: (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
                 break;
             }
             case 0xAD: {// 0xAD     (XOR A, L    - Bitwise XOR on A with L), cycles: 4
@@ -2756,15 +2781,20 @@ public:
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t val = regs.get_reg(RegName::L);
-                uint16_t res = a ^ val;
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::XOR, 8);
+                uint16_t res = alu.get_res();
                 regs.clear_flag(FlagName::C);
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, z80_parity_flag(res));
                 regs.clear_flag(FlagName::H);
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
-                regs.set_reg(RegName::A, res);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::P)); 
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: XOR A, L :: (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
                 break;
             }
             case 0xAE: {// 0xAE     (XOR A, (HL) - Bitwise XOR on A with (HL)), cycles: 7
@@ -2777,15 +2807,20 @@ public:
                 uint16_t a = regs.get_reg(RegName::A);
                 uint16_t addr = regs.get_reg(RegName::HL);
                 uint16_t val = mem_bus->read(addr);
-                uint16_t res = a ^ val;
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::XOR, 8);
+                uint16_t res = alu.get_res();
                 regs.clear_flag(FlagName::C);
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, z80_parity_flag(res));
                 regs.clear_flag(FlagName::H);
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::P)); 
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                printf("0x%04X: XOR A, (HL) :: (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 regs.set_reg(RegName::A, res);
-                printf("0x%04X: XOR A, (HL) : (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
                 break;
             }
             case 0xAF: {// 0xAF     (XOR A, A    - Bitwise XOR on A with A), cycles: 4
@@ -2796,16 +2831,21 @@ public:
                 // Z as defined
                 // S as defined
                 uint16_t a = regs.get_reg(RegName::A);
-                uint16_t val = regs.get_reg(RegName::B);
-                uint16_t res = a ^ val;
+                uint16_t val = a;
+
+                alu.set_op1(a);
+                alu.set_op2(val);
+                alu.clear_all_flags();
+                alu.perform_operation(ALU_Op::XOR, 8);
+                uint16_t res = alu.get_res();
                 regs.clear_flag(FlagName::C);
                 regs.clear_flag(FlagName::N);
-                regs.update_flag(FlagName::P_V, z80_parity_flag(res));
                 regs.clear_flag(FlagName::H);
-                regs.update_flag(FlagName::Z, z80_zero_flag(res, false));
-                regs.update_flag(FlagName::S, z80_sign_flag(res, false));
-                regs.set_reg(RegName::A, res);
+                regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::P)); 
+                regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                 printf("0x%04X: XOR A, A :: (0x%02X^0x%02X=0x%02X) || 0x%02X 0x%02X\n", pc, a, val, res, opcode, regs.get_reg(RegName::F));
+                regs.set_reg(RegName::A, res);
                 break;
             }
             case 0xB0: {// 0xB0     (OR A, B     - Bitwise OR on A with B), cycles: 4
@@ -3572,6 +3612,34 @@ public:
                     regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
                     regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                     printf("0x%04X: AND A, (IX + 0x%02X) :: (0x%02X & 0x%02X -> 0x%02X, addr: 0x%04X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, res_addr, opcode, new_opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::A, res);
+                    num_bytes_read += 2;
+                } else if (new_opcode == 0xAE) {   // 0xDD 0xAE D   (XOR A, (IX+D) - Bitwise XOR on A with the value pointed to by IX plus d), cycles: 19
+                    // C as defined
+                    // N set
+                    // P/V detects overflow
+                    // H as defined
+                    // Z as defined
+                    // S as defined
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
+                    uint16_t a = regs.get_reg(RegName::A);
+                    uint16_t addr = regs.get_reg(RegName::IX);
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
+                    uint16_t val = mem_bus->read(res_addr);
+
+                    alu.set_op1(a);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: XOR, 8);
+                    uint16_t res = alu.get_res();
+                    regs.clear_flag(FlagName::C);
+                    regs.clear_flag(FlagName::N);
+                    regs.clear_flag(FlagName::H);
+                    regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::P));
+                    regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                    regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                    printf("0x%04X: XOR A, (IX + 0x%02X) :: (0x%02X & 0x%02X -> 0x%02X, addr: 0x%04X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, res_addr, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::A, res);
                     num_bytes_read += 2;
                 } else if (new_opcode == 0xE1) {   // 0xDD 0xE1     (POP IX), cycles: 14
@@ -4415,6 +4483,34 @@ public:
                     regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
                     regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
                     printf("0x%04X: AND A, (IY + 0x%02X) :: (0x%02X & 0x%02X -> 0x%02X, addr: 0x%04X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, res_addr, opcode, new_opcode, regs.get_reg(RegName::F));
+                    regs.set_reg(RegName::A, res);
+                    num_bytes_read += 2;
+                } else if (new_opcode == 0xAE) {   // 0xDD 0xAE D   (XOR A, (IY+D) - Bitwise XOR on A with the value pointed to by IY plus d), cycles: 19
+                    // C as defined
+                    // N set
+                    // P/V detects overflow
+                    // H as defined
+                    // Z as defined
+                    // S as defined
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
+                    uint16_t a = regs.get_reg(RegName::A);
+                    uint16_t addr = regs.get_reg(RegName::IY);
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
+                    uint16_t val = mem_bus->read(res_addr);
+
+                    alu.set_op1(a);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: XOR, 8);
+                    uint16_t res = alu.get_res();
+                    regs.clear_flag(FlagName::C);
+                    regs.clear_flag(FlagName::N);
+                    regs.clear_flag(FlagName::H);
+                    regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::P));
+                    regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                    regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                    printf("0x%04X: XOR A, (IY + 0x%02X) :: (0x%02X & 0x%02X -> 0x%02X, addr: 0x%04X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, res_addr, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::A, res);
                     num_bytes_read += 2;
                 } else if (new_opcode == 0xE1) {   // 0xFD 0xE1     (POP IY), cycles: 14
