@@ -3,6 +3,7 @@ ORG 0000h
     CALL TEST_ANDS
     CALL TEST_XORS
     CALL TEST_ORS
+    CALL TEST_CPS
     HALT
 
 TEMP_SP_SAVE: DW 0x0000
@@ -55,6 +56,20 @@ TEST_ORS:
     CALL TEST_OR_N
     CALL TEST_OR_A
     CALL TEST_OR_IX_D
+    CALL TEST_OR_IY_D
+    RET
+
+TEST_CPS:
+    CALL TEST_CP_B
+    CALL TEST_OR_C
+    CALL TEST_OR_D
+    CALL TEST_OR_E
+    CALL TEST_OR_H
+    CALL TEST_OR_L
+    CALL TEST_CP_HL
+    CALL TEST_CP_N
+    CALL TEST_CP_A
+    CALL TEST_CP_IX_D
     CALL TEST_OR_IY_D
     RET
 
@@ -2670,6 +2685,830 @@ TEST_OR_IY_D:
     JP NZ, ERROR
     BIT 1, E        ; N should be cleared
     JP NZ, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+; CP opcodes:
+TEST_CP_B:
+    ; --- Case 1: 0x3F CP 0x1E = 0x21 internally (S=0, Z=0, H=0, P/V=0, N=1, C=0) ---
+    LD A, 0x3F
+    LD B, 0x1E
+    CP B
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify A was NOT modified
+    CP 0x3F
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        ; S should be cleared (result is positive)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared (result is non-zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared (no lower-nibble borrow)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared (no unsigned borrow)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x55 CP 0xAA = 0xAB internally (S=1, Z=0, H=1, P/V=1, N=1, C=1) ---
+    LD A, 0x55
+    LD B, 0xAA
+    CP B
+
+    PUSH AF
+    POP DE          
+
+    ; Verify A was NOT modified
+    CP 0x55
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        ; S should be set (result bit 7 is 1)
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared (result is non-zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (borrow from bit 4 occurred)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set (signed overflow occurred)
+    JP Z, ERROR
+    BIT 1, E        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, E        ; C should be set (borrow from MSB occurred)
+    JP Z, ERROR
+
+    ; --- Case 3: 0xF8 CP 0xF8 = 0x00 internally (S=0, Z=1, H=0, P/V=0, N=1, C=0) ---
+    LD A, 0xF8
+    LD B, 0xF8
+    CP B
+
+    PUSH AF
+    POP DE          
+
+    ; Verify A was NOT modified
+    CP 0xF8
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        ; S should be cleared (result is zero/positive)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set (values match, result is zero)
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared (no lower-nibble borrow)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared (no unsigned borrow)
+    JP NZ, ERROR
+
+    RET
+
+TEST_CP_C:
+    ; --- Case 1: 0x3F CP 0x1E = 0x21 internally (S=0, Z=0, H=0, P/V=0, N=1, C=0) ---
+    LD A, 0x3F
+    LD C, 0x1E
+    CP C
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify A was NOT modified
+    CP 0x3F
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        ; S should be cleared (result is positive)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared (result is non-zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared (no lower-nibble borrow)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared (no unsigned borrow)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x55 CP 0xAA = 0xAB internally (S=1, Z=0, H=1, P/V=1, N=1, C=1) ---
+    LD A, 0x55
+    LD C, 0xAA
+    CP C
+
+    PUSH AF
+    POP DE          
+
+    ; Verify A was NOT modified
+    CP 0x55
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        ; S should be set (result bit 7 is 1)
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared (result is non-zero)
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set (borrow from bit 4 occurred)
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set (signed overflow occurred)
+    JP Z, ERROR
+    BIT 1, E        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, E        ; C should be set (borrow from MSB occurred)
+    JP Z, ERROR
+
+    ; --- Case 3: 0xF8 CP 0xF8 = 0x00 internally (S=0, Z=1, H=0, P/V=0, N=1, C=0) ---
+    LD A, 0xF8
+    LD C, 0xF8
+    CP C
+
+    PUSH AF
+    POP DE          
+
+    ; Verify A was NOT modified
+    CP 0xF8
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        ; S should be cleared (result is zero/positive)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set (values match, result is zero)
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared (no lower-nibble borrow)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared (no unsigned borrow)
+    JP NZ, ERROR
+
+    RET
+
+TEST_CP_D:
+    ; --- Case 1: 0x3F CP 0x1E = 0x21 internally (S=0, Z=0, H=0, P/V=0, N=1, C=0) ---
+    LD A, 0x3F
+    LD D, 0x1E
+    CP D
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify A was NOT modified
+    CP 0x3F
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, C        ; S should be cleared (result is positive)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared (result is non-zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared (no lower-nibble borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no unsigned borrow)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x55 CP 0xAA = 0xAB internally (S=1, Z=0, H=1, P/V=1, N=1, C=1) ---
+    LD A, 0x55
+    LD D, 0xAA
+    CP D
+
+    PUSH AF
+    POP BC          
+
+    ; Verify A was NOT modified
+    CP 0x55
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, C        ; S should be set (result bit 7 is 1)
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared (result is non-zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set (borrow from bit 4 occurred)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set (signed overflow occurred)
+    JP Z, ERROR
+    BIT 1, C        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, C        ; C should be set (borrow from MSB occurred)
+    JP Z, ERROR
+
+    ; --- Case 3: 0xF8 CP 0xF8 = 0x00 internally (S=0, Z=1, H=0, P/V=0, N=1, C=0) ---
+    LD A, 0xF8
+    LD D, 0xF8
+    CP D
+
+    PUSH AF
+    POP BC          
+
+    ; Verify A was NOT modified
+    CP 0xF8
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, C        ; S should be cleared (result is zero/positive)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set (values match, result is zero)
+    JP Z, ERROR
+    BIT 4, C        ; H should be cleared (no lower-nibble borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no unsigned borrow)
+    JP NZ, ERROR
+
+    RET
+
+TEST_CP_E:
+    ; --- Case 1: 0x3F CP 0x1E = 0x21 internally (S=0, Z=0, H=0, P/V=0, N=1, C=0) ---
+    LD A, 0x3F
+    LD E, 0x1E
+    CP E
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify A was NOT modified
+    CP 0x3F
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, C        ; S should be cleared (result is positive)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared (result is non-zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared (no lower-nibble borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no unsigned borrow)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x55 CP 0xAA = 0xAB internally (S=1, Z=0, H=1, P/V=1, N=1, C=1) ---
+    LD A, 0x55
+    LD E, 0xAA
+    CP E
+
+    PUSH AF
+    POP BC          
+
+    ; Verify A was NOT modified
+    CP 0x55
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, C        ; S should be set (result bit 7 is 1)
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared (result is non-zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set (borrow from bit 4 occurred)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set (signed overflow occurred)
+    JP Z, ERROR
+    BIT 1, C        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, C        ; C should be set (borrow from MSB occurred)
+    JP Z, ERROR
+
+    ; --- Case 3: 0xF8 CP 0xF8 = 0x00 internally (S=0, Z=1, H=0, P/V=0, N=1, C=0) ---
+    LD A, 0xF8
+    LD E, 0xF8
+    CP E
+
+    PUSH AF
+    POP BC          
+
+    ; Verify A was NOT modified
+    CP 0xF8
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, C        ; S should be cleared (result is zero/positive)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set (values match, result is zero)
+    JP Z, ERROR
+    BIT 4, C        ; H should be cleared (no lower-nibble borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no unsigned borrow)
+    JP NZ, ERROR
+
+    RET
+
+TEST_CP_H:
+    ; --- Case 1: 0x3F CP 0x1E = 0x21 internally (S=0, Z=0, H=0, P/V=0, N=1, C=0) ---
+    LD A, 0x3F
+    LD H, 0x1E
+    CP H
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify A was NOT modified
+    CP 0x3F
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, C        ; S should be cleared (result is positive)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared (result is non-zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared (no lower-nibble borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no unsigned borrow)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x55 CP 0xAA = 0xAB internally (S=1, Z=0, H=1, P/V=1, N=1, C=1) ---
+    LD A, 0x55
+    LD H, 0xAA
+    CP H
+
+    PUSH AF
+    POP BC          
+
+    ; Verify A was NOT modified
+    CP 0x55
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, C        ; S should be set (result bit 7 is 1)
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared (result is non-zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set (borrow from bit 4 occurred)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set (signed overflow occurred)
+    JP Z, ERROR
+    BIT 1, C        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, C        ; C should be set (borrow from MSB occurred)
+    JP Z, ERROR
+
+    ; --- Case 3: 0xF8 CP 0xF8 = 0x00 internally (S=0, Z=1, H=0, P/V=0, N=1, C=0) ---
+    LD A, 0xF8
+    LD H, 0xF8
+    CP H
+
+    PUSH AF
+    POP BC          
+
+    ; Verify A was NOT modified
+    CP 0xF8
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, C        ; S should be cleared (result is zero/positive)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set (values match, result is zero)
+    JP Z, ERROR
+    BIT 4, C        ; H should be cleared (no lower-nibble borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no unsigned borrow)
+    JP NZ, ERROR
+
+    RET
+
+TEST_CP_L:
+    ; --- Case 1: 0x3F CP 0x1E = 0x21 internally (S=0, Z=0, H=0, P/V=0, N=1, C=0) ---
+    LD A, 0x3F
+    LD L, 0x1E
+    CP L
+
+    PUSH AF
+    POP BC          ; C = Flags
+
+    ; Verify A was NOT modified
+    CP 0x3F
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, C        ; S should be cleared (result is positive)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be cleared (result is non-zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be cleared (no lower-nibble borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no unsigned borrow)
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x55 CP 0xAA = 0xAB internally (S=1, Z=0, H=1, P/V=1, N=1, C=1) ---
+    LD A, 0x55
+    LD L, 0xAA
+    CP L
+
+    PUSH AF
+    POP BC          
+
+    ; Verify A was NOT modified
+    CP 0x55
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, C        ; S should be set (result bit 7 is 1)
+    JP Z, ERROR
+    BIT 6, C        ; Z should be cleared (result is non-zero)
+    JP NZ, ERROR
+    BIT 4, C        ; H should be set (borrow from bit 4 occurred)
+    JP Z, ERROR
+    BIT 2, C        ; P/V should be set (signed overflow occurred)
+    JP Z, ERROR
+    BIT 1, C        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, C        ; C should be set (borrow from MSB occurred)
+    JP Z, ERROR
+
+    ; --- Case 3: 0xF8 CP 0xF8 = 0x00 internally (S=0, Z=1, H=0, P/V=0, N=1, C=0) ---
+    LD A, 0xF8
+    LD L, 0xF8
+    CP L
+
+    PUSH AF
+    POP BC          
+
+    ; Verify A was NOT modified
+    CP 0xF8
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, C        ; S should be cleared (result is zero/positive)
+    JP NZ, ERROR
+    BIT 6, C        ; Z should be set (values match, result is zero)
+    JP Z, ERROR
+    BIT 4, C        ; H should be cleared (no lower-nibble borrow)
+    JP NZ, ERROR
+    BIT 2, C        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, C        ; N should be set (unconditionally set on Z80 subtraction)
+    JP Z, ERROR
+    BIT 0, C        ; C should be cleared (no unsigned borrow)
+    JP NZ, ERROR
+
+    RET
+
+TEST_CP_HL:
+    LD HL, TEST_RAM
+
+    ; --- Case 1: 0x3F CP (HL)[0x1E] ---
+    LD A, 0x1E
+    LD (HL), A
+    LD A, 0x3F
+    CP (HL)
+
+    PUSH AF
+    POP DE          
+
+    CP 0x3F
+    JP NZ, ERROR
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x55 CP (HL)[0xAA] ---
+    LD A, 0xAA
+    LD (HL), A
+    LD A, 0x55
+    CP (HL)
+
+    PUSH AF
+    POP DE          
+
+    CP 0x55
+    JP NZ, ERROR
+    BIT 7, E        ; S should be set
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set
+    JP Z, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be set
+    JP Z, ERROR
+
+    ; --- Case 3: 0xF8 CP (HL)[0xF8] ---
+    LD A, 0xF8
+    LD (HL), A
+    LD A, 0xF8
+    CP (HL)
+
+    PUSH AF
+    POP DE          
+
+    CP 0xF8
+    JP NZ, ERROR
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_CP_N:
+    ; --- Case 1: 0x3F CP 0x1E ---
+    LD A, 0x3F
+    CP 0x1E
+
+    PUSH AF
+    POP DE          
+
+    CP 0x3F
+    JP NZ, ERROR
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    ; --- Case 2: 0x55 CP 0xAA ---
+    LD A, 0x55
+    CP 0xAA
+
+    PUSH AF
+    POP DE          
+
+    CP 0x55
+    JP NZ, ERROR
+    BIT 7, E        ; S should be set
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set
+    JP Z, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be set
+    JP Z, ERROR
+
+    ; --- Case 3: 0xF8 CP 0xF8 ---
+    LD A, 0xF8
+    CP 0xF8
+
+    PUSH AF
+    POP DE          
+
+    CP 0xF8
+    JP NZ, ERROR
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_CP_A:
+    ; --- Single Case: 0xAA CP A = 0x00 internally (S=0, Z=1, H=0, P/V=0, N=1, C=0) ---
+    ; Comparing a register to itself always guarantees a result of zero.
+    LD A, 0xAA
+    CP A
+
+    PUSH AF
+    POP DE          ; E = Flags
+
+    ; Verify A was NOT modified
+    CP 0xAA
+    JP NZ, ERROR
+
+    ; Verify Flags
+    BIT 7, E        ; S should be cleared (result is zero/positive)
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set (identical match, result is zero)
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared (no lower-nibble borrow)
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared (no signed overflow)
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set (unconditionally set on subtraction)
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared (no unsigned borrow)
+    JP NZ, ERROR
+
+    RET
+
+TEST_CP_IX_D:
+    ; --- Case 1: Positive Offset d=0x05 -> Target: TEST_RAM_PLUS_5 (0x3F CP 0x1E) ---
+    LD HL, TEST_RAM_PLUS_5
+    LD (HL), 0x1E
+    
+    LD IX, TEST_RAM
+    LD A, 0x3F
+    CP (IX+5)       ; d = +5
+
+    PUSH AF
+    POP DE          
+
+    CP 0x3F
+    JP NZ, ERROR
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    ; --- Case 2: Zero Offset d=0x00 -> Target: TEST_RAM (0x55 CP 0xAA) ---
+    LD HL, TEST_RAM
+    LD (HL), 0xAA
+    
+    LD IX, TEST_RAM
+    LD A, 0x55
+    CP (IX+0)       ; d = 0
+
+    PUSH AF
+    POP DE          
+
+    CP 0x55
+    JP NZ, ERROR
+    BIT 7, E        ; S should be set
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set
+    JP Z, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be set
+    JP Z, ERROR
+
+    ; --- Case 3: Negative Offset d=-5 (0xFB) -> Target: TEST_RAM_MINUS_5 (0xF8 CP 0xF8) ---
+    LD HL, TEST_RAM_MINUS_5
+    LD (HL), 0xF8
+    
+    LD IX, TEST_RAM
+    LD A, 0xF8
+    CP (IX-5)       ; d = -5 (translated to 0xFB)
+
+    PUSH AF
+    POP DE          
+
+    CP 0xF8
+    JP NZ, ERROR
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    RET
+
+TEST_CP_IY_D:
+    ; --- Case 1: Positive Offset d=0x05 -> Target: TEST_RAM_PLUS_5 (0x3F CP 0x1E) ---
+    LD HL, TEST_RAM_PLUS_5
+    LD (HL), 0x1E
+    
+    LD IY, TEST_RAM
+    LD A, 0x3F
+    CP (IY+5)       ; d = +5
+
+    PUSH AF
+    POP DE          
+
+    CP 0x3F
+    JP NZ, ERROR
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be cleared
+    JP NZ, ERROR
+
+    ; --- Case 2: Zero Offset d=0x00 -> Target: TEST_RAM (0x55 CP 0xAA) ---
+    LD HL, TEST_RAM
+    LD (HL), 0xAA
+    
+    LD IY, TEST_RAM
+    LD A, 0x55
+    CP (IY+0)       ; d = 0
+
+    PUSH AF
+    POP DE          
+
+    CP 0x55
+    JP NZ, ERROR
+    BIT 7, E        ; S should be set
+    JP Z, ERROR
+    BIT 6, E        ; Z should be cleared
+    JP NZ, ERROR
+    BIT 4, E        ; H should be set
+    JP Z, ERROR
+    BIT 2, E        ; P/V should be set
+    JP Z, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
+    BIT 0, E        ; C should be set
+    JP Z, ERROR
+
+    ; --- Case 3: Negative Offset d=-5 (0xFB) -> Target: TEST_RAM_MINUS_5 (0xF8 CP 0xF8) ---
+    LD HL, TEST_RAM_MINUS_5
+    LD (HL), 0xF8
+    
+    LD IY, TEST_RAM
+    LD A, 0xF8
+    CP (IY-5)       ; d = -5 (translated to 0xFB)
+
+    PUSH AF
+    POP DE          
+
+    CP 0xF8
+    JP NZ, ERROR
+    BIT 7, E        ; S should be cleared
+    JP NZ, ERROR
+    BIT 6, E        ; Z should be set
+    JP Z, ERROR
+    BIT 4, E        ; H should be cleared
+    JP NZ, ERROR
+    BIT 2, E        ; P/V should be cleared
+    JP NZ, ERROR
+    BIT 1, E        ; N should be set
+    JP Z, ERROR
     BIT 0, E        ; C should be cleared
     JP NZ, ERROR
 
