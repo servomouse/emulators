@@ -55,16 +55,16 @@
 007B   C9                     RET   
 007C                TEST_CPS:   
 007C   CD 1E 11               CALL   TEST_CP_B   
-007F   CD 1D 0C               CALL   TEST_OR_C   
-0082   CD 9C 0C               CALL   TEST_OR_D   
-0085   CD 1B 0D               CALL   TEST_OR_E   
-0088   CD 9A 0D               CALL   TEST_OR_H   
-008B   CD 19 0E               CALL   TEST_OR_L   
+007F   CD 9D 11               CALL   TEST_CP_C   
+0082   CD 1C 12               CALL   TEST_CP_D   
+0085   CD 9B 12               CALL   TEST_CP_E   
+0088   CD 1A 13               CALL   TEST_CP_H   
+008B   CD 99 13               CALL   TEST_CP_L   
 008E   CD 18 14               CALL   TEST_CP_HL   
 0091   CD 9D 14               CALL   TEST_CP_N   
 0094   CD 19 15               CALL   TEST_CP_A   
 0097   CD 42 15               CALL   TEST_CP_IX_D   
-009A   CD 84 10               CALL   TEST_OR_IY_D   
+009A   CD DC 15               CALL   TEST_CP_IY_D   
 009D   C9                     RET   
 009E                          ; AND opcodes:
 009E                TEST_AND_B:   
@@ -2975,4 +2975,4 @@
 1670   CB 43                  BIT   0,E   ; C should be cleared
 1672   C2 12 00               JP   NZ,ERROR   
 1675   C9                     RET   
-1676                          ; 
+1676                          ;
