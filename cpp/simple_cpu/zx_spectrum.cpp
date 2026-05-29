@@ -4027,7 +4027,8 @@ public:
                     printf("0x%04X: XOR A, (IX + 0x%02X) :: (0x%02X & 0x%02X -> 0x%02X, addr: 0x%04X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, res_addr, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::A, res);
                     num_bytes_read += 2;
-                } else if (new_opcode == 0xBE) {   // 0xDD 0xBE D   (CP A, (IX+D) - Subtracts the value pointed to by IX plus d from A and affects flags according to the result. A is not modified), cycles: 19
+                } else if (new_opcode == 0xBE) {   // 0xDD 0xBE D   (CP A, (IX+D) - Compare the value pointed to by IX plus d and A), cycles: 19
+                    // Subtracts the value pointed to by IX plus d from A and affects flags according to the result. A is not modified
                     // C as defined
                     // N set
                     // P/V detects overflow
@@ -4052,7 +4053,7 @@ public:
                     regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
                     regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
                     regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
-                    printf("0x%04X: SUB A, (IX + 0x%02X) :: (0x%02X - 0x%02X -> 0x%02X, addr: 0x%04X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, res_addr, opcode, new_opcode, regs.get_reg(RegName::F));
+                    printf("0x%04X: CP A, (IX + 0x%02X) :: (0x%02X - 0x%02X -> 0x%02X, addr: 0x%04X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, res_addr, opcode, new_opcode, regs.get_reg(RegName::F));
                     num_bytes_read += 2;
                 } else if (new_opcode == 0xE1) {   // 0xDD 0xE1     (POP IX), cycles: 14
                     printf("0x%04X: POP IY || 0x%02X 0x%02X\n", pc, opcode, new_opcode);
@@ -4984,6 +4985,34 @@ public:
                     printf("0x%04X: XOR A, (IY + 0x%02X) :: (0x%02X & 0x%02X -> 0x%02X, addr: 0x%04X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, res_addr, opcode, new_opcode, regs.get_reg(RegName::F));
                     regs.set_reg(RegName::A, res);
                     num_bytes_read += 2;
+                } else if (new_opcode == 0xBE) {   // 0xFD 0xBE D   (CP A, (IY+D) - Compare the value pointed to by IY plus d and A), cycles: 19
+                    // Subtracts the value pointed to by IY plus d from A and affects flags according to the result. A is not modified
+                    // C as defined
+                    // N set
+                    // P/V detects overflow
+                    // H as defined
+                    // Z as defined
+                    // S as defined
+                    uint16_t offset = mem_bus->read(pc+2);
+                    if ((offset & 0x80) > 0) offset |= 0xFF00;  // Make signed math work
+                    uint16_t a = regs.get_reg(RegName::A);
+                    uint16_t addr = regs.get_reg(RegName::IY);
+                    uint16_t res_addr = (addr + offset) & 0xFFFF;
+                    uint16_t val = mem_bus->read(res_addr);
+
+                    alu.set_op1(a);
+                    alu.set_op2(val);
+                    alu.clear_all_flags();
+                    alu.perform_operation(ALU_Op:: SUB, 8);
+                    uint16_t res = alu.get_res();
+                    regs.update_flag(FlagName::C, alu.get_flag(ALU_Flags::C));
+                    regs.set_flag(FlagName::N);
+                    regs.update_flag(FlagName::P_V, alu.get_flag(ALU_Flags::O));
+                    regs.update_flag(FlagName::H, alu.get_flag(ALU_Flags::H));
+                    regs.update_flag(FlagName::Z, alu.get_flag(ALU_Flags::Z));
+                    regs.update_flag(FlagName::S, alu.get_flag(ALU_Flags::S));
+                    printf("0x%04X: CP A, (IY + 0x%02X) :: (0x%02X - 0x%02X -> 0x%02X, addr: 0x%04X) || 0x%02X 0x%02X, F=0x%02X\n", pc, offset, a, val, res, res_addr, opcode, new_opcode, regs.get_reg(RegName::F));
+                    num_bytes_read += 2;
                 } else if (new_opcode == 0xE1) {   // 0xFD 0xE1     (POP IY), cycles: 14
                     printf("0x%04X: POP IY || 0x%02X 0x%02X\n", pc, opcode, new_opcode);
                     pop_reg(RegName::IY);
@@ -5138,8 +5167,8 @@ public:
 };
 
 int main() {
-    uint16_t ROM_SIZE = 0x4000;// 16KB ROM
-    uint16_t RAM_SIZE = 0xC000;// 48KB RAM
+    uint16_t ROM_SIZE = 0x8000;// 32KB ROM
+    uint16_t RAM_SIZE = 0x8000;// 32KB RAM
     uint16_t MEM_SIZE = 0xFFFF;// 64KB Memory space
     Memory rom(ROM_SIZE);
     Memory ram(RAM_SIZE);
@@ -5162,6 +5191,9 @@ int main() {
     // if(rom.map_image("./zx_spectrum/spec48.rom", 0)) {
     if(rom.map_image("./zx_spectrum/my_test_suite.bin", 0x0000)) {
         std::cout << "My test suite successfully mapped\n";
+    } else {
+        std::cout << "Error: Couldn't load image!\n";
+        return 1;
     }
     // if(rom.map_image("./zx_spectrum/zexall.bin", 0x0100)) {
     //     std::cout << "ZEXALL ROM image successfully mapped\n";
