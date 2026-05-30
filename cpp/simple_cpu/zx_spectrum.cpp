@@ -60,6 +60,14 @@ enum class RegName {
     TC  // Tick counter - not from spec
 };
 
+uint16_t common_opcode_counter[256];
+uint16_t ED_opcode_counter[256];
+uint16_t CB_opcode_counter[256];
+uint16_t DD_opcode_counter[256];
+uint16_t DD_CB_opcode_counter[256];
+uint16_t FD_opcode_counter[256];
+uint16_t FD_CB_opcode_counter[256];
+
 class Z80Registers {
 private:
     uint8_t A, F, B, C, D, E, H, L;         // Main registers
@@ -366,6 +374,7 @@ public:
         uint16_t pc = regs.get_reg(RegName::PC);
         uint16_t flags_in = regs.get_reg(RegName::F);
         uint8_t num_bytes_read = 1;
+        common_opcode_counter[opcode] ++;
         switch(opcode) {
             case 0x00: {// 0x00     (NOP         - No Operation), cycles: 4
                 printf("0x%04X: NOP | 0x%02X 0x%02X\n", pc, opcode, flags_in);
@@ -3686,6 +3695,7 @@ public:
             }
             case 0xDD: {// 0xDD     (IX Instructions, read one more byte to get the actual opcode)
                 uint16_t new_opcode = mem_bus->read(pc+1);
+                DD_opcode_counter[new_opcode] ++;
                 if (new_opcode == 0x09) {          // 0xDD 0x19     (ADD IX, BC  - Add BC to IX), cycles: 15
                     // C as defined
                     // N reset
@@ -4224,6 +4234,7 @@ public:
             }
             case 0xED: {// 0xED     (MISC intruction, read one more byte to get the actual opcode)
                 uint16_t new_opcode = mem_bus->read(pc+1);
+                ED_opcode_counter[new_opcode] ++;
                 if (new_opcode == 0x42) {          // 0xED 0x42     (SBC HL, BC  - Subtracts BC and the carry flag from HL), cycles: 15
                     // C as defined
                     // N reset
@@ -4648,6 +4659,7 @@ public:
             }
             case 0xFD: {// 0xFD     (IY Instructions, read one more byte to get the actual opcode)
                 uint16_t new_opcode = mem_bus->read(pc+1);
+                FD_opcode_counter[new_opcode] ++;
                 if (new_opcode == 0x09) {          // 0xFD 0x19     (ADD IY, BC    - Add BC to IY), cycles: 15
                     // C as defined
                     // N reset
@@ -5166,6 +5178,86 @@ public:
     }
 };
 
+void print_stats(void) {
+    // uint16_t common_opcode_counter[256];
+    // uint16_t ED_opcode_counter[256];
+    // uint16_t CB_opcode_counter[256];
+    // uint16_t DD_opcode_counter[256];
+    // uint16_t DD_CB_opcode_counter[256];
+    // uint16_t FD_opcode_counter[256];
+    // uint16_t FD_CB_opcode_counter[256];
+    printf("Common opcodes:\n");
+    for(int i=0; i<256; i++) {
+        printf("\t0x%02X: %d\n", i, common_opcode_counter[i]);
+    }
+    int counter = 0;
+    printf("ED opcodes:\n");
+    for(int i=0; i<256; i++) {
+        if (ED_opcode_counter[i] > 0) {
+            printf("\t0xED %02X: %d\n", i, ED_opcode_counter[i]);
+            counter += 1;
+        }
+    }
+    if (counter == 0) {
+        printf("\t-------------\n");
+    }
+    counter = 0;
+    printf("CB opcodes:\n");
+    for(int i=0; i<256; i++) {
+        if (CB_opcode_counter[i] > 0) {
+            printf("\t0xCB %02X: %d\n", i, CB_opcode_counter[i]);
+            counter += 1;
+        }
+    }
+    if (counter == 0) {
+        printf("\t-------------\n");
+    }
+    counter = 0;
+    printf("DD opcodes:\n");
+    for(int i=0; i<256; i++) {
+        if (DD_opcode_counter[i] > 0) {
+            printf("\t0xDD %02X: %d\n", i, DD_opcode_counter[i]);
+            counter += 1;
+        }
+    }
+    if (counter == 0) {
+        printf("\t-------------\n");
+    }
+    counter = 0;
+    printf("DD CB opcodes:\n");
+    for(int i=0; i<256; i++) {
+        if (DD_CB_opcode_counter[i] > 0) {
+            printf("\t0xDD CB %02X: %d\n", i, DD_CB_opcode_counter[i]);
+            counter += 1;
+        }
+    }
+    if (counter == 0) {
+        printf("\t-------------\n");
+    }
+    counter = 0;
+    printf("FD opcodes:\n");
+    for(int i=0; i<256; i++) {
+        if (FD_opcode_counter[i] > 0) {
+            printf("\t0xFD %02X: %d\n", i, FD_opcode_counter[i]);
+            counter += 1;
+        }
+    }
+    if (counter == 0) {
+        printf("\t-------------\n");
+    }
+    counter = 0;
+    printf("FD CB opcodes:\n");
+    for(int i=0; i<256; i++) {
+        if (FD_CB_opcode_counter[i] > 0) {
+            printf("\t0xFD CB %02X: %d\n", i, FD_CB_opcode_counter[i]);
+            counter += 1;
+        }
+    }
+    if (counter == 0) {
+        printf("\t-------------\n");
+    }
+}
+
 int main() {
     uint16_t ROM_SIZE = 0x8000;// 32KB ROM
     uint16_t RAM_SIZE = 0x8000;// 32KB RAM
@@ -5206,6 +5298,7 @@ int main() {
 
     z80_cpu.tick();
     io.end_log();
+    print_stats();
 
     return 0;
 }
