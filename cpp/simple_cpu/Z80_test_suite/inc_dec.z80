@@ -55,8 +55,7 @@ TEST_DECS:
     CALL TEST_DEC_SP
     RET
 
-; Increment opcodes:
-
+; 8-bit increment opcodes:
 TEST_INC_A:
     LD HL, 0x0100   ; Clear all flags and load 1 into A
     PUSH HL
@@ -961,6 +960,7 @@ TEST_INC_IY_D:
 
     RET
 
+; 16-bit increment opcodes:
 TEST_INC_BC:
     ; --- Case 1: Basic Increment and Flag Preservation ---
     LD BC, 0x0000
@@ -1693,8 +1693,7 @@ TEST_INC_SP:
 
     RET
 
-; Decrement opcodes:
-
+; 8-bit decrement opcodes:
 TEST_DEC_A:
     ; --- Case 1: Standard Decrement (0x01 -> 0x00) ---
     ; Tests basic subtraction, the Zero flag, and the N flag.
@@ -2622,6 +2621,7 @@ TEST_DEC_IY_D:
 
     RET
 
+; 16-bit decrement opcodes:
 TEST_DEC_BC:
     ; --- Case 1: Standard Decrement (0x0002 -> 0x0001) ---
     LD BC, 0x0002   ; Initial 16-bit value
