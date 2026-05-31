@@ -3366,6 +3366,7 @@ public:
             }
             case 0xCB: {// 0xCB     (BIT Instructions, read one more byte to get the actual opcode)
                 uint16_t new_opcode = mem_bus->read(pc+1);
+                CB_opcode_counter[new_opcode] ++;
                 if (new_opcode == 0x47) {   // 0xCB 0x47 (BIT 0, A - Tests bit 0 of A), cycles: 8
                     uint16_t res = bit_operation(0, regs.get_reg(RegName::A));
                     printf("0x%04X: BIT 0, A :: (res: %d) || 0x%02X 0x%02X F: 0x%02X\n", pc, res, opcode, new_opcode, regs.get_reg(RegName::F));
