@@ -1,382 +1,367 @@
-"""A small two-pass assembler for the CPU described in cpu.py.
-
-Example::
-
-    .org 0x0000
-start:
-    MV R0, #1
-    CALL report
-    JMP start
-
-subroutine report at 0x0100
-    OUT #0, R0
-    RET
-
-Labels and subroutine names are case-insensitive. ``;`` and ``//`` begin
-comments. ``.org`` changes the output address; unfilled addresses are emitted
-as zero bytes (NOP instructions). A bare label or ``[label]`` is an absolute
-address; ``#value`` is an immediate value. For a jump, immediate values are
-relative to the PC, while symbolic addresses are absolute.
-
-Run ``python asm.py input.asm -o output.bin`` to assemble a source file.
-"""
-
-from __future__ import annotations
-
-import argparse
 import re
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Union
+import json
 
-
-# The numeric opcode values and operand codes mirror cpu.py.
-OPCODES = {
-    "NOP": 0x00,
-    "MV": 0x01,
-    "PUSH": 0x02,
-    "POP": 0x03,
-    "AND": 0x04,
-    "OR": 0x05,
-    "XOR": 0x06,
-    "NOT": 0x07,
-    "SFT": 0x08,
-    "ADD": 0x09,
-    "SUB": 0x0A,
-    "CMP": 0x0B,
-    "MUL": 0x0C,
-    "DIV": 0x0D,
-    "JMP": 0x0E,
-    "JPZ": 0x0F,
-    "JPG": 0x10,
-    "JPL": 0x11,
-    "CALL": 0x12,
-    "RET": 0x13,
-    "IN": 0x14,
-    "OUT": 0x15,
-    "INT": 0x16,
+opcodes = {
+    "NOP":  {"bin": "00", "dst": None, "src": None},
+    "MOV":  {"bin": "01", "dst": ["R", "RA", "(RA)", "ADDR"], "src": ["R", "RA", "(RA)", "ADDR", "IMMED8"]},
+    "PUSH": {"bin": "02", "dst": None, "src": ["R", "RA", "(RA)", "ADDR", "IMMED8"]},
+    "POP":  {"bin": "03", "dst": ["R", "RA", "(RA)", "ADDR"], "src": None},
+    "AND":  {"bin": "04", "dst": ["R", "RA", "(RA)", "ADDR"], "src": ["R", "RA", "(RA)", "ADDR", "IMMED8"]},
+    "OR":   {"bin": "05", "dst": ["R", "RA", "(RA)", "ADDR"], "src": ["R", "RA", "(RA)", "ADDR", "IMMED8"]},
+    "XOR":  {"bin": "06", "dst": ["R", "RA", "(RA)", "ADDR"], "src": ["R", "RA", "(RA)", "ADDR", "IMMED8"]},
+    "NOT":  {"bin": "07", "dst": ["R", "RA", "(RA)", "ADDR"], "src": None},
+    "SFT":  {"bin": "08", "dst": ["R", "RA", "(RA)", "ADDR"], "src": ["R", "RA", "(RA)", "ADDR", "IMMED8"]},
+    "ADD":  {"bin": "09", "dst": ["R", "RA", "(RA)", "ADDR"], "src": ["R", "RA", "(RA)", "ADDR", "IMMED8"]},
+    "SUB":  {"bin": "0A", "dst": ["R", "RA", "(RA)", "ADDR"], "src": ["R", "RA", "(RA)", "ADDR", "IMMED8"]},
+    "CMP":  {"bin": "0B", "dst": ["R", "RA", "(RA)", "ADDR"], "src": ["R", "RA", "(RA)", "ADDR", "IMMED8"]},
+    "MUL":  {"bin": "0C", "dst": ["R", "RA", "(RA)", "ADDR"], "src": ["R", "RA", "(RA)", "ADDR", "IMMED8"]},
+    "DIV":  {"bin": "0D", "dst": ["R", "RA", "(RA)", "ADDR"], "src": ["R", "RA", "(RA)", "ADDR", "IMMED8"]},
+    "JMP":  {"bin": "0E", "dst": ["R", "(RA)", "ADDR", "IMMED8", "IMMED16"], "src": None},
+    "JPZ":  {"bin": "0F", "dst": ["R", "(RA)", "ADDR", "IMMED8", "IMMED16"], "src": None},
+    "JNZ":  {"bin": "10", "dst": ["R", "(RA)", "ADDR", "IMMED8", "IMMED16"], "src": None},
+    "JPG":  {"bin": "11", "dst": ["R", "(RA)", "ADDR", "IMMED8", "IMMED16"], "src": None},
+    "JPL":  {"bin": "12", "dst": ["R", "(RA)", "ADDR", "IMMED8", "IMMED16"], "src": None},
+    "CALL": {"bin": "13", "dst": ["(RA)", "ADDR"], "src": None},
+    "RET":  {"bin": "14", "dst": None, "src": None},
+    "IN":   {"bin": "15", "dst": ["R", "RA", "(RA)", "ADDR"], "src": ["R", "IMMED8"]}, # SRC is a port
+    "OUT":  {"bin": "16", "dst": ["R", "IMMED8"], "src": ["R", "RA", "(RA)", "ADDR"]}, # DST is a port
+    "INT":  {"bin": "17", "dst": ["R", "IMMED8"], "src": None},
+    "IVT":  {"bin": "18", "dst": ["IMMED16"], "src": None},
+    "EI":   {"bin": "19", "dst": ["R", "IMMED8"], "src": None},
+    "DI":   {"bin": "1A", "dst": ["R", "IMMED8"], "src": None},
 }
 
-ARG_CODES = {
-    name: code
-    for code, name in enumerate(
-        ("R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7",
-         "F", "RA", "PC", "SP", "IMMED8", "IMMED16", "ADDR")
-    )
-}
+registers = ["R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "F", "RA", "PC", "SP"]
 
-REGISTERS = set(ARG_CODES) - {"IMMED8", "IMMED16", "ADDR"}
-REG_OR_ADDR = REGISTERS | {"ADDR"}
-VALUE = REG_OR_ADDR | {"IMMED8"}
-JUMP_VALUE = VALUE | {"IMMED16"}
-
-# For one-operand instructions the operand occupies the destination nibble.
-# The unused source nibble is encoded as R0.
-INSTRUCTION_OPERANDS = {
-    "NOP": (),
-    "MV": (VALUE, VALUE),
-    "PUSH": (VALUE,),
-    "POP": (REG_OR_ADDR,),
-    "AND": (REG_OR_ADDR, VALUE),
-    "OR": (REG_OR_ADDR, VALUE),
-    "XOR": (REG_OR_ADDR, VALUE),
-    "NOT": (REG_OR_ADDR,),
-    "SFT": (VALUE, VALUE),
-    "ADD": (REG_OR_ADDR, VALUE),
-    "SUB": (REG_OR_ADDR, VALUE),
-    "CMP": (REG_OR_ADDR, VALUE),
-    "MUL": (REG_OR_ADDR, VALUE),
-    "DIV": (REG_OR_ADDR, VALUE),
-    "JMP": (JUMP_VALUE,),
-    "JPZ": (JUMP_VALUE,),
-    "JPG": (JUMP_VALUE,),
-    "JPL": (JUMP_VALUE,),
-    "CALL": ({"RA", "ADDR"},),
-    "RET": (),
-    "IN": (REG_OR_ADDR, REGISTERS | {"IMMED8"}),
-    "OUT": (REGISTERS | {"IMMED8"}, REG_OR_ADDR),
-    "INT": (REGISTERS | {"IMMED8"},),
-}
-
-MNEMONIC_ALIASES = {
-    "MOV": "MV",
-    "LD": "MV",
-    "LOAD": "MV",
-    "STORE": "MV",
-}
-
-LABEL_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-LABEL_AT_START = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*):\s*(.*)$")
-REGISTER_PATTERN = re.compile(r"^(?:R[0-7]|F|RA|PC|SP)$", re.IGNORECASE)
+# SRC/DST encoding:
+arg_encoding = ["R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "F", "RA", "PC", "SP", "IMMED8", "IMMED16", "ADDR", "(RA)"]
 
 
-class AssemblerError(ValueError):
-    """Raised when assembly source cannot be translated to machine code."""
-
-
-@dataclass(frozen=True)
-class Operand:
-    kind: str
-    value: Union[int, str]
-
-    @property
-    def arg_code(self) -> int:
-        return ARG_CODES[self.kind]
-
-    @property
-    def encoded_size(self) -> int:
-        if self.kind in ("IMMED8",):
-            return 1
-        if self.kind in ("IMMED16", "ADDR"):
-            return 2
-        return 0
-
-
-@dataclass(frozen=True)
-class Instruction:
-    line_number: int
-    address: int
-    mnemonic: str
-    operands: tuple[Operand, ...]
-
-    @property
-    def size(self) -> int:
-        if not self.operands:
-            return 1
-        return 2 + sum(operand.encoded_size for operand in self.operands)
-
-
-def _error(line_number: int, message: str) -> AssemblerError:
-    return AssemblerError(f"line {line_number}: {message}")
-
-
-def _parse_number(text: str, line_number: int) -> int:
-    text = text.strip().replace("_", "")
+def is_integer(s):
     try:
-        if text.startswith("-$"):
-            return -int(text[2:], 16)
-        if text.startswith("$"):
-            return int(text[1:], 16)
-        if re.fullmatch(r"[+-]?\d+", text):
-            return int(text, 10)
-        return int(text, 0)
-    except ValueError as exc:
-        raise _error(line_number, f"invalid number {text!r}") from exc
+        int(s.strip(), base=0)
+        return True
+    except ValueError:
+        return False
 
 
-def _parse_immediate(text: str, line_number: int) -> Operand:
-    """Choose an immediate encoding from the value, unless width is explicit."""
-    width_match = re.fullmatch(r"#(8|16)\((.+)\)", text.strip(), re.IGNORECASE)
-    if width_match:
-        width = int(width_match.group(1))
-        value = _parse_number(width_match.group(2), line_number)
+def get_int_value(s):
+    return int(s.strip(), base=0)
+
+
+def decode_arg(argument):
+    arg = argument.strip()
+    arg_type = ""
+    arg_value = ""
+    arg_status = "pending"
+    if arg in registers:
+        arg_type = arg
+        arg_value = f"{registers.index(arg):02}"
+        arg_status = "resolved"
+    elif arg == "(RA)":
+        arg_type = arg
+        arg_value = f"{arg_encoding.index(arg):02}"
+        arg_status = "resolved"
+    elif is_integer(arg):
+        arg_value = get_int_value(arg)
+        if -127 < arg_value < 256:
+            arg_type = "IMMED8"
+        elif arg_value < 0x10000:
+            arg_type = "IMMED16"
+        else:
+            arg_type = "INVALID ARGUMENT"
+        arg_status = "resolved"
+    elif is_label(arg):
+        arg_type = "LABEL"
+        arg_value = arg
+        arg_status = "pending"
+    elif is_label(arg, as_array=True):
+        arg_type = "EXPRESSION"
+        arg_value = split_label_expression(arg)
+        arg_status = "pending"
+    return arg_type, arg_value, arg_status
+
+
+def parse_opcode(line):
+    opcode_decoded = {"opcode": "", "args": []}
+    line_number = line[0]
+    substrs = line[1].split(maxsplit=1)
+    # print(f"Parsing line {line_number}, {substrs = }, {len(substrs) = }")
+    opcode, args = (substrs[0], substrs[1]) if len(substrs) > 1 else (substrs[0], "")
+    # print(f"Parsing line {line_number}, {opcode = }, {args = }")
+    if opcode in ["NOP", "RET"]:
+        # Opcodes without arguments
+        opcode_decoded["opcode"] = opcodes[opcode]["bin"]
+    elif opcode == "PUSH":
+        # Opcodes with SRC only
+        opcode_decoded["opcode"] = opcodes[opcode]["bin"]
+        t, v, s = decode_arg(args)
+        opcode_decoded["args"].append({'type': t, 'value': v, 'status': s})   # SRC
+    elif opcode in ["POP", "NOT", "JMP", "JPZ", "JNZ", "JPG", "JPL", "CALL", "INT", "IVT", "EI", "DI"]:
+        # Opcodes with DST only
+        opcode_decoded["opcode"] = opcodes[opcode]["bin"]
+        t, v, s = decode_arg(args)
+        opcode_decoded["args"].append({'type': t, 'value': v, 'status': s})   # DST
+    elif opcode in ["MOV", "AND", "OR", "XOR", "SFT", "ADD", "SUB", "CMP", "MUL", "DIV", "IN", "OUT"]:
+        # Opcodes with two arguments
+        opcode_decoded["opcode"] = opcodes[opcode]["bin"]
+        dst, src = args.split(",", maxsplit=1)
+        print(f"Parsing line {line_number}, {dst = }, {src = }")
+        t, v, s = decode_arg(dst)
+        opcode_decoded["args"].append({'type': t, 'value': v, 'status': s})   # DST
+        t, v, s = decode_arg(src)
+        opcode_decoded["args"].append({'type': t, 'value': v, 'status': s})   # SRC
     else:
-        value = _parse_number(text.strip()[1:], line_number)
-        width = 8 if -128 <= value <= 0xFF else 16
-
-    low, high = (-128, 0xFF) if width == 8 else (-0x8000, 0xFFFF)
-    if not low <= value <= high:
-        raise _error(line_number, f"{width}-bit immediate is out of range: {value}")
-    return Operand(f"IMMED{width}", value)
+        raise Exception(f"Parsing error: Unknown opcode: {opcode} at line {line_number}")
+    return opcode_decoded
 
 
-def _parse_operand(text: str, line_number: int) -> Operand:
-    text = text.strip()
-    upper = text.upper()
-    if REGISTER_PATTERN.fullmatch(text):
-        return Operand(upper, 0)
-
-    if text.startswith("#"):
-        return _parse_immediate(text, line_number)
-
-    if text.startswith("[") and text.endswith("]"):
-        address = text[1:-1].strip()
-        if not address:
-            raise _error(line_number, "empty address operand")
-        if LABEL_PATTERN.fullmatch(address):
-            return Operand("ADDR", address.upper())
-        value = _parse_number(address, line_number)
-        if not 0 <= value <= 0xFFFF:
-            raise _error(line_number, f"address is out of range: {value}")
-        return Operand("ADDR", value)
-
-    if LABEL_PATTERN.fullmatch(text):
-        return Operand("ADDR", text.upper())
-
-    # An unprefixed number is accepted as an immediate for convenient simple
-    # programs; use brackets when the number is an absolute memory address.
-    value = _parse_number(text, line_number)
-    width = 8 if -128 <= value <= 0xFF else 16
-    low, high = (-128, 0xFF) if width == 8 else (-0x8000, 0xFFFF)
-    if not low <= value <= high:
-        raise _error(line_number, f"immediate is out of range: {value}")
-    return Operand(f"IMMED{width}", value)
+def parse_data(line):
+    data_decoded = {
+        "type": "",
+        "values": []
+    }
+    line_number = line[0]
+    substrs = line[1].split(maxsplit=1)
+    if len(substrs) < 2:
+        raise Exception(f"Parsing error at line {line_number}: invalid data format: {line[1]}")
+    # print(f"Parsing line {line_number}, {substrs = }, {len(substrs) = }")
+    data_type, values = (substrs[0], substrs[1]) if len(substrs) == 2 else (substrs[0], substrs[1:])
+    values = values.replace(",", " ")
+    print(f"Parsing line {line_number}, {data_type = }, {values = }")
+    if data_type == "DB":
+        vals = values.split()
+        data_decoded["type"] = "DB"
+        for v in vals:
+            if is_integer(v):
+                data_decoded["values"].append(get_int_value(v))
+    return data_decoded
 
 
-def _remove_comment(line: str) -> str:
-    # '#' is deliberately not a comment marker because it prefixes immediates.
-    semicolon = line.find(";")
-    slash = line.find("//")
-    positions = [position for position in (semicolon, slash) if position >= 0]
-    if positions:
-        line = line[:min(positions)]
-    return line.strip()
+def split_label_expression(text: str) -> list[str] | None:
+    # Matches a valid Python identifier followed by contents inside square brackets
+    match = re.match(r"^([a-zA-Z_][a-zA-Z0-9_]*)\[(.*)\]$", text)
+    
+    if match:
+        return list(match.groups())
+    return None
 
 
-def _parse_origin(text: str, line_number: int) -> int:
-    value = _parse_number(text, line_number)
-    if not 0 <= value <= 0xFFFF:
-        raise _error(line_number, f"origin is out of range: {value}")
-    return value
+def is_label(text: str, include_colon=False, as_array=False) -> bool:
+    # Matches a valid variable name starting with a letter or underscore, 
+    # followed by letters, digits, or underscores, ending with a colon.
+    if include_colon:
+        pattern = r'^[a-zA-Z_][a-zA-Z0-9_]*:$'
+    elif as_array:
+        pattern = r'^[a-zA-Z_][a-zA-Z0-9_]*\[.*\]$'
+    else:
+        pattern = r'^[a-zA-Z_][a-zA-Z0-9_]*$'
+    return bool(re.match(pattern, text))
 
 
-def _parse_source(source: str) -> tuple[list[Instruction], dict[str, int]]:
-    instructions: list[Instruction] = []
-    labels: dict[str, int] = {}
-    address = 0
+def parse_expression(line_number, expression):
+    MAX_PASS_NUM = 100
+    math_operations = ["+", "-", "*", "/"]
+    simbols = ["(", ")"]
 
-    for line_number, original_line in enumerate(source.splitlines(), 1):
-        line = _remove_comment(original_line)
-        if not line:
-            continue
-
-        while True:
-            match = LABEL_AT_START.match(line)
-            if not match:
+    def _parse_array(arr):
+        # print(f"_parse_array: {arr = }")
+        sub_steps = []
+        for _ in range(len(arr)):
+            if len(arr) == 0:
                 break
-            name, line = match.group(1).upper(), match.group(2).strip()
-            if name in labels:
-                raise _error(line_number, f"duplicate label {name!r}")
-            labels[name] = address
-            if not line:
+            element = arr.pop(0)
+            if is_integer(element) or is_label(element):
+                sub_steps.append(element)
+            elif element in math_operations:
+                sub_steps.append(element)
+            elif element == "(":
+                sub_step, leftover = _parse_array(arr)
+                sub_steps.append(sub_step)
+                arr = leftover
+            elif element == ")":
                 break
-        if not line:
-            continue
+        return sub_steps, arr
 
-        origin_match = re.fullmatch(r"\.?ORG\s+(.+)", line, re.IGNORECASE)
-        if origin_match:
-            address = _parse_origin(origin_match.group(1), line_number)
-            continue
+    def _prepare_expression(expr):
+        for _ in range(MAX_PASS_NUM):
+            index = -1
+            if isinstance(expr[0], list):
+                _prepare_expression(expr[0])
+            for i in range(1, len(expr), 2):
+                if isinstance(expr[i+1], list):
+                    _prepare_expression(expr[i])
+                if expr[i] in ["*", "/"]:
+                    index = i-1
+                    break
+            if index > -1:
+                v0 = expr[index]
+                v1 = expr[index+1]
+                v2 = expr[index+2]
+                expr.pop(index+2)
+                expr.pop(index+1)
+                expr[index] = [v0, v1, v2]
+        return expr
 
-        sub_match = re.fullmatch(
-            r"(?:\.SUB(?:ROUTINE)?|SUBROUTINE)\s+([A-Za-z_][A-Za-z0-9_]*)"
-            r"(?:\s+(?:AT\s+)?(.+))?",
-            line,
-            re.IGNORECASE,
-        )
-        if sub_match:
-            name = sub_match.group(1).upper()
-            origin = sub_match.group(2)
-            if origin:
-                address = _parse_origin(origin, line_number)
-            if name in labels:
-                raise _error(line_number, f"duplicate label {name!r}")
-            labels[name] = address
-            continue
+    def _parse_expression(expr):
+        new_expr = []
+        print(f"DEBUG::: _parse_expression {expr = }")
+        element0 = expr.pop(0)
+        if isinstance(element0, list):
+            new_expr.append(_parse_expression(element0))
+        else:
+            new_expr.append(element0)
+        for _ in range(len(expr)):
+            element1 = expr.pop(0)
+            element2 = expr.pop(0)
+            if element1 not in math_operations:
+                raise Exception(f"Error: invalid expression {expression} at {line_number}")
+            if isinstance(element2, list):
+                new_expr.append(_parse_expression(element2))
+            else:
+                new_expr.append(element2)
+            new_expr.append(element1)
+            if len(expr) == 0:
+                break
+        print(f"DEBUG::: _parse_expression {new_expr = }")
+        return new_expr
 
-        parts = line.split(None, 1)
-        mnemonic = parts[0].upper()
-        mnemonic = MNEMONIC_ALIASES.get(mnemonic, mnemonic)
-        if mnemonic not in OPCODES:
-            raise _error(line_number, f"unknown instruction {parts[0]!r}")
-
-        operand_text = parts[1].strip() if len(parts) == 2 else ""
-        operand_strings = [item.strip() for item in operand_text.split(",")] if operand_text else []
-        if any(not item for item in operand_strings):
-            raise _error(line_number, "empty operand")
-
-        expected = INSTRUCTION_OPERANDS[mnemonic]
-        if len(operand_strings) != len(expected):
-            raise _error(
-                line_number,
-                f"{mnemonic} expects {len(expected)} operand(s), got {len(operand_strings)}",
-            )
-
-        operands = tuple(_parse_operand(item, line_number) for item in operand_strings)
-        for index, (operand, allowed) in enumerate(zip(operands, expected), 1):
-            if operand.kind not in allowed:
-                allowed_text = ", ".join(sorted(allowed))
-                raise _error(
-                    line_number,
-                    f"operand {index} of {mnemonic} must be one of: {allowed_text}",
-                )
-            if mnemonic == "SFT" and operand.kind == "IMMED8":
-                if not -8 <= operand.value <= 8:
-                    raise _error(line_number, "SFT immediate must be between -8 and 8")
-
-        instruction = Instruction(line_number, address, mnemonic, operands)
-        if address + instruction.size > 0x10000:
-            raise _error(line_number, "instruction extends past address 0xFFFF")
-        instructions.append(instruction)
-        address += instruction.size
-
-    return instructions, labels
+    for op in math_operations+simbols:
+        expression = expression.replace(op, f" {op} ")
+    expression = expression.split()
+    expression, _ = _parse_array(expression)
+    expression = _prepare_expression(expression)
+    parsed_expr = _parse_expression(expression)
+    return parsed_expr
 
 
-def _resolve_operand(operand: Operand, labels: dict[str, int], line_number: int) -> int:
-    if isinstance(operand.value, int):
-        return operand.value
-    try:
-        return labels[operand.value]
-    except KeyError as exc:
-        raise _error(line_number, f"undefined label {operand.value!r}") from exc
+def is_expression(line_number, expression):
+    MAX_PASS_NUM = 100
+    math_operations = ["+", "-", "*", "/"]
+    simbols = ["(", ")"]
+
+    def _parse_array(arr):
+        # print(f"_parse_array: {arr = }")
+        sub_steps = []
+        for _ in range(len(arr)):
+            if len(arr) == 0:
+                break
+            element = arr.pop(0)
+            if is_integer(element) or is_label(element):
+                sub_steps.append(element)
+            elif element in math_operations:
+                sub_steps.append(element)
+            elif element == "(":
+                sub_step, leftover = _parse_array(arr)
+                sub_steps.append(sub_step)
+                arr = leftover
+            elif element == ")":
+                break
+        return sub_steps, arr
+
+    def _check_expression(expr):
+        last_op = True
+        for i in range(len(expr)):
+            if last_op:
+                if isinstance(expr[i], list):
+                    if not _check_expression(expr[i]):
+                        return False
+                elif not (is_integer(expr[i]) or is_label(expr[i])):
+                    return False
+                last_op = False
+            else:
+                if expr[i] not in math_operations:
+                    return False
+                last_op = True
+        return True
+
+    for op in math_operations+simbols:
+        expression = expression.replace(op, f" {op} ")
+    expression = expression.split()
+    expression, _ = _parse_array(expression)
+    return _check_expression(expression)
 
 
-def assemble(source: str) -> bytes:
-    """Assemble source text into a flat binary image starting at address zero."""
-    instructions, labels = _parse_source(source)
-    image: dict[int, int] = {}
-
-    for instruction in instructions:
-        encoded = [OPCODES[instruction.mnemonic]]
-        if instruction.operands:
-            dst_code = instruction.operands[0].arg_code
-            src_code = instruction.operands[1].arg_code if len(instruction.operands) > 1 else 0
-            encoded.append((dst_code << 4) | src_code)
-
-            for operand in instruction.operands:
-                value = _resolve_operand(operand, labels, instruction.line_number)
-                if operand.kind == "IMMED8":
-                    encoded.append(value & 0xFF)
-                elif operand.kind == "IMMED16":
-                    encoded.extend(((value >> 8) & 0xFF, value & 0xFF))
-                elif operand.kind == "ADDR":
-                    if not 0 <= value <= 0xFFFF:
-                        raise _error(instruction.line_number, f"address is out of range: {value}")
-                    encoded.extend((value >> 8, value & 0xFF))
-
-        for offset, byte in enumerate(encoded):
-            location = instruction.address + offset
-            if location in image:
-                raise _error(
-                    instruction.line_number,
-                    f"instruction overlaps code at address 0x{location:04X}",
-                )
-            image[location] = byte
-
-    if not image:
-        return b""
-    return bytes(image.get(address, 0) for address in range(max(image) + 1))
+def parse_constant(line):
+    # Example: STACK_INIT EQU 0xFFFE, the right part can be either an integer, a label or an expression
+    line_split = line[1].split(maxsplit=2)
+    name = line_split[0]
+    equ = line_split[1]
+    if is_integer(line_split[2]):
+        value = get_int_value(line_split[2])
+        status = "resolved"
+    elif is_label(line_split[2]):
+        value = get_int_value(line_split[2])
+        status = "resolved"
+    elif is_expression(line[0], line_split[2]):
+        value = parse_expression(line[0], line_split[2])
+        status = "pending"
+    else:
+        raise Exception(f"Parsing error: Invalid expression on line {line[0]}: {line_split[2]}")
+    return {"name": name, "value": value, "status": status}
 
 
-def assemble_file(source_path: Union[str, Path], output_path: Union[str, Path]) -> None:
-    """Assemble a UTF-8 source file and write its flat binary image."""
-    source = Path(source_path).read_text(encoding="utf-8")
-    binary = assemble(source)
-    Path(output_path).write_bytes(binary)
+def parse_lines(lines):
+    constants = []
+    labels = []
+    current_label = None
+    current_origin = 0
+    binary = []
+    for line in lines:
+        line_split = line[1].split(maxsplit=2)
+        if len(line_split) == 3 and line_split[1] == "EQU":
+            value = parse_constant(line)
+            constants.append(value)
+        elif is_label(line[1], include_colon=True):
+            label = line[1].replace(":", "")
+            labels.append(label)
+            current_label = label
+        elif line[1].startswith("ORG"):
+            current_origin = int(line[1].split()[1], 16)
+            print(f"New origin: {current_origin}")
+        elif line[1].split()[0] in opcodes:
+            bin_code = parse_opcode(line)
+            binary.append({"LN": line[0], "OP": line[1], "type": "OPCODE", "LABEL": current_label, "BIN": bin_code, "ADDR": current_origin})
+            # current_origin += len(bin_code)//2
+        elif line[1].split()[0] in ["DB"]:
+            binary_data = parse_data(line)
+            binary.append({"LN": line[0], "OP": line[1], "type": "DATA", "LABEL": current_label, "BIN": binary_data, "ADDR": current_origin})
+    for c in constants:
+        print(f"Constant {c}")
+    # for label in labels:
+    #     print(f"Label {label}")
+    with open("parsed_code.json", 'w') as f:
+        f.write("{\n")
+        f.write("\"    constants\": [\n")
+        lines = []
+        for line in range(len(constants)):
+            lines.append("        "+json.dumps(constants[line]))
+        f.write(",\n".join(lines)+"\n    ],\n")
+        f.write("\"    parsed_code\": [\n")
+        lines = []
+        for line in range(len(binary)):
+            lines.append("        "+json.dumps(binary[line]))
+        f.write(",\n".join(lines)+"\n    ]")
+        f.write("}\n")
+    # for line in range(10):
+    #     print(f"Binary: {binary[line]}")
+    # print(f"Binary: {binary[-1]}")
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Assemble a custom CPU source file.")
-    parser.add_argument("source", help="path to the assembly source")
-    parser.add_argument("-o", "--output", required=True, help="path for the binary output")
-    args = parser.parse_args()
-    try:
-        assemble_file(args.source, args.output)
-    except AssemblerError as exc:
-        parser.error(str(exc))
-    return 0
+
+def main(filename="test.asm"):
+    with open(filename) as f:
+        lines = f.read().split("\n")
+    clean_lines = []
+    for line_num, line in enumerate(lines):
+        temp = line.split(";")[0].strip()  # Remove comments
+        if len(temp) > 0:
+            clean_lines.append([line_num+1, temp])
+    lines = clean_lines
+    parse_lines(lines)
+    # for i in range(10):
+    #     print(lines[i])
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
