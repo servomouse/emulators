@@ -1171,21 +1171,18 @@ def main(filename="test.asm"):
 
     parsed_bin = []
     for i in range(0, len(binary), 16):
-        bin_string = f"0x{to_hex_with_zeros(i, 16)}: "
-        bin_string += f"{binary[i]} {binary[i+1]} {binary[i+2]} {binary[i+3]}  "
-        bin_string += f"{binary[i+4]} {binary[i+5]} {binary[i+6]} {binary[+7]}"
+        bin_string = f"0x{to_hex_with_zeros(i, 32)}: "
+        bin_string += f"{binary[i]} {binary[i+1]} {binary[i+2]} {binary[i+3]} "
+        bin_string += f"{binary[i+4]} {binary[i+5]} {binary[i+6]} {binary[i+7]}  "
+        bin_string += f"{binary[i+8]} {binary[i+9]} {binary[i+10]} {binary[i+11]} "
+        bin_string += f"{binary[i+12]} {binary[i+13]} {binary[i+14]} {binary[i+15]}"
         parsed_bin.append(bin_string)
     with open("binary_file.txt", 'w') as f:
         f.write("\n".join(parsed_bin))
-    # output = []
-    # for sec_name in new_sections:
-    #     section = new_sections[sec_name]
-    #     output.append(f"Section {sec_name}:")
-    #     # {'offset': 393, 'binary': '00', 'label': '', 'ln': 134, 'original_text': 'NOP'}
-    #     for line in section:
-    #         output.append(f"0x{line['offset']:04x} 0x{line['binary']} {line['ln']} {line['label']} {line['original_text']}")
-    # with open("output_file.txt", 'w') as f:
-    #     f.write("\n".join(output))
+    with open("output_file.bin", "wb") as file:
+        # Convert hex string to actual bytes
+        binary_data = bytes.fromhex("".join(binary))
+        file.write(binary_data)
 
 
 if __name__ == "__main__":
