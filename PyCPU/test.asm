@@ -5,18 +5,32 @@
 
 ; --- CONSTANTS ---
 STACK_INIT      EQU 0xFFFE
+STACK_SIZE      EQU 0xFF
+TEST_CONST      EQU STACK_INIT
 IO_PORT_IN      EQU 0x10
 IO_PORT_OUT     EQU 0x20
-IO_PORT_OUT     EQU 2 + (STACK_INIT - IO_PORT_IN) + 4 * (2 / (IO_PORT_OUT+4))
+NEG_VALUE       EQU -23
+EXPRESSION      EQU 2 + (STACK_INIT - IO_PORT_IN) + 4 * (2 / (IO_PORT_OUT+4))
 
 ; =====================================================================
 ; SECTION: DATA (Declared first in source, placed in data segment)
 ; =====================================================================
 SECTION DATA, 0x0200    ; Directs assembler to place subsequent data at 0x0200
 
-VAR_COUNTER:    DB 0x00     ; 1-byte numeric counter variable
+VAR_COUNTER:    DB 0x40     ; 1-byte numeric counter variable
+    DB 0x50
+    DB 0x60
+    DB 0x70
+    DB 0x80
 VAR_STATUS:     DB 0x01     ; 1-byte status flag variable
+MSG_PTR:        DW MSG_HELLO
+EXPR_VAR:       DW STACK_INIT - STACK_SIZE
+WORD_VAR:       DW 0x0123
+WORD_ARR:       DW 0x0123 0x2345 0x3456
+BYTE_ARR:       DB 0x00, 0x01, 0x02, 0x03
 MSG_HELLO:      DB "Hello World!", 0x00   ; Null-terminated ASCII string in RAM
+ONE_MORE:
+    DB 0x07
 
 ; =====================================================================
 ; SECTION: TEXT (Executable code segment)
@@ -29,12 +43,19 @@ START:
     
     ; Test reading/writing global RAM variables defined in DATA section
     MOV R0, 0x42
-    MOV (VAR_COUNTER), R0   ; Store R0 into RAM variable COUNTER
-    MOV R1, (VAR_COUNTER)   ; Load it back to verify RAM write/read
+    MOV [VAR_COUNTER], R0   ; Store R0 into RAM variable COUNTER
+    MOV R1, [VAR_COUNTER]   ; Load it back to verify RAM write/read
 
-    ; Load string address into RA and read characters
+    MOV RA, 0x1234
+    MOV R3, RA      ; R3: 0x34
+    MOV R4, RA      ; R4: 0x12
+    SWAP R3, R4     ; R3: 0x12, R4: 0x34
+    MOV RA, R3      ; RA: 0x1212
+    MOV RA, R4      ; RA: 0x3412
+
     MOV RA, MSG_HELLO       ; RA points to start of string
-    MOV R2, (RA)            ; Load first character ('H') into R2
+    MOV R2, [RA]            ; Load first character ('H') into R2
+    MOV R2, (IO_PORT_IN+IO_PORT_OUT)/2
 
 ; =====================================================================
 ; 1. CONTROL & SYSTEM OPCODES (0x00, 0x18 - 0x1A)
@@ -52,20 +73,20 @@ TEST_MOV_PUSH_POP:
     MOV R0, 0xAA            ; MOV R, IMMED8 (positive)
     MOV R1, -5              ; MOV R, IMMED8 (negative signed byte)
     MOV R2, R0              ; MOV R, R
-    MOV (RA), R1            ; MOV (RA), R
-    MOV (VAR_STATUS), R2    ; MOV (ADDR), R
-    MOV R3, (RA)            ; MOV R, (RA)
-    MOV R4, (VAR_STATUS)    ; MOV R, (ADDR)
+    MOV [RA], R1            ; MOV (RA), R
+    MOV [VAR_STATUS], R2    ; MOV (ADDR), R
+    MOV R3, [RA]            ; MOV R, (RA)
+    MOV R4, [VAR_STATUS]    ; MOV R, (ADDR)
 
     ; PUSH & POP variants with negative constants
     PUSH R0                 
     PUSH -128               ; PUSH negative IMMED8
-    PUSH (RA)               
-    PUSH (VAR_STATUS)       
+    PUSH [RA]               
+    PUSH [VAR_STATUS]
 
     POP R5                  
-    POP (RA)                
-    POP (VAR_STATUS)        
+    POP [RA]                
+    POP [VAR_STATUS]        
 
 ; =====================================================================
 ; 3. LOGICAL & BITWISE OPCODES (0x04 - 0x08)
@@ -81,7 +102,7 @@ TEST_LOGICAL:
     XOR R0, R1              
     XOR R0, 0xFF            
     NOT R0                  
-    NOT (RA)                
+    NOT [RA]                
 
     SFT R0, 2               ; (0x08) Shift left by 2
     SFT R1, -2              ; (0x08) Shift right by 2 (negative signed count)
@@ -114,8 +135,8 @@ REL_TARGET_1:
 
     JMP 0x0002              
     NOP                     
-    JMP (RA)                
-    JMP (0x0180)            
+    JMP RA                
+    JMP 0x0180            
 
     CMP R0, R0              ; Forces Zero flag (Z=1)
     JPZ REL_TARGET_2        
@@ -150,14 +171,14 @@ REL_TARGET_5:
 ; =====================================================================
 TEST_IO_AND_SUBS:
     IN R0, IO_PORT_IN       
-    IN (RA), 0x11           
+    IN [RA], 0x11           
     OUT IO_PORT_OUT, R0     
-    OUT 0x21, (RA)          
+    OUT 0x21, [RA]          
 
     INT 0x02                
 
     MOV RA, SUB_ROUTINE     
-    CALL (RA)               
+    CALL RA               
     JMP END_PROGRAM         
 
 SUB_ROUTINE:
