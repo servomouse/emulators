@@ -1,4 +1,3 @@
-import re
 
 
 special_symbols = ["SECTION", "section",
@@ -231,34 +230,28 @@ def parse_expression(line_number, expression):
 
 def decode_arg(line_number, argument):
     arg = argument.strip()
-    print(f"DEBUG::: Parsing argument {arg}")
     arg_type = ""
     arg_value = ""
-    arg_code = 0
+    # arg_code = 0
     arg_status = "pending"
     if arg in registers:
         arg_type = "REG"
         arg_value = arg
-        arg_code = f"{arg_encoding.index(arg):x}"
         arg_status = "resolved"
     elif arg == "[RA]":
         arg_type = "[RA]"
         arg_value = "[RA]"
-        arg_code = f"{arg_encoding.index(arg):x}"
         arg_status = "resolved"
     elif arg == "$":
         arg_type = "IMMED16"
         arg_value = "$"
-        arg_code = f"{arg_encoding.index('[IMMED16]'):x}"
         arg_status = "pending"
     elif is_integer(arg):
         arg_value = get_integer_value(arg)
         if -127 < arg_value < 256:
             arg_type = "IMMED8"
-            arg_code = f"{arg_encoding.index('IMMED8'):x}"
         elif arg_value < 0x10000:
             arg_type = "IMMED16"
-            arg_code = f"{arg_encoding.index('IMMED16'):x}"
         else:
             raise Exception(f"Syntax error: Invalid argument at line {line_number}: {arg} (Value doesn't fit into 16 bit)")
         arg_status = "resolved"
@@ -276,16 +269,14 @@ def decode_arg(line_number, argument):
         arg_status = "pending"
     else:
         raise Exception(f"Syntax error: Invalid argument at line {line_number}: {arg}")
-    return arg_type, arg_value, arg_code, arg_status
+    return arg_type, arg_value, arg_status
 
 
 def parse_opcode(line):
     opcode_decoded = {"type": "opcode", "ln": line["line"], "opcode": "", "opcode_bin": "", "args": {"dst": None, "src": None}, "original_text": line["text"]}
     line_number = line["line"]
     substrs = line["text"].split(maxsplit=1)
-    # print(f"Parsing line {line_number}, {substrs = }, {len(substrs) = }")
     opcode, args = (substrs[0], substrs[1]) if len(substrs) > 1 else (substrs[0], "")
-    # print(f"Parsing line {line_number}, {opcode = }, {args = }")
     if opcode not in opcodes:
         raise Exception(f"Parsing error: Unknown opcode: {opcode} at line {line_number}")
     opcode_decoded["opcode_bin"] = opcodes[opcode]["bin"]
@@ -295,27 +286,26 @@ def parse_opcode(line):
         pass
     elif opcode == "PUSH":
         # Opcodes with SRC only
-        t, v, c, s = decode_arg(line_number, args)
-        opcode_decoded["args"]["src"] = {'type': t, 'value': v, 'code': c, 'status': s}
+        t, v, s = decode_arg(line_number, args)
+        opcode_decoded["args"]["src"] = {'type': t, 'value': v}
     elif opcode in ["POP", "NOT", "JMP", "JPZ", "JNZ", "JPG", "JPL", "CALL", "INT", "IVT", "EI", "DI"]:
         # Opcodes with DST only
-        t, v, c, s = decode_arg(line_number, args)
-        opcode_decoded["args"]["dst"] = {'type': t, 'value': v, 'code': c, 'status': s}
+        t, v, s = decode_arg(line_number, args)
+        opcode_decoded["args"]["dst"] = {'type': t, 'value': v}
     elif opcode in ["MOV", "SWAP", "AND", "OR", "XOR", "SFT", "ADD", "SUB", "CMP", "MUL", "DIV", "IN", "OUT"]:
         # Opcodes with two arguments
         dst, src = args.split(",", maxsplit=1)
         print(f"Parsing line {line_number}, {dst = }, {src = }")
-        t, v, c, s = decode_arg(line_number, dst)
-        opcode_decoded["args"]["dst"] = {'type': t, 'value': v, 'code': c, 'status': s}
-        t, v, c, s = decode_arg(line_number, src)
-        opcode_decoded["args"]["src"] = {'type': t, 'value': v, 'code': c, 'status': s}
+        t, v, s = decode_arg(line_number, dst)
+        opcode_decoded["args"]["dst"] = {'type': t, 'value': v}
+        t, v, s = decode_arg(line_number, src)
+        opcode_decoded["args"]["src"] = {'type': t, 'value': v}
     else:
         raise Exception(f"Unimplemented: Unparsed {opcode} at line {line_number}")
     return opcode_decoded
 
 
 def parse_data(line):
-    # print(f"DEBUG::: Parsing data {line[1]} at {line[0]}")
     line_number = line["line"]
     text = line["text"]
     def _parse_integer(string, num_bytes):
@@ -419,18 +409,15 @@ def parse_data(line):
     if _is_datastring(data, data_type):   # Integer, array of integers, or string
         data = _parse_datastring(data, data_type)
         num_items = len(data)
-        status = "resolved"
         content = {"type": "data", "num_items": num_items, "item_size": item_size, "values": data}
     elif is_label(line_number, data):
-        status = "pending"
         content = {"type": "label", "num_items": 1, "item_size": item_size, "label": data}
     elif is_expression(line_number, data):
         expr, labels = parse_expression(line_number, data)
-        status = "pending"
         content = {"type": "expression", "num_items": 1, "item_size": item_size, "expression": expr, "dependencies": labels}
     else:
         raise Exception(f"Syntax error: Unknown data type at line {line_number}: {text}")
-    return {"type": "data", "ln": line_number, "content": content, "original_text": text, "status": status}
+    return {"type": "data", "ln": line_number, "content": content, "original_text": text}
 
 
 def parse_constant(line_number, name, expression):
@@ -467,19 +454,13 @@ def parse_section(ln, text_split, text, sections):
             raise Exception(f"Syntax error: Invalid section name at {ln}: {section_name}")
         current_section = section_name
         section_offset = text_split[2]
-        section_offset_type = ""
         if is_integer(section_offset):
             section_offset = get_integer_value(section_offset)
-            section_offset_type = "INT"
-        elif is_label(ln, section_offset):
-            section_offset_type = "LABEL"
-        elif is_expression(ln, section_offset):
-            section_offset_type = "EXPRESSION"
         else:
             raise Exception(f"Syntax error: Invalid section offset definition at {ln}: {text}")
         if section_name in sections:
             raise Exception(f"Syntax error: Invalid section offset redefinition at {ln}: {text}")
-        sections[section_name] = {"offset": section_offset, "blocks": {}, "status": "pending"}
+        sections[section_name] = {"offset": section_offset, "blocks": {}}
     return current_section
 
 
@@ -526,7 +507,6 @@ def resolve_expression(line_number, expr, deps):
             if i >= len(subexpr):
                 break
         return res
-            
 
     expr = _prepare_subexpr(expr)
     return _solve_expr(expr)
@@ -563,7 +543,7 @@ def resolve_constants(consts):
                     consts[c]["type"] = "INT"
         if done:
             break
-    if pass_num == 100:
+    if pass_num == 100 and not done:
         pass    # TODO: Print unresolved consts
     return consts
 
@@ -571,15 +551,12 @@ def resolve_constants(consts):
 def proces_data_line(line, constants, label_offsets, current_offset):
     line_size = 0
     line_binary = ""
+    line_resolved = False
     if line["content"]["type"] == "data":
         item_size = line["content"]["item_size"]
         for v in line["content"]["values"]:
             line_binary += to_hex_with_zeros(v, item_size)
-        line["type"] = "bin"
-        line["offset"] = current_offset
-        line["content"] = line_binary
-        line["size"] = len(line_binary)//2
-        line_size = line["size"]
+        line_resolved = True
     elif line["content"]["type"] == "label":
         item_size = line["content"]["item_size"]
         num_items = line["content"]["num_items"]
@@ -594,37 +571,116 @@ def proces_data_line(line, constants, label_offsets, current_offset):
 
         if v is not None:
             line_binary += to_hex_with_zeros(v, item_size)
-            line["type"] = "bin"
-            line["offset"] = current_offset
-            line["content"] = line_binary
-            line["size"] = len(line_binary)//2
-            line_size = line["size"]
+            line_resolved = True
     elif line["content"]["type"] == "expression":
         item_size = line["content"]["item_size"]
         num_items = line["content"]["num_items"]
         expression = line["content"]["expression"]
         dependencies = line["content"]["dependencies"]
         deps_dict = {}
-        resolved = True
+        expr_resolved = True
         for d in dependencies:
             if d in constants:
                 deps_dict[d] = constants[d]["value"]
             elif d in label_offsets:
                 deps_dict[d] = label_offsets[d]
             else:
-                resolved = False
-        if resolved:
+                expr_resolved = False
+        if expr_resolved:
             v = resolve_expression(line["ln"], expression, deps_dict)
             line_binary += to_hex_with_zeros(v, item_size)
-            line["type"] = "bin"
-            line["offset"] = current_offset
-            line["content"] = line_binary
-            line["size"] = len(line_binary)//2
-            line_size = line["size"]
+            line_resolved = True
+    if line_resolved:
+        line["type"] = "bin"
+        line["offset"] = current_offset
+        line["content"] = line_binary
+        line["size"] = len(line_binary)//2
+        line_size = line["size"]
     return line_size
 
 
 def proces_opcode_line(line, constants, label_offsets, current_offset):
+
+    def _process_opcode_arg(_arg):
+        arg_resolved = True
+        arg_code = ""
+        arg_binary = ""
+        arg_line_size = 0
+        if _arg["type"] in ["REG", "[RA]"]:
+            arg_code += to_hex_with_zeros(arg_encoding.index(_arg["value"]), 4)
+        elif _arg["type"] in ["IMMED8", "IMMED16", "[IMMED16]"]:
+            if _arg["value"] == "$":
+                arg_code += to_hex_with_zeros(arg_encoding.index("[IMMED16]"), 4)
+                arg_binary += to_hex_with_zeros(current_offset, 16)
+                arg_line_size += 2
+            elif _arg["type"] in ["IMMED8", "IMMED16"]:
+                arg_code += to_hex_with_zeros(arg_encoding.index(_arg["type"]), 4)
+                if _arg["type"] == "IMMED8":
+                    arg_binary += to_hex_with_zeros(_arg["value"], 8)
+                    arg_line_size += 1
+                else:
+                    arg_binary += to_hex_with_zeros(_arg["value"], 16)
+                    arg_line_size += 2
+            elif _arg["type"] == "[IMMED16]":
+                arg_code += to_hex_with_zeros(arg_encoding.index("[IMMED16]"), 4)
+                label = _arg["value"]
+                if label in constants:
+                    val = constants[label]["value"]
+                    arg_binary += to_hex_with_zeros(val, 16)
+                    arg_line_size += 2
+                elif label in label_offsets:
+                    val = label_offsets[label]
+                    arg_binary += to_hex_with_zeros(val, 16)
+                    arg_line_size += 2
+                else:
+                    arg_line_size += 2
+                    arg_resolved = False
+        elif _arg["type"] == "label":
+            label = _arg["value"]
+            if label in constants:
+                val = constants[label]["value"]
+                if val > 0xFF:
+                    arg_code += to_hex_with_zeros(arg_encoding.index("IMMED16"), 4)
+                    arg_binary += to_hex_with_zeros(val, 16)
+                    arg_line_size += 2
+                else:
+                    arg_code += to_hex_with_zeros(arg_encoding.index("IMMED8"), 4)
+                    arg_binary += to_hex_with_zeros(val, 8)
+                    arg_line_size += 1
+            elif label in label_offsets:
+                arg_code += to_hex_with_zeros(arg_encoding.index("IMMED16"), 4)
+                val = label_offsets[label]
+                arg_binary += to_hex_with_zeros(val, 16)
+                arg_line_size += 2
+            else:
+                arg_line_size += 2
+                arg_resolved = False
+        elif _arg["type"] == "expression":
+            expression = _arg["value"][0]
+            deps_list = _arg["value"][1]
+            deps_dict = {}
+            expr_resolved = True
+            for d in deps_list:
+                if d in constants:
+                    deps_dict[d] = constants[d]["value"]
+                elif d in label_offsets:
+                    deps_dict[d] = label_offsets[d]
+                else:
+                    expr_resolved = False
+            if expr_resolved:
+                val = resolve_expression(line["ln"], expression, deps_dict)
+                if val > 0xFF:
+                    arg_code += to_hex_with_zeros(arg_encoding.index("IMMED16"), 4)
+                    arg_binary += to_hex_with_zeros(val, 16)
+                    arg_line_size += 2
+                else:
+                    arg_code += to_hex_with_zeros(arg_encoding.index("IMMED8"), 4)
+                    arg_binary += to_hex_with_zeros(val, 8)
+                    arg_line_size += 1
+            else:
+                arg_resolved = False
+        return arg_code, arg_binary, arg_line_size, arg_resolved
+
     line_size = 1
     opcode = line["opcode"]
     opcode_binary = opcodes[opcode]["bin"]
@@ -634,169 +690,36 @@ def proces_opcode_line(line, constants, label_offsets, current_offset):
     resolved = True
     if dst_arg is not None:
         line_size = 2
-        if dst_arg["type"] in ["REG", "[RA]"]:
-            opcode_binary += to_hex_with_zeros(arg_encoding.index(dst_arg["value"]), 4)
-        elif dst_arg["type"] in ["IMMED8", "IMMED16", "[IMMED16]"]:
-            if dst_arg["value"] == "$":
-                opcode_binary += to_hex_with_zeros(arg_encoding.index("[IMMED16]"), 4)
-                line_binary += to_hex_with_zeros(current_offset, 16)
-                line_size += 2
-            elif dst_arg["type"] in ["IMMED8", "IMMED16"]:
-                opcode_binary += to_hex_with_zeros(arg_encoding.index(dst_arg["type"]), 4)
-                if dst_arg["type"] == "IMMED8":
-                    line_binary += to_hex_with_zeros(dst_arg["value"], 8)
-                    line_size += 1
-                else:
-                    line_binary += to_hex_with_zeros(dst_arg["value"], 16)
-                    line_size += 2
-            elif dst_arg["type"] == "[IMMED16]":
-                opcode_binary += to_hex_with_zeros(arg_encoding.index("[IMMED16]"), 4)
-                label = dst_arg["value"]
-                if label in constants:
-                    val = constants[label]["value"]
-                    line_binary += to_hex_with_zeros(val, 16)
-                    line_size += 2
-                elif label in label_offsets:
-                    val = label_offsets[label]
-                    line_binary += to_hex_with_zeros(val, 16)
-                    line_size += 2
-                else:
-                    line_size += 2
-                    resolved = False
-        elif dst_arg["type"] == "label":
-            label = dst_arg["value"]
-            if label in constants:
-                val = constants[label]["value"]
-                if val > 0xFF:
-                    opcode_binary += to_hex_with_zeros(arg_encoding.index("IMMED16"), 4)
-                    line_binary += to_hex_with_zeros(val, 16)
-                    line_size += 2
-                else:
-                    opcode_binary += to_hex_with_zeros(arg_encoding.index("IMMED8"), 4)
-                    line_binary += to_hex_with_zeros(val, 8)
-                    line_size += 1
-            elif label in label_offsets:
-                opcode_binary += to_hex_with_zeros(arg_encoding.index("IMMED16"), 4)
-                val = label_offsets[label]
-                line_binary += to_hex_with_zeros(val, 16)
-                line_size += 2
-            else:
-                line_size += 2
-                resolved = False
-        elif dst_arg["type"] == "expression":
-            expression = dst_arg["expression"]
-            deps_list = dst_arg["dependencies"]
-            deps_dict = {}
-            expr_resolved = True
-            for d in deps_list:
-                if d in constants:
-                    deps_dict[d] = constants[d]["value"]
-                elif d in label_offsets:
-                    deps_dict[d] = label_offsets[d]
-                else:
-                    expr_resolved = False
-            if expr_resolved:
-                val = resolve_expression(line["ln"], expression, deps_dict)
-                if val > 0xFF:
-                    opcode_binary += to_hex_with_zeros(arg_encoding.index("IMMED16"), 4)
-                    line_binary += to_hex_with_zeros(val, 16)
-                    line_size += 2
-                else:
-                    opcode_binary += to_hex_with_zeros(arg_encoding.index("IMMED8"), 4)
-                    line_binary += to_hex_with_zeros(val, 8)
-                    line_size += 1
-            else:
-                resolved = False
+        arg_code, arg_binary, arg_line_size, arg_resolved = _process_opcode_arg(dst_arg)
+        line_size += arg_line_size
+        if arg_resolved:
+            opcode_binary += arg_code
+            line_binary += arg_binary
+        else:
+            resolved = False
     else:
         if src_arg is not None:
             opcode_binary += "0"
     if src_arg is not None:
         if line_size == 1:
             line_size = 2
-        if src_arg["type"] in ["REG", "[RA]"]:
-            opcode_binary += to_hex_with_zeros(arg_encoding.index(src_arg["value"]), 4)
-        elif src_arg["type"] in ["IMMED8", "IMMED16", "[IMMED16]"]:
-            if src_arg["value"] == "$":
-                opcode_binary += to_hex_with_zeros(arg_encoding.index("[IMMED16]"), 4)
-                line_binary += to_hex_with_zeros(current_offset, 16)
-                line_size += 2
-            elif src_arg["type"] in ["IMMED8", "IMMED16"]:
-                opcode_binary += to_hex_with_zeros(arg_encoding.index(src_arg["type"]), 4)
-                if src_arg["type"] == "IMMED8":
-                    line_binary += to_hex_with_zeros(src_arg["value"], 8)
-                    line_size += 1
-                else:
-                    line_binary += to_hex_with_zeros(src_arg["value"], 16)
-                    line_size += 2
-            elif src_arg["type"] == "[IMMED16]":
-                opcode_binary += to_hex_with_zeros(arg_encoding.index("[IMMED16]"), 4)
-                label = src_arg["value"]
-                if label in constants:
-                    val = constants[label]["value"]
-                    line_binary += to_hex_with_zeros(val, 16)
-                    line_size += 2
-                elif label in label_offsets:
-                    val = label_offsets[label]
-                    line_binary += to_hex_with_zeros(val, 16)
-                    line_size += 2
-                else:
-                    line_size += 2
-                    resolved = False
-        elif src_arg["type"] == "label":
-            label = src_arg["value"]
-            if label in constants:
-                val = constants[label]["value"]
-                if val > 0xFF:
-                    opcode_binary += to_hex_with_zeros(arg_encoding.index("IMMED16"), 4)
-                    line_binary += to_hex_with_zeros(val, 16)
-                    line_size += 2
-                else:
-                    opcode_binary += to_hex_with_zeros(arg_encoding.index("IMMED8"), 4)
-                    line_binary += to_hex_with_zeros(val, 8)
-                    line_size += 1
-            elif label in label_offsets:
-                opcode_binary += to_hex_with_zeros(arg_encoding.index("IMMED16"), 4)
-                val = label_offsets[label]
-                line_binary += to_hex_with_zeros(val, 16)
-                line_size += 2
-            else:
-                line_size += 2
-                resolved = False
-        elif src_arg["type"] == "expression":
-            expression = src_arg["value"][0]
-            deps_list = src_arg["value"][1]
-            deps_dict = {}
-            expr_resolved = True
-            for d in deps_list:
-                if d in constants:
-                    deps_dict[d] = constants[d]["value"]
-                elif d in label_offsets:
-                    deps_dict[d] = label_offsets[d]
-                else:
-                    expr_resolved = False
-            if expr_resolved:
-                val = resolve_expression(line["ln"], expression, deps_dict)
-                if val > 0xFF:
-                    opcode_binary += to_hex_with_zeros(arg_encoding.index("IMMED16"), 4)
-                    line_binary += to_hex_with_zeros(val, 16)
-                    line_size += 2
-                else:
-                    opcode_binary += to_hex_with_zeros(arg_encoding.index("IMMED8"), 4)
-                    line_binary += to_hex_with_zeros(val, 8)
-                    line_size += 1
-            else:
-                resolved = False
+        arg_code, arg_binary, arg_line_size, arg_resolved = _process_opcode_arg(src_arg)
+        line_size += arg_line_size
+        if arg_resolved:
+            opcode_binary += arg_code
+            line_binary += arg_binary
+        else:
+            resolved = False
     else:
         if dst_arg is not None:
             opcode_binary += "0"
     final_binary = opcode_binary + line_binary
-    print(f"DEBUG::: {line['original_text']}, => 0x{current_offset:04x}: 0x{final_binary}")
     if resolved:
         line["type"] = "bin"
         line["offset"] = current_offset
         line["content"] = final_binary
         line["size"] = len(final_binary)//2
-        # line["args"] = None
+        line["args"] = None
     return line_size
 
 
@@ -808,8 +731,6 @@ def resolve_sections(constants, sections):
             for block_name in sections[section_name]["blocks"]:
                 if block_name not in label_offsets:
                     label_offsets[block_name] = current_offset
-                if sections[section_name]["blocks"][block_name]["status"] == "resolved":
-                    continue
                 sections[section_name]["blocks"][block_name]["offset"] = current_offset
                 for line in sections[section_name]["blocks"][block_name]["lines"]:
                     if line["type"] == "data":
@@ -819,19 +740,10 @@ def resolve_sections(constants, sections):
                     elif line["type"] == "bin":
                         current_offset += line["size"]
     for section_name in sections:
-        current_offset = sections[section_name]["offset"]
         for block_name in sections[section_name]["blocks"]:
-            block_binary = ""
             for line in sections[section_name]["blocks"][block_name]["lines"]:
-                if line["type"] == "bin":
-                    block_binary += line["content"]
-                else:
+                if line["type"] != "bin":
                     raise Exception(f"Assembler error: Unprocessed line: {line}")
-            block_size = len(block_binary)//2
-            sections[section_name]["blocks"][block_name]["binary"] = block_binary
-            sections[section_name]["blocks"][block_name]["size"] = block_size
-            sections[section_name]["blocks"][block_name]["status"] = "resolved"
-            current_offset += block_size
     return sections
 
 
@@ -884,9 +796,6 @@ def generate_binary(sections):
                 block_name_offset = ' ' * (max_block_name_len - len(block_name))
                 data_append = ' ' * (max_data_len - len(data))
                 ln_offset   = ' ' * (max_line_number_len - len(ln))
-                # if offset in output_binary:
-                #     raise Exception(f"Linking error: Overlapping code at line {ln}: {original_text}")
-                # output_binary[offset] = data
                 chunks = [data[i : i + 2] for i in range(0, len(data), 2)]
                 for i, chunk in enumerate(chunks):
                     output_binary[offset+i] = chunk
@@ -953,200 +862,6 @@ def parse_lines(lines):
 
 #==== Binary Generation ====#
 
-def encode_arg(arg_dict, arg_type, opcode, constants, label_offsets, ln, current_offset):
-    if arg_dict is None:
-        return "0", ""
-    if arg_dict["type"] in ["REG", "[RA]", "IMMED8", "IMMED16"]:
-        arg_value = arg_dict["value"]
-        if isinstance(arg_value, int):
-            if arg_dict["type"] == "IMMED16":
-                arg_value = to_hex_with_zeros(arg_value, 16)
-            else:
-                arg_value = to_hex_with_zeros(arg_value, 8)
-        return arg_dict["code"], arg_value
-    elif arg_dict["type"] == "label":
-        arg_value = arg_dict["value"]
-        arg_code = "0"
-        if arg_value in constants:
-            arg_value = constants[arg_value]["value"]
-            if arg_value < 0xFF:
-                arg_code = to_hex_with_zeros(arg_encoding.index("IMMED8"), 8)[-1]
-                arg_value = to_hex_with_zeros(arg_value, 8)
-            else:
-                arg_code = to_hex_with_zeros(arg_encoding.index("IMMED16"), 8)[-1]
-                arg_value = to_hex_with_zeros(arg_value, 16)
-        elif arg_value in label_offsets:
-            arg_value = to_hex_with_zeros(label_offsets[arg_value], 16)
-            arg_code = to_hex_with_zeros(arg_encoding.index("[IMMED16]"), 8)[-1]
-        else:
-            arg_value = "____"
-            arg_code = to_hex_with_zeros(arg_encoding.index("[IMMED16]"), 8)[-1]
-        return arg_code, arg_value
-    else:
-        return "0", ""
-
-# def generate_binary(constants, sections):
-
-#     def _process_data_line(line, constants, label_offsets, current_offset):
-#         # Example:
-#         # {'type': 'data', 'ln': 26, 'num_items': 3, 'item_size': 2, 'values': [291, 9029, 13398], 
-#         #  'original_text': 'DW 0x0123 0x2345 0x3456', 'status': 'resolved'}
-#         line_addr = current_offset
-#         line_number = line["ln"]
-#         line_text = line["original_text"]
-#         line_length = 0
-#         line_binary = ""
-#         line_content = line["content"]
-#         item_size = line_content["item_size"]
-#         if line_content["type"] == "data":
-#             line_values = line_content["values"]
-#             item_size = line_content["item_size"]
-#             for val in line_values:
-#                 if item_size == 1:
-#                     line_binary += f"{val:02x}"
-#                 elif item_size == 2:
-#                     line_binary += f"{val:04x}"
-#                 line_length += item_size * line_content["num_items"]
-#         elif line_content["type"] == "label":
-#             label = line_content["label"]
-#             if label in constants:
-#                 val = constants[label]["value"]
-#                 if item_size == 1:
-#                     val &= 0xFF
-#                     line_binary += f"{val:02x}"
-#                 elif item_size == 2:
-#                     val &= 0xFFFF
-#                     line_binary += f"{val:04x}"
-#                 line_content["values"] = [val]
-#                 line["status"] == "resolved"
-#             elif label in label_offsets:
-#                 val = label_offsets[label]
-#                 if item_size == 1:
-#                     val &= 0xFF
-#                     line_binary += f"{val:02x}"
-#                 elif item_size == 2:
-#                     val &= 0xFFFF
-#                     line_binary += f"{val:04x}"
-#                 line_content["values"] = [val]
-#                 line["status"] == "resolved"
-#                 line_content["type"] = "data"
-#             else:
-#                 line_binary += "__" * item_size
-#             line_length += item_size * line_content["num_items"]
-#         elif line_content["type"] == "expression":
-#             expression = line_content["expression"]
-#             dependensies = line_content["dependencies"]
-#             resolved_deps = {}
-#             resolved = True
-#             for dep in dependensies:
-#                 if dep in constants:
-#                     resolved_deps[dep] = constants[dep]["value"]
-#                 elif dep in label_offsets:
-#                     resolved_deps[dep] = label_offsets[dep]
-#                 else:
-#                     resolved = False
-#                     break
-#             if resolved:
-#                 val = resolve_expression(line_number, expression, resolved_deps)
-#                 if item_size == 1:
-#                     val &= 0xFF
-#                     line_binary += f"{val:02x}"
-#                 elif item_size == 2:
-#                     val &= 0xFFFF
-#                     line_binary += f"{val:04x}"
-#                 line_content["values"] = [val]
-#                 line_content["type"] = "data"
-#                 line["status"] == "resolved"
-#             else:
-#                 line_binary += "__" * item_size
-#             line_length += item_size * line_content["num_items"]
-#         return line_addr, line_binary, line_length, line_number, line_text
-
-#     new_sections = {}
-#     label_offsets = {}
-#     # First run to resolve symbols:
-#     for section_name in sections:
-#         current_offset = sections[section_name]["offset"]["value"]
-#         blocks = sections[section_name]["blocks"]
-#         section_data = []   # Offset - Label - Binary - Line number - Original string
-#         for block_name in blocks:
-#             blocks[block_name]["offset"] = current_offset
-#             label_offsets[block_name] = current_offset
-#             lines = blocks[block_name]["lines"]
-#             block_name_added = False
-#             for line in lines:
-#                 if line["type"] == "data":
-#                     line_addr, line_binary, line_length, line_number, line_text = _process_data_line(line, constants, label_offsets, current_offset)
-#                     current_offset += line_length
-#                 if line["type"] == "opcode":
-#                     # Example: 
-#                     # {'type': 'opcode', 'ln': 39, 'opcode': 'MOV', 'opcode_bin': '01', 'args': {
-#                     #     'dst': {'type': 'REG', 'value': '', 'code': 'b', 'status': 'resolved'}, 
-#                     #     'src': {'type': 'LABEL', 'value': 'STACK_INIT', 'code': 0, 'status': 'pending'}
-#                     # }, 'original_text': 'MOV SP, STACK_INIT'}
-#                     line_addr = current_offset
-#                     line_binary = line["opcode_bin"]
-#                     args = line["args"]
-#                     dst_code, dst_val, src_code, src_val = "0", "", "0", ""
-#                     dst_code, dst_val = encode_arg(args["dst"], "dst", line["opcode"], constants, label_offsets, line["ln"], current_offset)
-#                     src_code, src_val = encode_arg(args["src"], "src", line["opcode"], constants, label_offsets, line["ln"], current_offset)
-#                     line_binary += dst_code + src_code + dst_val + src_val
-#                     current_offset += len(line_binary)//2
-#     # Second run to construct the binary
-#     for section_name in sections:
-#         current_offset = sections[section_name]["offset"]["value"]
-#         blocks = sections[section_name]["blocks"]
-#         section_data = []   # Offset - Label - Binary - Line number - Original string
-#         for block_name in blocks:
-#             blocks[block_name]["offset"] = current_offset
-#             label_offsets[block_name] = current_offset
-#             lines = blocks[block_name]["lines"]
-#             block_name_added = False
-#             for line in lines:
-#                 if line["type"] == "data":
-#                     line_addr, line_binary, line_length, line_number, line_text = _process_data_line(line, constants, label_offsets, current_offset)
-#                     current_offset += line_length
-#                     if not block_name_added:
-#                         section_data.append({"offset": line_addr, "binary": line_binary, "label": block_name, "ln": line_number, "original_text": line_text})
-#                         block_name_added = True
-#                     else:
-#                         section_data.append({"offset": line_addr, "binary": line_binary, "label": "", "ln": line_number, "original_text": line_text})
-#                 if line["type"] == "opcode":
-#                     # Example: 
-#                     # {'type': 'opcode', 'ln': 39, 'opcode': 'MOV', 'opcode_bin': '01', 'args': {
-#                     #     'dst': {'type': 'REG', 'value': '', 'code': 'b', 'status': 'resolved'}, 
-#                     #     'src': {'type': 'LABEL', 'value': 'STACK_INIT', 'code': 0, 'status': 'pending'}
-#                     # }, 'original_text': 'MOV SP, STACK_INIT'}
-#                     line_addr = current_offset
-#                     line_binary = line["opcode_bin"]
-#                     args = line["args"]
-#                     dst_code, dst_val, src_code, src_val = "0", "", "0", ""
-#                     dst_code, dst_val = encode_arg(args["dst"], "dst", line["opcode"], constants, label_offsets, line["ln"], current_offset)
-#                     src_code, src_val = encode_arg(args["src"], "src", line["opcode"], constants, label_offsets, line["ln"], current_offset)
-#                     line_binary += dst_code + src_code + dst_val + src_val
-#                     current_offset += len(line_binary)//2
-#                     if not block_name_added:
-#                         section_data.append({"offset": line_addr, "binary": line_binary, "label": block_name, "ln": line["ln"], "original_text": line["original_text"]})
-#                         block_name_added = True
-#                     else:
-#                         section_data.append({"offset": line_addr, "binary": line_binary, "label": "", "ln": line["ln"], "original_text": line["original_text"]})
-#         # Align the fields:
-#         max_bin_len = 0
-#         max_label_len = 0
-#         for item in section_data:
-#             bin_len = len(item["binary"])
-#             label_len = len(item["label"])
-#             if bin_len > max_bin_len:
-#                 max_bin_len = bin_len
-#             if label_len > max_label_len:
-#                 max_label_len = label_len
-#         for item in section_data:
-#             item["binary"] += " "*(max_bin_len-len(item["binary"]))
-#             item["label"] += " "*(max_label_len-len(item["label"]))
-#         new_sections[section_name] = section_data
-#     return new_sections
-
-
 def main(filename="test.asm"):
     with open(filename) as f:
         lines = f.read().split("\n")
@@ -1158,7 +873,6 @@ def main(filename="test.asm"):
     lines = clean_lines
     constants, sections = parse_lines(lines)
     binary, disasm = generate_binary(sections)
-    # new_sections = generate_binary(constants, sections)
     parsed = []
     for constant in constants:
         parsed.append(f"Constant {constant}: {constants[constant]}")
