@@ -17,24 +17,25 @@ EXPRESSION      EQU 2 + (STACK_INIT - IO_PORT_IN) + 4 * (2 / (IO_PORT_OUT+4))
 ; =====================================================================
 SECTION DATA, 0x0200    ; Directs assembler to place subsequent data at 0x0200
 
-VAR_COUNTER:    DB 0x40     ; 1-byte numeric counter variable
-    DB 0x50
-    DB 0x60
-    DB 0x70
-    DB 0x80
-VAR_STATUS:     DB 0x01     ; 1-byte status flag variable
-MSG_PTR:        DW MSG_HELLO
-EXPR_VAR:       DW STACK_INIT - STACK_SIZE
-WORD_VAR:       DW 0x0123
-WORD_ARR:       DW 0x0123 0x2345 0x3456
-BYTE_ARR:       DB 0x00, 0x01, 0x02, 0x03
-MSG_HELLO:      DB "Hello World!", 0x00   ; Null-terminated ASCII string in RAM
+BYTE_ARR1:      UINT8 0x00 0x01 0x02 0x03
+BYTE_ARR0:      UINT8 0x00, 0x01, 0x02, 0x03
+VAR_COUNTER:    UINT8 0x40     ; 1-byte numeric counter variable
+    UINT8 0x50
+    UINT8 0x60
+    UINT8 0x70
+    UINT8 0x80
+VAR_STATUS:     UINT8 0x01     ; 1-byte status flag variable
+MSG_PTR:        UINT16 MSG_HELLO
+EXPR_VAR:       UINT16 STACK_INIT - STACK_SIZE
+WORD_VAR:       UINT16 0x0123
+WORD_ARR:       UINT16 0x0123 0x2345 0x3456
+MSG_HELLO:      CHAR "Hello World!", 0x00   ; Null-terminated ASCII string in RAM
 ONE_MORE:
-    DB 0x07
+    UINT8 0x07
 
-; =====================================================================
-; SECTION: TEXT (Executable code segment)
-; =====================================================================
+SECTION ENTRY, 0x0000
+ENTRY: JMP START
+
 SECTION TEXT, 0x0100    ; Directs assembler to place executable code at 0x0100
 
 START:
@@ -53,6 +54,7 @@ START:
     MOV RA, R3      ; RA: 0x1212
     MOV RA, R4      ; RA: 0x3412
 
+    MOV RA, MSG_HELLO+2
     MOV RA, MSG_HELLO       ; RA points to start of string
     MOV R2, [RA]            ; Load first character ('H') into R2
     MOV R2, (IO_PORT_IN+IO_PORT_OUT)/2

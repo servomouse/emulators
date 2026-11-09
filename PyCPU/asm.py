@@ -44,12 +44,6 @@ opcodes = {
     "DI":   {"bin": "1b", "dst": ["R", "IMMED8"], "src": None},
 }
 
-registers = ["R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "F", "RA", "PC", "SP"]
-
-# SRC/DST encoding:
-arg_encoding = ["R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "F", "RA", "PC", "SP", "[RA]", "IMMED8", "IMMED16", "[IMMED16]"]
-
-#==== Parsing ====#
 
 def to_hex_with_zeros(val: int, bits: int = 32) -> str:
     """Converts an integer to a hex string with leading zeros using two's complement for negatives."""
@@ -76,16 +70,97 @@ def get_integer_value(s):
     return int(s.strip(), base=0)
 
 
-def is_label(line_number, string):
+def int_size(val):
+    """
+    Checks what standard integer type a value fits into.
+    Order of preference: INT8 -> UINT8 -> INT16 -> UINT16.
+    """
+    # 8-bit checks
+    if -128 <= val <= 127:
+        return "INT8"
+    if 0 <= val <= 255:
+        return "UINT8"
+        
+    # 16-bit checks
+    if -32768 <= val <= 32767:
+        return "INT16"
+    if 0 <= val <= 65535:
+        return "UINT16"
+        
+    return "ERROR"
+
+
+def extract_integer(ln, text):
+    int_value = ""
+    if text.startswith("0x"):
+        int_value += "0x"
+        for i in range(2, len(text)):
+            if text[i] in "0123456789ABCDEFabcdef":
+                int_value += text[i]
+            elif text[i] in [" ", ","]:
+                break
+            else:
+                raise Exception(f"Syntax error: Unexpected symbol {text[i]} on line {ln}!")
+        return int_value
+    elif text.startswith("0b"):
+        int_value += "0b"
+        for i in range(2, len(text)):
+            if text[i] in "01":
+                int_value += text[i]
+            elif text[i] in [" ", ","]:
+                break
+            else:
+                raise Exception(f"Syntax error: Unexpected symbol {text[i]} on line {ln}!")
+        return int_value
+    for i in range(len(text)):
+        if text[i] in "0123456789":
+            int_value += text[i]
+        elif text[i] in [" ", ","]:
+            break
+        else:
+            raise Exception(f"Syntax error: Unexpected symbol {text[i]} on line {ln}!")
+    return int_value
+
+
+def extract_string(ln, text):
+    if text[0] in ["'", "\""]:
+        quote = text[0]
+        ret_string = text[0]
+        for i in range(1, len(text)):
+            ret_string += text[i]
+            if text[i] == quote:
+                break
+        if text[i] != quote:
+            raise Exception(f"Syntax error: Unclosed parenthesis at line {ln}: {text}")
+        return ret_string
+    return None
+
+
+def get_data_item(ln, text):
+    text = text.strip()
+    if text[0] in ["'", "\""]:
+        return "text", extract_string(ln, text)
+    elif text[0] in "0123456789":
+        return "number", extract_integer(ln, text)
+    text_split = text.split(",", maxsplit=1)
+    if is_label(ln, text_split[0]):
+        return "label", text_split[0]
+    elif is_expression(ln, text_split[0]):
+        return "expression", text_split[0]
+    return None, ""
+
+
+def is_label(line_number, text):
+    text = text.strip()
     allowed_symbols = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
     digits = "0123456789"
-    if string[0] not in allowed_symbols:
+    if text[0] not in allowed_symbols:
         return False
-    for i in range(1, len(string)):
-        if string[i] not in allowed_symbols+digits:
+    for i in range(1, len(text)):
+        if text[i] not in allowed_symbols+digits:
             return False
-    if string in special_symbols:
-        raise Exception(f"Syntax error: Invalid label at {line_number}: {string} (do not use special symbols as labels)")
+    if text in special_symbols:
+        raise Exception(f"Syntax error: Invalid label at {line_number}: {text} (do not use special symbols as labels)")
     return True
 
 
@@ -162,7 +237,7 @@ def parse_expression(line_number, expression):
         return sub_steps, arr
 
     def _prepare_expression(expr):
-        print(f"DEBUG::: {expr = }")
+        # print(f"DEBUG::: {expr = }")
         if len(expr) == 3:
             if isinstance(expr[0], list):
                 expr[0] = _prepare_expression(expr[0])
@@ -172,12 +247,12 @@ def parse_expression(line_number, expression):
         for _ in range(MAX_PASS_NUM):
             index = -1
             if isinstance(expr[0], list):
-                print(f"DEBUG::: expr[0] is a list: {expr[0] = }, {expr[0][0] = }")
+                # print(f"DEBUG::: expr[0] is a list: {expr[0] = }, {expr[0][0] = }")
                 expr[0] = _prepare_expression(expr[0])
                 print(f"DEBUG::: After recursive call {expr = }")
             for i in range(1, len(expr), 2):
                 if isinstance(expr[i+1], list):
-                    print(f"DEBUG::: expr[i+1] is a list: {i = }, {expr[i+1] = }")
+                    # print(f"DEBUG::: expr[i+1] is a list: {i = }, {expr[i+1] = }")
                     expr[i] = _prepare_expression(expr[i])
                 if expr[i] in ["*", "/"]:
                     index = i-1
@@ -193,7 +268,7 @@ def parse_expression(line_number, expression):
 
     def _parse_expression(expr):
         new_expr = []
-        print(f"DEBUG::: _parse_expression {expr = }")
+        # print(f"DEBUG::: _parse_expression {expr = }")
         element0 = expr.pop(0)
         if isinstance(element0, list):
             new_expr.append(_parse_expression(element0))
@@ -211,7 +286,7 @@ def parse_expression(line_number, expression):
             new_expr.append(element1)
             if len(expr) == 0:
                 break
-        print(f"DEBUG::: _parse_expression {new_expr = }")
+        # print(f"DEBUG::: _parse_expression {new_expr = }")
         return new_expr
 
     for op in math_operations+simbols:
@@ -222,224 +297,258 @@ def parse_expression(line_number, expression):
         if is_label(line_number, item) and item not in _labels:
             _labels.append(item)
     expression, _ = _parse_array(expression)
-    print(f"DEBUG::: {expression = }")
+    # print(f"DEBUG::: {expression = }")
     expression = _prepare_expression(expression)
     parsed_expr = _parse_expression(expression)
     return parsed_expr, _labels
 
 
-def decode_arg(line_number, argument):
-    arg = argument.strip()
-    arg_type = ""
-    arg_value = ""
-    # arg_code = 0
-    arg_status = "pending"
-    if arg in registers:
-        arg_type = "REG"
-        arg_value = arg
-        arg_status = "resolved"
-    elif arg == "[RA]":
-        arg_type = "[RA]"
-        arg_value = "[RA]"
-        arg_status = "resolved"
-    elif arg == "$":
-        arg_type = "IMMED16"
-        arg_value = "$"
-        arg_status = "pending"
-    elif is_integer(arg):
-        arg_value = get_integer_value(arg)
-        if -127 < arg_value < 256:
-            arg_type = "IMMED8"
-        elif arg_value < 0x10000:
-            arg_type = "IMMED16"
-        else:
-            raise Exception(f"Syntax error: Invalid argument at line {line_number}: {arg} (Value doesn't fit into 16 bit)")
-        arg_status = "resolved"
-    elif is_label(line_number, arg):
-        arg_type = "label"  # May be either a constant (so, IMMED8 or IMED16) or an address
-        arg_value = arg
-        arg_status = "pending"
-    elif arg[0] == "[" and arg[-1] == "]" and is_label(line_number, arg[1:-1]):
-        arg_type = "[IMMED16]"
-        arg_value = arg.replace("[", "").replace("]", "")
-        arg_status = "pending"
-    elif is_expression(line_number, arg):
-        arg_type = "expression"
-        arg_value = parse_expression(line_number, arg)
-        arg_status = "pending"
-    else:
-        raise Exception(f"Syntax error: Invalid argument at line {line_number}: {arg}")
-    return arg_type, arg_value, arg_status
+class OpcodeProcessor:
+    def __init__(self, opcode_table):
+        self.opcode_table = opcode_table
+        self.registers = ["R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "F", "RA", "PC", "SP"]
 
+        # SRC/DST encoding:
+        self.arg_encoding = self.registers + ["[RA]", "IMMED8", "IMMED16", "[IMMED16]"]
 
-def parse_opcode(line):
-    opcode_decoded = {"type": "opcode", "ln": line["line"], "opcode": "", "opcode_bin": "", "args": {"dst": None, "src": None}, "original_text": line["text"]}
-    line_number = line["line"]
-    substrs = line["text"].split(maxsplit=1)
-    opcode, args = (substrs[0], substrs[1]) if len(substrs) > 1 else (substrs[0], "")
-    if opcode not in opcodes:
-        raise Exception(f"Parsing error: Unknown opcode: {opcode} at line {line_number}")
-    opcode_decoded["opcode_bin"] = opcodes[opcode]["bin"]
-    opcode_decoded["opcode"] = opcode
-    if opcode in ["NOP", "RET"]:
-        # Opcodes without arguments
-        pass
-    elif opcode == "PUSH":
-        # Opcodes with SRC only
-        t, v, s = decode_arg(line_number, args)
-        opcode_decoded["args"]["src"] = {'type': t, 'value': v}
-    elif opcode in ["POP", "NOT", "JMP", "JPZ", "JNZ", "JPG", "JPL", "CALL", "INT", "IVT", "EI", "DI"]:
-        # Opcodes with DST only
-        t, v, s = decode_arg(line_number, args)
-        opcode_decoded["args"]["dst"] = {'type': t, 'value': v}
-    elif opcode in ["MOV", "SWAP", "AND", "OR", "XOR", "SFT", "ADD", "SUB", "CMP", "MUL", "DIV", "IN", "OUT"]:
-        # Opcodes with two arguments
-        dst, src = args.split(",", maxsplit=1)
-        print(f"Parsing line {line_number}, {dst = }, {src = }")
-        t, v, s = decode_arg(line_number, dst)
-        opcode_decoded["args"]["dst"] = {'type': t, 'value': v}
-        t, v, s = decode_arg(line_number, src)
-        opcode_decoded["args"]["src"] = {'type': t, 'value': v}
-    else:
-        raise Exception(f"Unimplemented: Unparsed {opcode} at line {line_number}")
-    return opcode_decoded
+    def is_opcode(self, text):
+        return text in self.opcode_table
 
+    def _get_arg_code(self, arg):
+        return to_hex_with_zeros(self.arg_encoding.index(arg), 4)
 
-def parse_data(line):
-    line_number = line["line"]
-    text = line["text"]
-    def _parse_integer(string, num_bytes):
-        string = string.strip()
-        prefix = ""
-        if string.startswith("0x") or string.startswith("0X"):
-            prefix = "0x"
-        elif string.startswith("0b"):
-            prefix = "0x"
-        if prefix != "":
-            string = string[2:]
-        for idx in range(len(string)):
-            # print(f"DEBUG::: {idx = }, {string[idx] = }")
-            if prefix == "" and string[idx] not in ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]:
-                # print(f"DEBUG::: break 0")
-                break
-            elif prefix == "0x" and string[idx] not in ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", 'a', "B", "b", "C", "c", "D", "d", "E", "e", "F", "f"]:
-                # print(f"DEBUG::: break 1")
-                break
-            elif prefix == "0b" and string[idx] not in ["0", "1"]:
-                # print(f"DEBUG::: break 2")
-                break
-        if idx == (len(string)-1):
-            value = string
-            reminder = ""
-        else:
-            value = string[:idx]
-            reminder = string[idx:]
-        value = prefix + value
-        value = get_integer_value(value)
-        if num_bytes == 1 and value > 0xFF:
-            raise Exception(f"Value error: Value {hex(value)} is too large to fit into a byte! Line {line_number}")
-        if num_bytes == 2 and value > 0xFFFF:
-            raise Exception(f"Value error: Value {hex(value)} is too large to fit into a word! Line {line_number}")
-        if reminder.startswith(","):
-            reminder = reminder[1:]
-        # print(f"DEBUG::: Returning value: {value} ({reminder = }, {idx = }, {prefix = }, {string[idx] = })")
-        return value, reminder
-
-    def _parse_string(string):
-        string = string.strip()
-        # print(f"DEBUG::: Parsing string {string}")
-        # Starts with a " or '
-        target = string[0]
-        string = string[1:]     # Remove the first quotation mark
-        end_found = False
-        for i in range(1, len(string)):
-            if string[i] == target:
-                end_found = True
-                break
-        if not end_found:
-            raise Exception(f"Syntax error: Couldn't find closing quotation mark ({target}), line {line_number}")
-        value = string[:i]
-        ascii_array = [ord(char) for char in value]
-        if string[i+1] == ",":
-            reminder = string[i+2:]
-        else:
-            reminder = string[i+1:]
-        # print(f"DEBUG::: Returning value: {ascii_array} ({value = }, {reminder = })")
-        return ascii_array, reminder
-
-    def _parse_datastring(string, data_type):
-        MAX_ITEMS_NUM = 1024
-        string = string.strip()
-        if data_type == "DB":
-            num_bytes = 1
-        elif data_type == "DW":
-            num_bytes = 2
-        values = []
-        for _ in range(MAX_ITEMS_NUM):
-            if string[0] in ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]:
-                value, reminder = _parse_integer(string, num_bytes)
-                values.append(value)
-            elif string[0] in ["\"", "'"]:
-                value, reminder = _parse_string(string)
-                values += value
+    def _encode_opcode(self, opcode, dst, src, ln, original_text):
+        op_code = self.opcode_table[opcode]["bin"]
+        if dst is None and src is None:
+            return {"type": "bin", "data": op_code, "size": 1, "ln": ln, "original_text": original_text}
+        if dst is None and src is not None: # Opcodes with SRC only: [PUSH]
+            if src["type"] == "bin":
+                arg_code = "0" + src["arg_code"]
+                full_binary = op_code + arg_code + src["arg_bin"]
+                return {"type": "bin", "data": full_binary, "size": len(full_binary)//2, "ln": ln, "original_text": original_text}
             else:
-                return None
-            if len(reminder) == 0:
-                break
-            string = reminder.strip()
-        return values
+                opcode_size = 2 + (len(src['arg_bin'])//2)
+                return {"type": "opc", "data": op_code, "size": opcode_size, "args": {"dst": None, "src": src}, "ln": ln, "original_text": original_text}
+        elif dst is not None and src is None:
+            if dst["type"] == "bin":
+                # op_code = self.opcode_table[opcode]["bin"]
+                arg_code = dst["arg_code"] + "0"
+                full_binary = op_code + arg_code + dst["arg_bin"]
+                return {"type": "bin", "data": full_binary, "size": len(full_binary)//2, "ln": ln, "original_text": original_text}
+            else:
+                opcode_size = 2 + (len(dst['arg_bin'])//2)
+                return {"type": "opc", "data": op_code, "size": opcode_size, "args": {"dst": dst, "src": None}, "ln": ln, "original_text": original_text}
+        else:
+            if dst["type"] == "bin" and src["type"] == "bin":
+                # op_code = self.opcode_table[opcode]["bin"]
+                arg_code = dst["arg_code"] + src["arg_code"]
+                full_binary = op_code + arg_code + dst["arg_bin"] + src["arg_bin"]
+                return {"type": "bin", "data": full_binary, "size": len(full_binary)//2, "ln": ln, "original_text": original_text}
+            else:
+                opcode_size = 2 + (len(dst['arg_bin'])//2) + (len(src['arg_bin'])//2)
+                return {"type": "opc", "data": op_code, "size": opcode_size, "args": {"dst": dst, "src": src}, "ln": ln, "original_text": original_text}
 
-    def _is_datastring(string, data_type):
-        if _parse_datastring(string, data_type) is None:
-            return False
-        return True
+    def decode_arg(self, ln, argument, constants):
+        arg = argument.strip()
+        if arg in self.registers:
+            return {"arg_code": self._get_arg_code(arg), "arg_bin": "", "type": "bin"}
+        elif arg == "[RA]":
+            return {"arg_code": self._get_arg_code("[RA]"), "arg_bin": "", "type": "bin"}
+        elif arg == "$":
+            return {"arg_code": self._get_arg_code("IMMED16"), "arg_bin": "----", "type": "label", "dependencies": [arg]}
+        elif is_label(ln, arg):
+            if arg in constants:
+                val = constants[arg]["value"]
+                val_size = int_size(val)
+                if val_size in ["INT8", "UINT8"]:
+                    return {"arg_code": self._get_arg_code("IMMED8"), "arg_bin": to_hex_with_zeros(val, 8), "type": "bin"}
+                else:
+                    return {"arg_code": self._get_arg_code("IMMED16"), "arg_bin": to_hex_with_zeros(val, 16), "type": "bin"}
+            else:
+                return {"arg_code": self._get_arg_code("IMMED16"), "arg_bin": "----", "type": "label", "dependencies": [arg]}
+        elif is_integer(arg):
+            arg_value = get_integer_value(arg)
+            arg_size = int_size(arg_value)
+            if arg_size in ["INT8", "UINT8"]:
+                return {"arg_code": self._get_arg_code("IMMED8"), "arg_bin": to_hex_with_zeros(arg_value, 8), "type": "bin"}
+            elif arg_size in ["INT16", "UINT16"]:
+                return {"arg_code": self._get_arg_code("IMMED16"), "arg_bin": to_hex_with_zeros(arg_value, 16), "type": "bin"}
+            else:
+                raise Exception(f"Syntax error: Invalid argument at line {ln}: {arg} (Value doesn't fit into 16 bit)")
+        elif arg[0] == "[" and arg[-1] == "]" and is_label(ln, arg[1:-1]):
+            arg_label = arg.replace("[", "").replace("]", "")
+            return {"arg_code": self._get_arg_code("[IMMED16]"), "arg_bin": "----", "type": "label", "dependencies": [arg_label]}
+        elif is_expression(ln, arg):
+            expr, deps = parse_expression(ln, arg)
+            deps_resolved = True
+            deps_dict = {}
+            for d in deps:
+                if d in constants:
+                    deps_dict[d] = constants[d]["value"]
+                else:
+                    deps_resolved = False
+                    break
+            if deps_resolved:
+                val = resolve_expression(ln, expr, deps_dict)
+                val_size = int_size(val)
+                if val_size in ["INT8", "UINT8"]:
+                    return {"arg_code": self._get_arg_code("IMMED8"), "arg_bin": to_hex_with_zeros(val, 8), "type": "bin"}
+                else:
+                    return {"arg_code": self._get_arg_code("IMMED16"), "arg_bin": to_hex_with_zeros(val, 16), "type": "bin"}
+            return {"arg_code": self._get_arg_code("IMMED16"), "arg_bin": "----", "type": "expression", "expression": expr, "dependencies": deps}
+        else:
+            raise Exception(f"Syntax error: Invalid argument at line {ln}: {arg}")
 
-    substrs = text.split(maxsplit=1)
-    if len(substrs) < 2:
-        raise Exception(f"Parsing error at line {line_number}: invalid data format: {text}")
-    data_type, data = (substrs[0], substrs[1])
+    def parse_opcode(self, line, constants):
+        ln = line["line"]
+        text = line["text"]
+        substrs = text.split(maxsplit=1)
+        opcode, args = (substrs[0], substrs[1]) if len(substrs) > 1 else (substrs[0], "")
+        if opcode in ["NOP", "RET"]:    # Opcodes without arguments
+            return self._encode_opcode(opcode, None, None, ln, text)
+        elif opcode == "PUSH": # Opcodes with SRC only
+            arg_dict = self.decode_arg(ln, args, constants)
+            return self._encode_opcode(opcode, None, arg_dict, ln, text)
+        elif opcode in ["POP", "NOT", "JMP", "JPZ", "JNZ", "JPG", "JPL", "CALL", "INT", "IVT", "EI", "DI"]: # Opcodes with DST only
+            arg_dict = self.decode_arg(ln, args, constants)
+            return self._encode_opcode(opcode, arg_dict, None, ln, text)
+        elif opcode in ["MOV", "SWAP", "AND", "OR", "XOR", "SFT", "ADD", "SUB", "CMP", "MUL", "DIV", "IN", "OUT"]:
+            # Opcodes with two arguments
+            dst, src = args.split(",", maxsplit=1)
+            dst_arg_dict = self.decode_arg(ln, dst, constants)
+            src_arg_dict = self.decode_arg(ln, src, constants)
+            return self._encode_opcode(opcode, dst_arg_dict, src_arg_dict, ln, text)
+        else:
+            raise Exception(f"Assembler internal error: Opcode {opcode} was not processed")
 
-    if data_type == "DB":
-        item_size = 8
-    elif data_type == "DW":
-        item_size = 16
+    def get_dependencies(self, opcode):
+        # {'type': 'opc', 'data': '01', 'args': {
+        #     'dst': {'arg_code': 'f', 'arg_bin': '----', 'type': 'label', 'dependencies': ['VAR_COUNTER']}, 
+        #     'src': {'arg_code': '0', 'arg_bin': '', 'type': 'bin'}
+        # }, 'ln': 47, 'original_text': 'MOV [VAR_COUNTER], R0'}
+        dst = opcode["args"]["dst"]
+        src = opcode["args"]["src"]
+        deps = []
+        if dst is not None and dst["type"] in ["label", "expression"]:
+            deps += dst["dependencies"]
+        if src is not None and src["type"] in ["label", "expression"]:
+            deps += src["dependencies"]
+        return deps
+
+    def resolve_opcode(self, opcode, deps_dict):
+        dst = opcode["args"]["dst"]
+        src = opcode["args"]["src"]
+        op_code = opcode["data"]
+        arg_code = ""
+        dst_bin = ""
+        src_bin = ""
+        if dst is None:
+            arg_code += "0"
+        else:
+            arg_code += dst["arg_code"]
+            if dst["type"] == "bin":
+                dst_bin += dst["arg_bin"]
+            elif dst["type"] == "label":
+                deps = dst["dependencies"]
+                dst_bin += to_hex_with_zeros(deps_dict[deps[0]], 16)
+            elif dst["type"] == "expression":
+                expr = dst["expression"]
+                dst_bin += to_hex_with_zeros(resolve_expression(opcode["ln"], expr, deps_dict), 16)
+        if src is None:
+            arg_code += "0"
+        else:
+            arg_code += src["arg_code"]
+            if src["type"] == "bin":
+                src_bin += src["arg_bin"]
+            elif src["type"] == "label":
+                deps = src["dependencies"]
+                src_bin += to_hex_with_zeros(deps_dict[deps[0]], 16)
+            elif src["type"] == "expression":
+                expr = src["expression"]
+                src_bin += to_hex_with_zeros(resolve_expression(opcode["ln"], expr, deps_dict), 16)
+        return op_code + arg_code + dst_bin + src_bin
+
+
+def parse_data(data, constants):
+    ln = data["line"]
+    text = data["text"]
+    data_type, values = text.split(maxsplit=1)
+    if data_type in ["UINT8", "uint8", "CHAR"]:
+        num_bytes = 1
+        num_bits = 8
+    elif data_type in ["UINT16", "uint16"]:
+        num_bytes = 2
+        num_bits = 16
     else:
-        raise Exception(f"Syntax error: Unknown data format on line {line_number}: {text}")
+        raise Exception(f"Error: Unsupported data type {data_type} on line {ln}")
+    MAX_ITEMS_NUM = 32
+    items = []
+    dependencies = []
+    data_size = 0
+    for _ in range(MAX_ITEMS_NUM):
+        item_type, item = get_data_item(ln, values)
+        if item_type == None:
+            break
+        if item_type == "number":
+            items.append(["bin", to_hex_with_zeros(get_integer_value(item), num_bits)])
+            data_size += num_bytes
+        elif item_type == "text":
+            bare_string = item[1:-1]
+            string_bin = ""
+            for c in bare_string:
+                string_bin += to_hex_with_zeros(ord(c), 8)
+            items.append(["bin", string_bin])
+            data_size += len(bare_string)
+        elif item_type == "label":
+            if item in constants:
+                items.append(["bin", to_hex_with_zeros(constants[item]["value"], num_bits)])
+            else:
+                if num_bytes == 2:
+                    items.append(["label", "----", item])
+                    dependencies.append(item)
+                else:
+                    raise Exception(f"Syntax error: Cannot use label as an 8-bit value (line {ln}, {text = })")
+            data_size += num_bytes
+        elif item_type == "expression":
+            expr, deps = parse_expression(ln, item)
+            deps_resolved = True
+            deps_dict = {}
+            for d in deps:
+                if d in constants:
+                    deps_dict[d] = constants[d]["value"]
+                else:
+                    deps_resolved = False
+                    break
+            if deps_resolved:
+                val = resolve_expression(ln, expr, deps_dict)
+                items.append(["bin", to_hex_with_zeros(val, num_bits)])
+            else:
+                items.append(["expression", "----", item])
+                dependencies += deps
+            data_size += num_bytes
+        values = values[len(item):].strip()
+        if values.startswith(","):
+            values = values[1:]
+        if len(values) == 0:
+            break
+    return {"type": "data", "offset": -1, "data": "", "size": data_size, "items": items, "ln": ln, "original_text": text}
 
-    if _is_datastring(data, data_type):   # Integer, array of integers, or string
-        data = _parse_datastring(data, data_type)
-        num_items = len(data)
-        content = {"type": "data", "num_items": num_items, "item_size": item_size, "values": data}
-    elif is_label(line_number, data):
-        content = {"type": "label", "num_items": 1, "item_size": item_size, "label": data}
-    elif is_expression(line_number, data):
-        expr, labels = parse_expression(line_number, data)
-        content = {"type": "expression", "num_items": 1, "item_size": item_size, "expression": expr, "dependencies": labels}
+
+def parse_constant(line_number, name, value):
+    if is_integer(value):
+        return name, {"type": "int", "value": get_integer_value(value)}
+    elif is_label(line_number, value):
+        return name, {"type": "label", "value": value}
+    elif is_expression(line_number, value):
+        expr, dependencies = parse_expression(line_number, value)
+        return name, {"type": "expression", "expression": expr, "dependencies": dependencies}
     else:
-        raise Exception(f"Syntax error: Unknown data type at line {line_number}: {text}")
-    return {"type": "data", "ln": line_number, "content": content, "original_text": text}
+        raise Exception(f"Parsing error: Invalid expression on line {line_number}: {value}")
 
 
-def parse_constant(line_number, name, expression):
-    if is_integer(expression):
-        value = get_integer_value(expression)
-        status = "resolved"
-        expr_type = "INT"
-    elif is_label(line_number, expression):
-        value = expression
-        status = "pending"
-        expr_type = "LABEL"
-    elif is_expression(line_number, expression):
-        expr, labels = parse_expression(line_number, expression)
-        value = {"expression": expr, "labels": labels}
-        status = "pending"
-        expr_type = "EXPRESSION"
-    else:
-        raise Exception(f"Parsing error: Invalid expression on line {line_number}: {expression}")
-    return name, {"type": expr_type, "value": value, "status": status}
-
-
-def parse_section(ln, text_split, text, sections):
+def parse_section(ln, text_split, orig_text, sections):
+    print(f"DEBUG::: Parsing section {text_split}")
+    current_section = ""
     if len(text_split) == 2:
         section_name = text_split[1]
         if not is_label(ln, section_name):
@@ -449,22 +558,21 @@ def parse_section(ln, text_split, text, sections):
         else:
             raise Exception(f"Error: Line {ln}: Using section {section_name} before specifying its offset! Set the offset like SECTION section_name, 0xABCD")
     elif len(text_split) == 3:
-        section_name = text_split[1]
+        section_name = text_split[1].replace(",", " ")
         if not is_label(ln, section_name):
-            raise Exception(f"Syntax error: Invalid section name at {ln}: {section_name}")
+            raise Exception(f"Syntax error: Invalid section name at line {ln}: {section_name}")
         current_section = section_name
         section_offset = text_split[2]
         if is_integer(section_offset):
             section_offset = get_integer_value(section_offset)
+        elif is_label(ln, section_offset):
+            section_offset = section_offset
         else:
-            raise Exception(f"Syntax error: Invalid section offset definition at {ln}: {text}")
+            raise Exception(f"Syntax error: Invalid section offset definition at {ln}: {orig_text}")
         if section_name in sections:
-            raise Exception(f"Syntax error: Invalid section offset redefinition at {ln}: {text}")
+            raise Exception(f"Syntax error: Invalid section offset redefinition at {ln}: {orig_text}")
         sections[section_name] = {"offset": section_offset, "blocks": {}}
     return current_section
-
-
-#==== Resolving ====#
 
 
 def resolve_expression(line_number, expr, deps):
@@ -513,238 +621,39 @@ def resolve_expression(line_number, expr, deps):
 
 
 def resolve_constants(consts):
-    MAX_PASSES_NUM = 100
+    MAX_PASSES_NUM = 2
     for pass_num in range(MAX_PASSES_NUM):
         done = True
         for c in consts:
-            if consts[c]["status"] == "resolved":
+            if consts[c]["type"] == "int":
                 continue
-            if consts[c]["type"] == "LABEL":
+            if consts[c]["type"] == "label":
                 c_name = consts[c]["value"]
-                if consts[c_name]["status"] == "resolved":
+                if consts[c_name]["type"] == "int":
                     consts[c]["value"] = consts[c_name]["value"]
-                    consts[c]["status"] = "resolved"
-                    consts[c]["type"] = consts[c_name]["type"]
+                    consts[c]["type"] = "int"
                 else:
                     done = False
-            elif consts[c]["type"] == "EXPRESSION":
-                dependensies = consts[c]["value"]["labels"]
+            elif consts[c]["type"] == "expression":
+                dependensies = consts[c]["dependencies"]
                 dep_values = {}
                 for d in dependensies:
-                    if consts[d]["status"] == "resolved":
+                    if consts[d]["type"] == "int":
                         dep_values[d] = consts[d]["value"]
                     else:
                         done = False
                         break
                 if done:
-                    val = resolve_expression(consts[c]["LN"], consts[c]["value"]["expression"], dep_values)
+                    val = resolve_expression(consts[c]["ln"], consts[c]["expression"], dep_values)
+                    consts[c]["expression"] = None
+                    consts[c]["dependencies"] = None
                     consts[c]["value"] = val
-                    consts[c]["status"] = "resolved"
-                    consts[c]["type"] = "INT"
+                    consts[c]["type"] = "int"
         if done:
             break
     if pass_num == 100 and not done:
         pass    # TODO: Print unresolved consts
     return consts
-
-
-def proces_data_line(line, constants, label_offsets, current_offset):
-    line_size = 0
-    line_binary = ""
-    line_resolved = False
-    if line["content"]["type"] == "data":
-        item_size = line["content"]["item_size"]
-        for v in line["content"]["values"]:
-            line_binary += to_hex_with_zeros(v, item_size)
-        line_resolved = True
-    elif line["content"]["type"] == "label":
-        item_size = line["content"]["item_size"]
-        num_items = line["content"]["num_items"]
-        label = line["content"]["label"]
-        if label in constants:
-            v = constants[label]["value"]
-        elif label in label_offsets:
-            v = label_offsets[label]
-        else:
-            v = None
-            line_size = num_items * (item_size // 8)
-
-        if v is not None:
-            line_binary += to_hex_with_zeros(v, item_size)
-            line_resolved = True
-    elif line["content"]["type"] == "expression":
-        item_size = line["content"]["item_size"]
-        num_items = line["content"]["num_items"]
-        expression = line["content"]["expression"]
-        dependencies = line["content"]["dependencies"]
-        deps_dict = {}
-        expr_resolved = True
-        for d in dependencies:
-            if d in constants:
-                deps_dict[d] = constants[d]["value"]
-            elif d in label_offsets:
-                deps_dict[d] = label_offsets[d]
-            else:
-                expr_resolved = False
-        if expr_resolved:
-            v = resolve_expression(line["ln"], expression, deps_dict)
-            line_binary += to_hex_with_zeros(v, item_size)
-            line_resolved = True
-    if line_resolved:
-        line["type"] = "bin"
-        line["offset"] = current_offset
-        line["content"] = line_binary
-        line["size"] = len(line_binary)//2
-        line_size = line["size"]
-    return line_size
-
-
-def proces_opcode_line(line, constants, label_offsets, current_offset):
-
-    def _process_opcode_arg(_arg):
-        arg_resolved = True
-        arg_code = ""
-        arg_binary = ""
-        arg_line_size = 0
-        if _arg["type"] in ["REG", "[RA]"]:
-            arg_code += to_hex_with_zeros(arg_encoding.index(_arg["value"]), 4)
-        elif _arg["type"] in ["IMMED8", "IMMED16", "[IMMED16]"]:
-            if _arg["value"] == "$":
-                arg_code += to_hex_with_zeros(arg_encoding.index("[IMMED16]"), 4)
-                arg_binary += to_hex_with_zeros(current_offset, 16)
-                arg_line_size += 2
-            elif _arg["type"] in ["IMMED8", "IMMED16"]:
-                arg_code += to_hex_with_zeros(arg_encoding.index(_arg["type"]), 4)
-                if _arg["type"] == "IMMED8":
-                    arg_binary += to_hex_with_zeros(_arg["value"], 8)
-                    arg_line_size += 1
-                else:
-                    arg_binary += to_hex_with_zeros(_arg["value"], 16)
-                    arg_line_size += 2
-            elif _arg["type"] == "[IMMED16]":
-                arg_code += to_hex_with_zeros(arg_encoding.index("[IMMED16]"), 4)
-                label = _arg["value"]
-                if label in constants:
-                    val = constants[label]["value"]
-                    arg_binary += to_hex_with_zeros(val, 16)
-                    arg_line_size += 2
-                elif label in label_offsets:
-                    val = label_offsets[label]
-                    arg_binary += to_hex_with_zeros(val, 16)
-                    arg_line_size += 2
-                else:
-                    arg_line_size += 2
-                    arg_resolved = False
-        elif _arg["type"] == "label":
-            label = _arg["value"]
-            if label in constants:
-                val = constants[label]["value"]
-                if val > 0xFF:
-                    arg_code += to_hex_with_zeros(arg_encoding.index("IMMED16"), 4)
-                    arg_binary += to_hex_with_zeros(val, 16)
-                    arg_line_size += 2
-                else:
-                    arg_code += to_hex_with_zeros(arg_encoding.index("IMMED8"), 4)
-                    arg_binary += to_hex_with_zeros(val, 8)
-                    arg_line_size += 1
-            elif label in label_offsets:
-                arg_code += to_hex_with_zeros(arg_encoding.index("IMMED16"), 4)
-                val = label_offsets[label]
-                arg_binary += to_hex_with_zeros(val, 16)
-                arg_line_size += 2
-            else:
-                arg_line_size += 2
-                arg_resolved = False
-        elif _arg["type"] == "expression":
-            expression = _arg["value"][0]
-            deps_list = _arg["value"][1]
-            deps_dict = {}
-            expr_resolved = True
-            for d in deps_list:
-                if d in constants:
-                    deps_dict[d] = constants[d]["value"]
-                elif d in label_offsets:
-                    deps_dict[d] = label_offsets[d]
-                else:
-                    expr_resolved = False
-            if expr_resolved:
-                val = resolve_expression(line["ln"], expression, deps_dict)
-                if val > 0xFF:
-                    arg_code += to_hex_with_zeros(arg_encoding.index("IMMED16"), 4)
-                    arg_binary += to_hex_with_zeros(val, 16)
-                    arg_line_size += 2
-                else:
-                    arg_code += to_hex_with_zeros(arg_encoding.index("IMMED8"), 4)
-                    arg_binary += to_hex_with_zeros(val, 8)
-                    arg_line_size += 1
-            else:
-                arg_resolved = False
-        return arg_code, arg_binary, arg_line_size, arg_resolved
-
-    line_size = 1
-    opcode = line["opcode"]
-    opcode_binary = opcodes[opcode]["bin"]
-    line_binary = ""
-    dst_arg = line["args"]["dst"]
-    src_arg = line["args"]["src"]
-    resolved = True
-    if dst_arg is not None:
-        line_size = 2
-        arg_code, arg_binary, arg_line_size, arg_resolved = _process_opcode_arg(dst_arg)
-        line_size += arg_line_size
-        if arg_resolved:
-            opcode_binary += arg_code
-            line_binary += arg_binary
-        else:
-            resolved = False
-    else:
-        if src_arg is not None:
-            opcode_binary += "0"
-    if src_arg is not None:
-        if line_size == 1:
-            line_size = 2
-        arg_code, arg_binary, arg_line_size, arg_resolved = _process_opcode_arg(src_arg)
-        line_size += arg_line_size
-        if arg_resolved:
-            opcode_binary += arg_code
-            line_binary += arg_binary
-        else:
-            resolved = False
-    else:
-        if dst_arg is not None:
-            opcode_binary += "0"
-    final_binary = opcode_binary + line_binary
-    if resolved:
-        line["type"] = "bin"
-        line["offset"] = current_offset
-        line["content"] = final_binary
-        line["size"] = len(final_binary)//2
-        line["args"] = None
-    return line_size
-
-
-def resolve_sections(constants, sections):
-    label_offsets = {}
-    for _ in range(2):
-        for section_name in sections:
-            current_offset = sections[section_name]["offset"]
-            for block_name in sections[section_name]["blocks"]:
-                if block_name not in label_offsets:
-                    label_offsets[block_name] = current_offset
-                sections[section_name]["blocks"][block_name]["offset"] = current_offset
-                for line in sections[section_name]["blocks"][block_name]["lines"]:
-                    if line["type"] == "data":
-                        current_offset += proces_data_line(line, constants, label_offsets, current_offset)
-                    elif line["type"] == "opcode":
-                        current_offset += proces_opcode_line(line, constants, label_offsets, current_offset)
-                    elif line["type"] == "bin":
-                        current_offset += line["size"]
-    for section_name in sections:
-        for block_name in sections[section_name]["blocks"]:
-            for line in sections[section_name]["blocks"][block_name]["lines"]:
-                if line["type"] != "bin":
-                    raise Exception(f"Assembler error: Unprocessed line: {line}")
-    return sections
 
 
 def generate_binary(sections):
@@ -772,7 +681,7 @@ def generate_binary(sections):
             for line in sections[section_name]["blocks"][block_name]["lines"]:
                 if line["type"] != "bin":
                     raise Exception(f"Assembler error: Unprocessed line: {line}")
-                data = line["content"]
+                data = line["data"]
                 if len(data) > max_text_len:
                     max_text_len = len(data)
                 ln = f'{line["ln"]}'
@@ -785,11 +694,13 @@ def generate_binary(sections):
         output_disassembly.append(f"=== Section {section_name}:")
         for block_name in sections[section_name]["blocks"]:
             block_name_added = False
+            current_offset = sections[section_name]["blocks"][block_name]["offset"]
             for line in sections[section_name]["blocks"][block_name]["lines"]:
                 if line["type"] != "bin":
                     raise Exception(f"Assembler error: Unprocessed line: {line}")
-                offset = line["offset"]
-                data = line["content"]
+                offset = current_offset
+                current_offset += line["size"]
+                data = line["data"]
                 ln = f'{line["ln"]}'
                 original_text = line["original_text"]
 
@@ -807,62 +718,159 @@ def generate_binary(sections):
     return output_binary, output_disassembly
 
 
+def resolve_sections(constants, sections, opcode_processor):
+    def _get_label_value(_label, _constants, _label_offsets, _current_offset):
+        if _label == "$":
+            return _current_offset
+        if _label in _constants:
+            return _constants[_label]["value"]
+        elif _label in _label_offsets:
+            return _label_offsets[_label]
+        return None
+
+    label_offsets = {}
+    for _ in range(2):
+        for section_name in sections:
+            section = sections[section_name]
+            current_offset = section["offset"]
+            for block_name in section["blocks"]:
+                block = section["blocks"][block_name]
+                block["offset"] = current_offset
+                if block_name not in label_offsets:
+                    label_offsets[block_name] = current_offset
+                for line in block["lines"]:
+                    if line["type"] == "bin":
+                        current_offset += line["size"]
+                    elif line["type"] == "data":
+                        line["offset"] = current_offset
+                        current_offset += line["size"]
+                        items = line["items"]
+                        line_data = ""
+                        line_resolved = True
+                        for item in items:
+                            if item[0] == "bin":
+                                line_data += item[1]
+                            elif item[0] == "label":
+                                val = _get_label_value(item[2], constants, label_offsets, current_offset)
+                                if val is None:
+                                    line_resolved = False
+                                    break
+                                else:
+                                    item[0] = "bin"
+                                    item[1] = to_hex_with_zeros(val, 16)    # If it's a label and it's not in constants - it's a 16-bit address
+                                    line_data += item[1]
+                            elif item[0] == "expression":
+                                line_resolved = False
+                                break
+                        if line_resolved:
+                            line["data"] = line_data
+                            line["type"] = "bin"
+                            line["items"] = None
+                    elif line["type"] == "opc":
+                        # print(f"DEBUG::: Processing opcode {line}")
+                        current_offset += line["size"]
+                        deps = opcode_processor.get_dependencies(line)
+                        deps_resolved = True
+                        deps_dict = {}
+                        for d in deps:
+                            val = _get_label_value(d, constants, label_offsets, current_offset)
+                            if val is None:
+                                deps_resolved = False
+                                break
+                            else:
+                                deps_dict[d] = val
+                        if deps_resolved:
+                            line["type"] = "bin"
+                            line["data"] = opcode_processor.resolve_opcode(line, deps_dict)
+                            line["args"] = None
+    for section_name in sections:
+        section = sections[section_name]
+        for block_name in section["blocks"]:
+            block = section["blocks"][block_name]
+            block_size = 0
+            for line in block["lines"]:
+                if line["type"] == "bin":
+                    block_size += line["size"]
+            block["size"] = block_size
+
+
+    return sections
+
+
 def parse_lines(lines):
-    sections = {}
     constants = {}
-    current_section = ""
-    current_label = ""
+
     for line in lines:
         ln = line["line"]
-        text = line["text"].replace(",", " ").split(maxsplit=2)
-        text_split = line["text"].replace(",", " ").split(maxsplit=2)
-        if text_split[0].startswith("SECTION") or text_split[0].startswith("section"):
-            current_section = parse_section(ln, text_split, text, sections)
-        elif len(text_split) == 3 and text_split[1] in ["EQU", "equ"]:
+        orig_text = line["text"]
+        new_text = ""
+        for c in orig_text: # Create a copy to keep original text unmodified
+            new_text += c
+        text_split = new_text.split(maxsplit=2)
+        if len(text_split) == 3 and text_split[1] in ["EQU", "equ"]:  # Constants
             name, value = parse_constant(ln, text_split[0], text_split[2])
             if name not in constants:
                 constants[name] = value
-                constants[name]["LN"] = ln
+                constants[name]["ln"] = ln
             else:
                 raise Exception(f"Syntax Error: Redefinition of {name} at line {ln}")
-        elif is_label(ln, text_split[0][:-1]) and text_split[0][-1] == ":":
+    constants = resolve_constants(constants)
+
+    sections = {}
+    current_section = ""
+    current_label = ""
+    opcode_processor = OpcodeProcessor(opcodes)
+    for line in lines:
+        ln = line["line"]
+        orig_text = line["text"]
+        new_text = ""
+        for c in orig_text: # Create a copy to keep original text unmodified
+            new_text += c
+        text_split = new_text.split(maxsplit=2)
+        if text_split[0].startswith("SECTION") or text_split[0].startswith("section"):  # Sections
+            current_section = parse_section(ln, text_split, orig_text, sections)
+        elif len(text_split) == 3 and text_split[1] in ["EQU", "equ"]:  # Constants
+            pass    # Parsed on the previous step
+        elif is_label(ln, text_split[0][:-1]) and text_split[0][-1] == ":": # Labels
             if current_section == "":
                 raise Exception(f"Syntax error: Code block outside section (line {ln}: {line['text']})")
             label_name = text_split[0][:-1]
+            if label_name in sections[current_section]["blocks"]:
+                raise Exception(f"Error: Label redefinition at line {ln} (label {label_name})")
             # Python guarantees to preserve the order of dict items insertion:
-            sections[current_section]["blocks"][label_name] = {"offset": -1, "size": -1, "binary": "", "lines": [], "status": "pending"}
+            sections[current_section]["blocks"][label_name] = {"offset": -1, "size": -1, "binary": "", "lines": []}
             current_label = label_name
             if len(text_split) > 1:
-                if text_split[1] in opcodes:
-                    opcode = parse_opcode([ln, " ".join(text_split[1:])])
-                    sections[current_section]["blocks"][current_label]["lines"].append(opcode)
-                elif text_split[1] in ["DB", "db", "DW", "dw"]:
-                    data = parse_data({"line": ln, "text":" ".join(text_split[1:])})
+                if text_split[1] in ["UINT8", "uint8", "UINT16", "uint16", "CHAR"]:
+                    data = parse_data({"line": ln, "text":" ".join(text_split[1:])}, constants)
                     sections[current_section]["blocks"][current_label]["lines"].append(data)
-        elif text_split[0] in opcodes:
+                elif opcode_processor.is_opcode(text_split[1]):
+                    opcode = opcode_processor.parse_opcode({"line": ln, "text":" ".join(text_split[1:])}, constants)
+                    sections[current_section]["blocks"][current_label]["lines"].append(opcode)
+                    pass
+        elif opcode_processor.is_opcode(text_split[0]):
             if current_section == "":
                 raise Exception(f"Syntax error: Code block outside section (line {ln}: {line['text']})")
-            if current_label == "":
+            if current_label == "" or current_label not in sections[current_section]["blocks"]:
                 raise Exception(f"Syntax error: Opcode outside code block (line {ln}: {line['text']})")
-            opcode = parse_opcode(line)
+            opcode = opcode_processor.parse_opcode(line, constants)
             sections[current_section]["blocks"][current_label]["lines"].append(opcode)
-        elif text_split[0] in ["DB", "db", "DW", "dw"]:
+        elif text_split[0] in ["UINT8", "uint8", "UINT16", "uint16", "CHAR"]:
             if current_section == "":
                 raise Exception(f"Syntax error: Code block outside section (line {ln}: {line['text']})")
             if current_label == "":
                 raise Exception(f"Syntax error: Opcode outside code block (line {ln}: {line['text']})")
-            data = parse_data(line)
+            data = parse_data(line, constants)
             sections[current_section]["blocks"][current_label]["lines"].append(data)
         else:
             raise Exception(f"Syntax error: Garbage at line {ln}: {line['text']}")
 
-    constants = resolve_constants(constants)
-    sections = resolve_sections(constants, sections)
+    sections = resolve_sections(constants, sections, opcode_processor)
     return constants, sections
 
 #==== Binary Generation ====#
 
-def main(filename="test.asm"):
+def main(filename="test_new.asm"):
     with open(filename) as f:
         lines = f.read().split("\n")
     clean_lines = []
@@ -876,9 +884,14 @@ def main(filename="test.asm"):
     parsed = []
     for constant in constants:
         parsed.append(f"Constant {constant}: {constants[constant]}")
-    for section in sections:
-        parsed.append(f"Section {section}: {sections[section]}")
-    with open("parsed_file.txt", 'w') as f:
+    for section_name in sections:
+        parsed.append(f"Section {section_name} @{sections[section_name]["offset"]}:")
+        for block_name in sections[section_name]["blocks"]:
+            block = sections[section_name]["blocks"][block_name]
+            parsed.append(f"\t{block_name}: offset: {block["offset"]} size: {block["size"]} binary:{block["binary"]}")
+            for line in block["lines"]:
+                parsed.append(f"\t\t{line}")
+    with open("parsed_file_new.txt", 'w') as f:
         f.write("\n".join(parsed))
     with open("output_file.txt", 'w') as f:
         f.write("\n".join(disasm))
